@@ -29,6 +29,11 @@ If remote sync is needed, the remediation plan explicitly lists `grit sync --pul
 
 Rebuilds also compact the local DB because they rewrite it from scratch.
 
+## Limits to be aware of
+
+- Very large WALs will slow rebuilds without recent snapshots.
+- High push frequency can increase contention on `refs/grit/wal`; backoff/retry is required.
+
 ## Local DB maintenance
 
 The sled DB is a cache and can be safely deleted or rebuilt. Management is done via:
