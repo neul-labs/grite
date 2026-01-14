@@ -35,16 +35,18 @@ pub struct Event {
 - `issue_id` is a random 128-bit ID generated for `IssueCreated`.
 - `event_id` is content-addressed and deterministic.
 
-Actor IDs are assigned during `gems init` (or first run if missing) and stored in `.git/gems/actors/<actor_id>/config.toml`. Each agent should have its own `actor` and its own local data directory under `.git/gems/actors/<actor_id>/`.
+Actor IDs are assigned during `grit init` (or first run if missing) and stored in `.git/grit/actors/<actor_id>/config.toml`. Each agent should have its own `actor` and its own local data directory under `.git/grit/actors/<actor_id>/`.
 
 ## Canonical encoding and event hashing
 
 **Goal:** stable, cross-language hashing regardless of platform or serializer.
 
-- **Hash**: BLAKE3-256 (`[u8; 32]`)
+- **Hash**: BLAKE2b-256 (`[u8; 32]`)
 - **Preimage**: canonical CBOR encoding of a fixed-order array
 
-Hashing is independent of storage. The WAL chunk format may use `rkyv` for speed, but `event_id` is always computed from the canonical CBOR preimage described below.
+Hashing is independent of storage. WAL chunks use a portable CBOR encoding, while the local sled DB may use `rkyv` for compact on-disk values. `event_id` is always computed from the canonical CBOR preimage described below.
+
+Canonical test vectors live in `docs/hash-vectors.md`.
 
 The hash input is the following array (no maps):
 
@@ -93,6 +95,8 @@ The hash input is the following array (no maps):
 
 Clock skew is handled by ordering ties by `actor` as a stable secondary key.
 
+For deterministic output, `labels` and `assignees` are sorted lexicographically in projections and exports.
+
 ## Materialized view
 
 Key layout in `sled` (example):
@@ -101,3 +105,5 @@ Key layout in `sled` (example):
 - `issue_state/<issue_id>` -> `IssueProjection`
 - `issue_events/<issue_id>/<ts>/<event_id>` -> empty
 - `label_index/<label>/<issue_id>` -> empty
+
+The materialized view is a cache. It can be deleted and rebuilt from snapshots and the WAL at any time.

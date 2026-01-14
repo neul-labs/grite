@@ -1,12 +1,28 @@
 # Locking
 
-Gems uses lease-based locks stored as git refs. Locks are optional and designed for coordination, not enforcement.
+Grit uses lease-based locks stored as git refs. Locks are optional and designed for coordination, not enforcement.
 
 ## Lock refs
 
-- Ref format: `refs/gems/locks/<resource_hash>`
+- Ref format: `refs/grit/locks/<resource_hash>`
 - Payload: JSON with `owner`, `nonce`, `expires_unix_ms`, and `resource`.
 - Acquire by pushing a new commit to the lock ref if it is missing or expired.
+
+## Lock policy
+
+Lock policy is configured in `.git/grit/config.toml`:
+
+- `off`: no lock checks
+- `warn` (default): warn on conflicts, but continue
+- `require`: block write commands if a conflicting lock exists
+
+When `require` is enabled, the CLI must check locks before write operations such as:
+
+- `issue create/update/comment/close`
+- `snapshot`
+- `sync --push`
+
+An optional `pre-push` hook can enforce the same policy for users who prefer git-level gating.
 
 ## Namespaces and why they matter
 
@@ -39,4 +55,5 @@ A lock namespace is a prefix embedded in the resource string (for example `repo:
 - Acquire: create a new lock commit with a lease TTL
 - Renew: push a new commit extending expiry (owner must match)
 - Release: push a commit with expiry=0
-- GC: `gems lock gc` removes expired locks locally
+- Status: `grit lock status` reports current locks and conflicts
+- GC: `grit lock gc` removes expired locks locally

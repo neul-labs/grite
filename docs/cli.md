@@ -8,26 +8,32 @@
 
 ## Command overview
 
-- `gems init`
-- `gems actor init [--label <name>]`
-- `gems actor list [--json]`
-- `gems actor show [<id>] [--json]`
-- `gems actor current [--json]`
-- `gems actor use <id>`
-- `gems issue create --title ... --body ... --label ...`
-- `gems issue list --state open --label bug --json`
-- `gems issue show <id> --json`
-- `gems issue comment <id> --body ...`
-- `gems issue close <id> --reason done`
-- `gems sync [--pull] [--push]`
-- `gems doctor [--json] [--apply]`
-- `gems export --format md|json`
-- `gems snapshot`
-- `gems snapshot gc`
-- `gems lock acquire --resource <R> --ttl 15m`
-- `gems lock renew --resource <R> --ttl 15m`
-- `gems lock release --resource <R>`
-- `gems lock gc`
+- `grit init`
+- `grit actor init [--label <name>]`
+- `grit actor list [--json]`
+- `grit actor show [<id>] [--json]`
+- `grit actor current [--json]`
+- `grit actor use <id>`
+- `grit issue create --title ... --body ... --label ...`
+- `grit issue update <id> [--title ...] [--body ...]`
+- `grit issue list --state open --label bug --json`
+- `grit issue show <id> --json`
+- `grit issue comment <id> --body ...`
+- `grit issue close <id> --reason done`
+- `grit sync [--pull] [--push]`
+- `grit doctor [--json] [--apply]`
+- `grit rebuild`
+- `grit db stats [--json]`
+- `grit export --format md|json`
+- `grit snapshot`
+- `grit snapshot gc`
+- `grit lock acquire --resource <R> --ttl 15m`
+- `grit lock renew --resource <R> --ttl 15m`
+- `grit lock release --resource <R>`
+- `grit lock status [--json]`
+- `grit lock gc`
+- `grit daemon status [--json]`
+- `grit daemon stop`
 
 ## JSON output
 
@@ -37,27 +43,29 @@
 
 ## Data directory
 
-- `GEMS_HOME` or `--data-dir` sets the local state root for this process
-- Default is `.git/gems/actors/<actor_id>/`
+- `GRIT_HOME` or `--data-dir` sets the local state root for this process
+- Default is `.git/grit/actors/<actor_id>/`
 - Each concurrent agent should use a distinct data dir
+- If a daemon owns the selected data dir, the CLI routes all commands through it and does not open the DB directly
 
 ## Actor identity
 
-- `gems init` creates a default `actor_id` and writes `.git/gems/actors/<actor_id>/config.toml`
-- `gems actor init` creates an additional actor directory and prints the new ID
+- `grit init` creates a default `actor_id` and writes `.git/grit/actors/<actor_id>/config.toml`
+- `grit actor init` creates an additional actor directory and prints the new ID
 - If no actor config exists, commands may auto-initialize with a new `actor_id`
 
 ## Actor selection
 
 Actor context for a command is resolved in this order:
 
-1. `--data-dir` or `GEMS_HOME`
-2. `--actor <id>` (resolves to `.git/gems/actors/<id>/`)
-3. Repo default in `.git/gems/config.toml` (set by `gems actor use`)
+1. `--data-dir` or `GRIT_HOME`
+2. `--actor <id>` (resolves to `.git/grit/actors/<id>/`)
+3. Repo default in `.git/grit/config.toml` (set by `grit actor use`)
 4. Auto-init a new actor if none exists
 
 ## Export
 
-- `gems export --format json` emits a machine-readable export suitable for dashboards
-- `gems export --format md` emits a human-readable export
-- Export output is generated into `.gems/` by default and is never canonical
+- `grit export --format json` emits a machine-readable export suitable for dashboards
+- `grit export --format md` emits a human-readable export
+- `grit export --since <ts|event_id>` emits only changes after a point-in-time
+- Export output is generated into `.grit/` by default and is never canonical
