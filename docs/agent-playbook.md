@@ -56,5 +56,5 @@ If a lock is unavailable, pick another issue or coordinate in comments.
 Before closing:
 
 - Post verification notes (commands + expected output)
-- `grit issue close <ID> --reason done --json`
+- `grit issue close <ID> --json`
 - `grit sync --push --json`

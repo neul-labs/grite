@@ -76,6 +76,7 @@ Recommended model:
 - `REQ/REP` for command execution (`issue create`, `list`, `sync`, `doctor`, `snapshot`)
 - `PUB/SUB` for notifications
 - `SURVEY` for daemon discovery
+- Message schemas are defined in `docs/ipc.md`
 
 If IPC is unavailable and **no daemon lock is present** for the selected data dir, the CLI executes locally using its selected `--data-dir`.
 

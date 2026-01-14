@@ -19,7 +19,14 @@
 - `grit issue list --state open --label bug --json`
 - `grit issue show <id> --json`
 - `grit issue comment <id> --body ...`
-- `grit issue close <id> --reason done`
+- `grit issue close <id>`
+- `grit issue reopen <id>`
+- `grit issue label add <id> --label <label>`
+- `grit issue label remove <id> --label <label>`
+- `grit issue assignee add <id> --user <name>`
+- `grit issue assignee remove <id> --user <name>`
+- `grit issue link add <id> --url ... [--note ...]`
+- `grit issue attachment add <id> --name ... --sha256 ... --mime ...`
 - `grit sync [--pull] [--push]`
 - `grit doctor [--json] [--apply]`
 - `grit rebuild`
@@ -37,9 +44,10 @@
 
 ## JSON output
 
-- `--json` is supported on all read commands
+- `--json` is supported on all commands
 - `--quiet` suppresses human output for agents
 - Errors are returned with structured details
+- JSON schemas and error codes are defined in `docs/cli-json.md`
 
 ## Data directory
 
@@ -50,7 +58,8 @@
 
 ## Actor identity
 
-- `grit init` creates a default `actor_id` and writes `.git/grit/actors/<actor_id>/config.toml`
+- `grit init` creates a default `actor_id`, writes `.git/grit/actors/<actor_id>/config.toml`,
+  and sets `default_actor` in `.git/grit/config.toml`
 - `grit actor init` creates an additional actor directory and prints the new ID
 - If no actor config exists, commands may auto-initialize with a new `actor_id`
 

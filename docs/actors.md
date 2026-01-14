@@ -4,7 +4,7 @@ Actors identify who authored an event and provide per-agent local state isolatio
 
 ## Actor lifecycle
 
-- Created during `grit init` (default actor)
+- Created during `grit init` (default actor; also sets repo default)
 - Additional actors created via `grit actor init`
 - Metadata stored in `.git/grit/actors/<actor_id>/config.toml`
 

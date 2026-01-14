@@ -44,7 +44,7 @@ Exports are generated snapshots of the current materialized view and are never c
 ### Ordering rules
 
 - `issues` sorted by `issue_id` (lexicographic)
-- `events` sorted by `(issue_id, ts_unix_ms, event_id)`
+- `events` sorted by `(issue_id, ts_unix_ms, actor, event_id)`
 
 ## Markdown export
 
@@ -55,6 +55,6 @@ Markdown exports are human-readable summaries and follow the same ordering rules
 `grit export --since <ts|event_id>` limits output to changes after a point-in-time.
 
 - If `--since` is a timestamp: include events with `ts_unix_ms` **greater than** the timestamp.
-- If `--since` is an event ID: include events **after** that event in `(issue_id, ts_unix_ms, event_id)` order.
+- If `--since` is an event ID: include events **after** that event in `(issue_id, ts_unix_ms, actor, event_id)` order.
 
 The `meta.event_count` reflects the number of events included in the export.

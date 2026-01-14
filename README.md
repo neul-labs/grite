@@ -30,10 +30,13 @@ This repository contains the design, data model, and implementation roadmap need
 
 - `docs/architecture.md`
 - `docs/actors.md`
+- `docs/configuration.md`
 - `docs/data-model.md`
 - `docs/hash-vectors.md`
+- `docs/ipc.md`
 - `docs/git-wal.md`
 - `docs/cli.md`
+- `docs/cli-json.md`
 - `docs/daemon.md`
 - `docs/export-format.md`
 - `docs/agent-playbook.md`

@@ -29,6 +29,9 @@ pub struct Event {
 }
 ```
 
+`AttachmentAdded` carries only metadata and a content hash. Binary storage is
+out of scope for the WAL and must be handled by external systems if needed.
+
 ## IDs
 
 - `actor` is a random 128-bit ID generated per actor (typically one per device or agent).
@@ -77,12 +80,34 @@ The hash input is the following array (no maps):
 10: AttachmentAdded => [name, sha256, mime]
 ```
 
+### IssueState encoding
+
+`IssueState` values are encoded as lowercase strings:
+
+- `open`
+- `closed`
+
+The `StateChanged` payload encodes the string value directly in CBOR.
+
 ### Canonicalization rules
 
 - CBOR is encoded using canonical rules (RFC 8949). Arrays are encoded in order.
 - Strings are UTF-8 as provided.
 - For hashing only, `labels` in `IssueCreated` are sorted lexicographically to treat them as a set.
 - `sig` is **not** included in the hash; it may sign the `event_id` instead.
+
+## Signing and verification
+
+Signatures are optional. If present, `sig` is a detached signature over the
+raw 32-byte `event_id`. Recommended algorithm is Ed25519.
+
+Verification flow:
+
+1. Compute `event_id` from the canonical CBOR preimage.
+2. Verify `sig` against `event_id` using the actor's public key.
+
+Key distribution is out of scope for the WAL format; clients may load public
+keys from local config or external identity systems.
 
 ## Deterministic projection
 
@@ -91,9 +116,13 @@ The hash input is the following array (no maps):
 - Title/body: last-writer-wins by `(ts_unix_ms, actor)`
 - Labels/assignees: commutative add/remove operations
 - State: last-writer-wins by `(ts_unix_ms, actor)`
-- Comments: append-only list
+- Initial state is `open` on `IssueCreated` unless a later `StateChanged` overrides it.
+- Comments: append-only list in event order
+- Links: append-only list in event order
+- Attachments: append-only list in event order
 
-Clock skew is handled by ordering ties by `actor` as a stable secondary key.
+Clock skew is handled by ordering ties by `actor` as a stable secondary key,
+with `event_id` as a tertiary tie-breaker for total order.
 
 For deterministic output, `labels` and `assignees` are sorted lexicographically in projections and exports.
 

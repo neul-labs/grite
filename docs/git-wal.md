@@ -73,6 +73,39 @@ Snapshots are optional, monotonic optimization refs that speed rebuilds without 
 - A snapshot commit stores a compacted set of events plus a `snapshot.json` metadata file.
 - Rebuild uses the latest snapshot, then replays WAL commits after its `wal_head`.
 
+### Snapshot commit tree
+
+```
+snapshot.json
+events/0000.bin
+events/0001.bin
+```
+
+Snapshots may contain multiple chunk files. Chunks use the same `GRITCHNK`
+encoding as WAL chunks.
+
+### Snapshot semantics
+
+Snapshots must be replayable into the same materialized view as the WAL head
+they reference. They may be compacted (for example, by dropping events that are
+superseded by later last-writer-wins updates), but they must preserve:
+
+- The final issue state
+- All comments
+- All links
+- All attachments
+- All labels/assignees and their current membership
+
+### Snapshot metadata schema
+
+`snapshot.json` includes:
+
+- `schema_version`
+- `created_ts`
+- `wal_head` (commit hash)
+- `event_count` (total events encoded in snapshot chunks)
+- `chunks`: array of `{ path, chunk_hash, event_count }`
+
 ### When snapshots are created
 
 Snapshots are created opportunistically, even without an always-on daemon:
@@ -87,15 +120,5 @@ Suggested thresholds (configurable):
 
 - WAL events since last snapshot > 10,000
 - OR last snapshot older than 7 days
-
-### Snapshot metadata
-
-`snapshot.json` includes:
-
-- `schema_version`
-- `created_ts`
-- `wal_head` (commit hash)
-- `event_count`
-- `chunk_hash`
 
 Snapshots are never rewritten; older snapshots can be pruned with `grit snapshot gc`.
