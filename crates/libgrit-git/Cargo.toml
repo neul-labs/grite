@@ -1,0 +1,18 @@
+[package]
+name = "libgrit-git"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+libgrit-core = { path = "../libgrit-core" }
+git2 = { workspace = true }
+blake2 = { workspace = true }
+ciborium = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+hex = { workspace = true }
+chrono = { workspace = true }
+
+[dev-dependencies]
+tempfile = "3.10"

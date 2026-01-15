@@ -1,0 +1,74 @@
+{
+  "meta": {
+    "schema_version": 1,
+    "generated_ts": 1768515584469,
+    "event_count": 4
+  },
+  "issues": [
+    {
+      "issue_id": "e2b88da7c6292a532ebc9c468adb5b20",
+      "title": "Implement Git WAL",
+      "state": "closed",
+      "labels": [
+        "feature",
+        "milestone-2"
+      ],
+      "assignees": [
+        "alice"
+      ],
+      "updated_ts": 1768515572434,
+      "comment_count": 1
+    }
+  ],
+  "events": [
+    {
+      "event_id": "10c91e642d3548468c7eff3a4d053b87dda482a773c3c1a471514f0241b7e382",
+      "issue_id": "e2b88da7c6292a532ebc9c468adb5b20",
+      "actor": "64d15a2c383e2161772f9cea23e87222",
+      "ts_unix_ms": 1768515549529,
+      "kind": {
+        "IssueCreated": {
+          "body": "Add Git WAL support as per Milestone 2",
+          "labels": [
+            "feature",
+            "milestone-2"
+          ],
+          "title": "Implement Git WAL"
+        }
+      }
+    },
+    {
+      "event_id": "2bd6aa8206cb493cfeeb76a656c40d80da34bdd3e215fef2093c0aac50a87ffa",
+      "issue_id": "e2b88da7c6292a532ebc9c468adb5b20",
+      "actor": "64d15a2c383e2161772f9cea23e87222",
+      "ts_unix_ms": 1768515559377,
+      "kind": {
+        "CommentAdded": {
+          "body": "Starting work on this"
+        }
+      }
+    },
+    {
+      "event_id": "53fc583ed224c544ffd295e78992e8ba88046ce132981cfb3c91bc659743e6fa",
+      "issue_id": "e2b88da7c6292a532ebc9c468adb5b20",
+      "actor": "64d15a2c383e2161772f9cea23e87222",
+      "ts_unix_ms": 1768515563320,
+      "kind": {
+        "AssigneeAdded": {
+          "user": "alice"
+        }
+      }
+    },
+    {
+      "event_id": "23210b6fbb448e1411ca41418d30cf2f504547011544ccd99945197b08454f95",
+      "issue_id": "e2b88da7c6292a532ebc9c468adb5b20",
+      "actor": "64d15a2c383e2161772f9cea23e87222",
+      "ts_unix_ms": 1768515572434,
+      "kind": {
+        "StateChanged": {
+          "state": "closed"
+        }
+      }
+    }
+  ]
+}

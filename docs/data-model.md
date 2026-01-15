@@ -5,6 +5,11 @@
 All state changes are events. Issues are projections of the event stream.
 
 ```rust
+pub enum IssueState {
+  Open,
+  Closed,
+}
+
 pub enum EventKind {
   IssueCreated { title: String, body: String, labels: Vec<String> },
   IssueUpdated { title: Option<String>, body: Option<String> },

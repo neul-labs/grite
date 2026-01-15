@@ -1,0 +1,23 @@
+[package]
+name = "grit"
+version.workspace = true
+edition.workspace = true
+
+[[bin]]
+name = "grit"
+path = "src/main.rs"
+
+[dependencies]
+libgrit-core = { path = "../libgrit-core" }
+libgrit-git = { path = "../libgrit-git" }
+clap = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+hex = { workspace = true }
+chrono = { workspace = true }
+
+[dev-dependencies]
+assert_cmd = "2.0"
+predicates = "3.1"
+tempfile = "3.10"

@@ -95,7 +95,7 @@ For event objects:
 ### Ordering
 
 - Issue lists are sorted by `issue_id` (lexicographic).
-- Event lists are sorted by `(ts_unix_ms, actor, event_id)`.
+- Event lists are sorted by `(issue_id, ts_unix_ms, actor, event_id)`.
 
 ## Command outputs
 
