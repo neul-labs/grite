@@ -1,6 +1,8 @@
 use std::path::Path;
 use serde::{Deserialize, Serialize};
 use crate::error::GritError;
+use crate::lock::LockPolicy;
+use crate::signing::VerificationPolicy;
 use crate::types::actor::ActorConfig;
 
 /// Repo-level configuration stored in .git/grit/config.toml
@@ -12,6 +14,9 @@ pub struct RepoConfig {
     /// Lock policy: "off", "warn", or "require"
     #[serde(skip_serializing_if = "Option::is_none")]
     pub lock_policy: Option<String>,
+    /// Signature verification policy: "off", "warn", or "require"
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub verify_signatures: Option<String>,
     /// Snapshot configuration
     #[serde(skip_serializing_if = "Option::is_none")]
     pub snapshot: Option<SnapshotConfig>,
@@ -34,6 +39,24 @@ impl Default for SnapshotConfig {
             max_events: Some(10000),
             max_age_days: Some(7),
         }
+    }
+}
+
+impl RepoConfig {
+    /// Get the lock policy, defaulting to Warn if not set
+    pub fn get_lock_policy(&self) -> LockPolicy {
+        self.lock_policy
+            .as_ref()
+            .and_then(|s| LockPolicy::from_str(s))
+            .unwrap_or(LockPolicy::Warn)
+    }
+
+    /// Get the verification policy, defaulting to Off if not set
+    pub fn get_verification_policy(&self) -> VerificationPolicy {
+        self.verify_signatures
+            .as_ref()
+            .and_then(|s| VerificationPolicy::from_str(s))
+            .unwrap_or(VerificationPolicy::Off)
     }
 }
 
@@ -120,6 +143,17 @@ pub fn actor_sled_path(git_dir: &Path, actor_id: &str) -> std::path::PathBuf {
     actor_dir(git_dir, actor_id).join("sled")
 }
 
+/// Get the signing key path for an actor
+pub fn actor_signing_key_path(git_dir: &Path, actor_id: &str) -> std::path::PathBuf {
+    actor_dir(git_dir, actor_id).join("signing_key")
+}
+
+/// Load signing key for an actor (if present)
+pub fn load_signing_key(git_dir: &Path, actor_id: &str) -> Option<String> {
+    let key_path = actor_signing_key_path(git_dir, actor_id);
+    std::fs::read_to_string(key_path).ok()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -133,6 +167,7 @@ mod tests {
         let config = RepoConfig {
             default_actor: Some("00112233445566778899aabbccddeeff".to_string()),
             lock_policy: Some("warn".to_string()),
+            verify_signatures: Some("warn".to_string()),
             snapshot: Some(SnapshotConfig {
                 max_events: Some(5000),
                 max_age_days: Some(3),

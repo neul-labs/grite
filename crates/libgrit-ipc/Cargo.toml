@@ -1,25 +1,19 @@
 [package]
-name = "grit"
+name = "libgrit-ipc"
 version.workspace = true
 edition.workspace = true
-
-[[bin]]
-name = "grit"
-path = "src/main.rs"
+license.workspace = true
+rust-version.workspace = true
+description = "IPC types and client for grit daemon communication"
 
 [dependencies]
 libgrit-core = { path = "../libgrit-core" }
-libgrit-git = { path = "../libgrit-git" }
-libgrit-ipc = { path = "../libgrit-ipc" }
-clap = { workspace = true }
+rkyv = { workspace = true }
+nng = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
-hex = { workspace = true }
-chrono = { workspace = true }
 uuid = { workspace = true }
 
 [dev-dependencies]
-assert_cmd = "2.0"
-predicates = "3.1"
 tempfile = "3.10"

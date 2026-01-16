@@ -342,7 +342,7 @@ mod tests {
         let event2 = make_test_event(EventKind::CommentAdded {
             body: "A comment".to_string(),
         });
-        let oid2 = wal.append(&actor, &[event2.clone()]).unwrap();
+        let _oid2 = wal.append(&actor, &[event2.clone()]).unwrap();
 
         // Read all - should get both in order
         let events = wal.read_all().unwrap();

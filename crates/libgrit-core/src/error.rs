@@ -35,6 +35,9 @@ pub enum GritError {
 
     #[error("internal error: {0}")]
     Internal(String),
+
+    #[error("IPC error: {0}")]
+    Ipc(String),
 }
 
 impl GritError {
@@ -52,6 +55,7 @@ impl GritError {
             GritError::TomlSerialize(_) => "internal_error",
             GritError::IdParse(_) => "invalid_args",
             GritError::Internal(_) => "internal_error",
+            GritError::Ipc(_) => "ipc_error",
         }
     }
 
@@ -65,6 +69,7 @@ impl GritError {
             GritError::Io(_) => 5,
             GritError::Sled(_) => 5,
             GritError::IdParse(_) => 2,
+            GritError::Ipc(_) => 6,
             _ => 1,
         }
     }

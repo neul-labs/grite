@@ -1,10 +1,31 @@
 //! Sync command implementation
 
-use libgrit_core::GritError;
+use libgrit_core::{GritError, lock::LockCheckResult};
 use serde::Serialize;
 use crate::cli::Cli;
 use crate::context::GritContext;
 use crate::output::output_success;
+
+/// Check repo lock for push operations
+fn check_push_lock(cli: &Cli, ctx: &GritContext) -> Result<(), GritError> {
+    match ctx.check_lock("repo:global")? {
+        LockCheckResult::Clear => Ok(()),
+        LockCheckResult::Warning(conflicts) => {
+            if !cli.quiet {
+                for lock in &conflicts {
+                    eprintln!(
+                        "Warning: {} is locked by {} (expires in {}s)",
+                        lock.resource,
+                        lock.owner,
+                        lock.time_remaining_ms() / 1000
+                    );
+                }
+            }
+            Ok(())
+        }
+        LockCheckResult::Blocked(_) => unreachable!(),
+    }
+}
 
 #[derive(Serialize)]
 struct SyncOutput {
@@ -39,6 +60,11 @@ pub fn run(cli: &Cli, remote: String, pull_only: bool, push_only: bool) -> Resul
     // If neither flag is set, do both pull and push
     let do_pull = !push_only;
     let do_push = !pull_only;
+
+    // Check locks for push operations
+    if do_push {
+        check_push_lock(cli, &ctx)?;
+    }
 
     if do_pull && !do_push {
         // Pull only

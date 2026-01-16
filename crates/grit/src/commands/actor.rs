@@ -2,6 +2,7 @@ use libgrit_core::{
     config::{save_repo_config, save_actor_config, load_repo_config, load_actor_config, actor_dir, list_actors},
     types::actor::ActorConfig,
     types::ids::{generate_actor_id, id_to_hex},
+    signing::SigningKeyPair,
     GritError,
 };
 use serde::Serialize;
@@ -14,6 +15,8 @@ struct ActorInitOutput {
     actor_id: String,
     label: Option<String>,
     data_dir: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    public_key: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -38,6 +41,10 @@ struct ActorDetail {
     actor_id: String,
     label: Option<String>,
     created_ts: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    public_key: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    key_scheme: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -55,7 +62,7 @@ struct ActorUseOutput {
 
 pub fn run(cli: &Cli, cmd: ActorCommand) -> Result<(), GritError> {
     match cmd {
-        ActorCommand::Init { label } => run_init(cli, label),
+        ActorCommand::Init { label, generate_key } => run_init(cli, label, generate_key),
         ActorCommand::List => run_list(cli),
         ActorCommand::Show { id } => run_show(cli, id),
         ActorCommand::Current => run_current(cli),
@@ -63,20 +70,37 @@ pub fn run(cli: &Cli, cmd: ActorCommand) -> Result<(), GritError> {
     }
 }
 
-fn run_init(cli: &Cli, label: Option<String>) -> Result<(), GritError> {
+fn run_init(cli: &Cli, label: Option<String>, generate_key: bool) -> Result<(), GritError> {
     let git_dir = GritContext::find_git_dir()?;
 
     let actor_id = generate_actor_id();
     let actor_id_hex = id_to_hex(&actor_id);
     let data_dir = actor_dir(&git_dir, &actor_id_hex);
 
-    let config = ActorConfig::new(actor_id, label.clone());
+    let mut config = ActorConfig::new(actor_id, label.clone());
+    let mut public_key = None;
+
+    if generate_key {
+        let keypair = SigningKeyPair::generate();
+        public_key = Some(keypair.public_key_hex());
+
+        // Store public key in actor config
+        config.public_key = public_key.clone();
+        config.key_scheme = Some("ed25519".to_string());
+
+        // Store private key seed in separate file (hex-encoded)
+        std::fs::create_dir_all(&data_dir)?;
+        let signing_key_path = data_dir.join("signing_key");
+        std::fs::write(&signing_key_path, keypair.seed_hex())?;
+    }
+
     save_actor_config(&data_dir, &config)?;
 
     output_success(cli, ActorInitOutput {
         actor_id: actor_id_hex,
         label,
         data_dir: data_dir.to_string_lossy().to_string(),
+        public_key,
     });
 
     Ok(())
@@ -123,6 +147,8 @@ fn run_show(cli: &Cli, id: Option<String>) -> Result<(), GritError> {
             actor_id: config.actor_id,
             label: config.label,
             created_ts: config.created_ts,
+            public_key: config.public_key,
+            key_scheme: config.key_scheme,
         },
     });
 

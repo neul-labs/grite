@@ -5,6 +5,9 @@ pub mod store;
 pub mod config;
 pub mod export;
 pub mod error;
+pub mod lock;
+pub mod signing;
+pub mod integrity;
 
 pub use error::GritError;
 pub use types::{ActorId, EventId, IssueId};
@@ -12,4 +15,6 @@ pub use types::event::{Event, EventKind, IssueState};
 pub use types::issue::{IssueProjection, IssueSummary};
 pub use types::actor::ActorConfig;
 pub use store::GritStore;
-pub use config::{RepoConfig, load_repo_config, save_repo_config};
+pub use config::{RepoConfig, load_repo_config, save_repo_config, load_signing_key};
+pub use lock::{Lock, LockPolicy, LockCheckResult, LockStatus, resource_hash, DEFAULT_LOCK_TTL_MS};
+pub use signing::{SigningKeyPair, VerificationPolicy, SigningError, verify_signature};

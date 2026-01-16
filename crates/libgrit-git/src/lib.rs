@@ -11,9 +11,11 @@ mod chunk;
 mod wal;
 mod snapshot;
 mod sync;
+mod lock_manager;
 
 pub use error::GitError;
 pub use chunk::{encode_chunk, decode_chunk, chunk_hash, CHUNK_MAGIC, CHUNK_VERSION, CHUNK_CODEC};
 pub use wal::{WalManager, WalCommit};
 pub use snapshot::{SnapshotManager, SnapshotRef, SnapshotMeta};
 pub use sync::{SyncManager, PullResult, PushResult};
+pub use lock_manager::{LockManager, LockGcStats};

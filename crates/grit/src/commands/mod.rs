@@ -6,3 +6,5 @@ pub mod export;
 pub mod rebuild;
 pub mod sync;
 pub mod snapshot;
+pub mod daemon;
+pub mod lock;

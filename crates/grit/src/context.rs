@@ -1,11 +1,15 @@
 use std::path::PathBuf;
 use libgrit_core::{
-    config::{load_repo_config, save_repo_config, load_actor_config, save_actor_config, actor_dir, list_actors, RepoConfig},
+    config::{load_repo_config, save_repo_config, load_actor_config, save_actor_config, actor_dir, list_actors, RepoConfig, load_signing_key},
+    lock::{LockPolicy, LockCheckResult},
+    signing::SigningKeyPair,
     types::actor::ActorConfig,
+    types::event::Event,
     types::ids::{generate_actor_id, id_to_hex},
     GritStore, GritError,
 };
-use libgrit_git::{WalManager, SnapshotManager, SyncManager, GitError};
+use libgrit_git::{WalManager, SnapshotManager, SyncManager, LockManager, GitError};
+use libgrit_ipc::{DaemonLock, IpcClient};
 use crate::cli::Cli;
 
 /// Source of actor selection
@@ -24,6 +28,35 @@ impl ActorSource {
             ActorSource::Flag => "flag",
             ActorSource::RepoDefault => "repo_default",
             ActorSource::Auto => "auto",
+        }
+    }
+}
+
+/// Execution mode for commands
+pub enum ExecutionMode {
+    /// Execute locally (no daemon or daemon skipped)
+    Local,
+    /// Route through daemon via IPC
+    Daemon {
+        client: IpcClient,
+        endpoint: String,
+    },
+    /// Daemon lock is valid but IPC unreachable
+    Blocked {
+        lock: DaemonLock,
+    },
+}
+
+impl std::fmt::Debug for ExecutionMode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ExecutionMode::Local => write!(f, "Local"),
+            ExecutionMode::Daemon { endpoint, .. } => {
+                write!(f, "Daemon {{ endpoint: {} }}", endpoint)
+            }
+            ExecutionMode::Blocked { lock } => {
+                write!(f, "Blocked {{ pid: {}, expires_in: {}ms }}", lock.pid, lock.time_remaining_ms())
+            }
         }
     }
 }
@@ -183,5 +216,120 @@ impl GritContext {
     /// Open the sync manager
     pub fn open_sync(&self) -> Result<SyncManager, GitError> {
         SyncManager::open(&self.git_dir)
+    }
+
+    /// Open the lock manager
+    pub fn open_lock_manager(&self) -> Result<LockManager, GitError> {
+        LockManager::open(&self.git_dir)
+    }
+
+    /// Get the lock policy from repo config
+    pub fn get_lock_policy(&self) -> LockPolicy {
+        load_repo_config(&self.git_dir)
+            .ok()
+            .flatten()
+            .map(|c| c.get_lock_policy())
+            .unwrap_or(LockPolicy::Warn)
+    }
+
+    /// Check locks for a resource before a write operation
+    ///
+    /// Returns Ok(LockCheckResult) if operation can proceed (possibly with warnings),
+    /// or Err if blocked by lock policy.
+    pub fn check_lock(&self, resource: &str) -> Result<LockCheckResult, GritError> {
+        let policy = self.get_lock_policy();
+        if policy == LockPolicy::Off {
+            return Ok(LockCheckResult::Clear);
+        }
+
+        let lock_manager = self.open_lock_manager()
+            .map_err(|e| GritError::Internal(e.to_string()))?;
+
+        let result = lock_manager.check_conflicts(resource, &self.actor_id, policy)
+            .map_err(|e| GritError::Internal(e.to_string()))?;
+
+        if let LockCheckResult::Blocked(ref conflicts) = result {
+            let conflict_desc: Vec<String> = conflicts.iter()
+                .map(|l| format!("{} (owned by {}, expires in {}s)",
+                    l.resource, l.owner, l.time_remaining_ms() / 1000))
+                .collect();
+            return Err(GritError::Conflict(format!(
+                "Blocked by lock policy: {}",
+                conflict_desc.join(", ")
+            )));
+        }
+
+        Ok(result)
+    }
+
+    /// Get the repository root path
+    pub fn repo_root(&self) -> PathBuf {
+        self.git_dir.parent().unwrap_or(&self.git_dir).to_path_buf()
+    }
+
+    /// Load the signing key pair for this actor (if available)
+    pub fn load_signing_key(&self) -> Option<SigningKeyPair> {
+        load_signing_key(&self.git_dir, &self.actor_id)
+            .and_then(|seed_hex| SigningKeyPair::from_seed_hex(&seed_hex).ok())
+    }
+
+    /// Sign an event if a signing key is available
+    ///
+    /// Returns the event with the signature field set if a key exists,
+    /// otherwise returns the event unchanged.
+    pub fn sign_event(&self, mut event: Event) -> Event {
+        if let Some(keypair) = self.load_signing_key() {
+            event.sig = Some(keypair.sign_event(&event));
+        }
+        event
+    }
+
+    /// Determine execution mode (local vs daemon)
+    ///
+    /// Resolution order:
+    /// 1. If --no-daemon flag is set, always use Local
+    /// 2. Check for daemon.lock file in data directory
+    /// 3. If lock exists and is valid, try to connect to daemon
+    /// 4. If connection succeeds, return Daemon mode
+    /// 5. If lock is valid but connection fails, return Blocked
+    /// 6. If no lock or lock is expired, return Local
+    pub fn execution_mode(&self, no_daemon: bool) -> ExecutionMode {
+        // 1. Check --no-daemon flag
+        if no_daemon {
+            return ExecutionMode::Local;
+        }
+
+        // 2. Check for daemon lock
+        match DaemonLock::read(&self.data_dir) {
+            Ok(Some(lock)) => {
+                // 3. Check if lock is still valid
+                if lock.is_expired() {
+                    // Lock expired, can execute locally
+                    return ExecutionMode::Local;
+                }
+
+                // 4. Try to connect to daemon
+                match IpcClient::connect(&lock.ipc_endpoint) {
+                    Ok(client) => {
+                        ExecutionMode::Daemon {
+                            endpoint: lock.ipc_endpoint.clone(),
+                            client,
+                        }
+                    }
+                    Err(_) => {
+                        // 5. Lock valid but can't connect - blocked
+                        ExecutionMode::Blocked { lock }
+                    }
+                }
+            }
+            Ok(None) => {
+                // No lock file, execute locally
+                ExecutionMode::Local
+            }
+            Err(_) => {
+                // Error reading lock, execute locally
+                ExecutionMode::Local
+            }
+        }
     }
 }

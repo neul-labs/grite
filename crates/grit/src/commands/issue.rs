@@ -1,16 +1,108 @@
 use libgrit_core::{
     hash::compute_event_id,
+    lock::LockCheckResult,
     types::event::{Event, EventKind, IssueState},
     types::ids::{generate_issue_id, id_to_hex, hex_to_id, parse_issue_id},
     types::issue::IssueSummary,
     store::IssueFilter,
     GritError,
 };
+use libgrit_git;
 use serde::Serialize;
 use crate::cli::{Cli, IssueCommand, LabelCommand, AssigneeCommand, LinkCommand, AttachmentCommand};
 use crate::context::GritContext;
 use crate::output::output_success;
 use crate::event_helper::insert_and_append;
+
+/// Check lock for an issue operation
+///
+/// Returns Ok(()) if operation can proceed, with warnings printed to stderr if applicable.
+/// Returns Err if blocked by lock policy.
+fn check_issue_lock(cli: &Cli, ctx: &GritContext, issue_id_hex: &str) -> Result<(), GritError> {
+    let resource = format!("issue:{}", issue_id_hex);
+    match ctx.check_lock(&resource)? {
+        LockCheckResult::Clear => Ok(()),
+        LockCheckResult::Warning(conflicts) => {
+            if !cli.quiet {
+                for lock in &conflicts {
+                    eprintln!(
+                        "Warning: {} is locked by {} (expires in {}s)",
+                        lock.resource,
+                        lock.owner,
+                        lock.time_remaining_ms() / 1000
+                    );
+                }
+            }
+            Ok(())
+        }
+        LockCheckResult::Blocked(_) => {
+            // This case is handled by ctx.check_lock returning Err
+            unreachable!()
+        }
+    }
+}
+
+/// Check repo-level lock (for issue creation)
+fn check_repo_lock(cli: &Cli, ctx: &GritContext) -> Result<(), GritError> {
+    match ctx.check_lock("repo:global")? {
+        LockCheckResult::Clear => Ok(()),
+        LockCheckResult::Warning(conflicts) => {
+            if !cli.quiet {
+                for lock in &conflicts {
+                    eprintln!(
+                        "Warning: {} is locked by {} (expires in {}s)",
+                        lock.resource,
+                        lock.owner,
+                        lock.time_remaining_ms() / 1000
+                    );
+                }
+            }
+            Ok(())
+        }
+        LockCheckResult::Blocked(_) => unreachable!(),
+    }
+}
+
+/// RAII guard for auto-releasing locks
+struct LockGuard<'a> {
+    ctx: &'a GritContext,
+    resource: String,
+    acquired: bool,
+}
+
+impl<'a> LockGuard<'a> {
+    /// Acquire a lock if requested
+    fn acquire(ctx: &'a GritContext, issue_id_hex: &str, should_lock: bool) -> Result<Self, GritError> {
+        let resource = format!("issue:{}", issue_id_hex);
+        if should_lock {
+            let lock_manager = ctx.open_lock_manager()
+                .map_err(|e| GritError::Internal(e.to_string()))?;
+            lock_manager.acquire(&resource, &ctx.actor_id, None)
+                .map_err(|e| match e {
+                    libgrit_git::GitError::LockConflict { resource, owner, expires_in_ms } => {
+                        GritError::Conflict(format!(
+                            "Cannot acquire lock on {} - held by {} (expires in {}s)",
+                            resource, owner, expires_in_ms / 1000
+                        ))
+                    }
+                    _ => GritError::Internal(e.to_string()),
+                })?;
+            Ok(Self { ctx, resource, acquired: true })
+        } else {
+            Ok(Self { ctx, resource, acquired: false })
+        }
+    }
+}
+
+impl<'a> Drop for LockGuard<'a> {
+    fn drop(&mut self) {
+        if self.acquired {
+            if let Ok(lock_manager) = self.ctx.open_lock_manager() {
+                let _ = lock_manager.release(&self.resource, &self.ctx.actor_id);
+            }
+        }
+    }
+}
 
 #[derive(Serialize)]
 struct IssueCreateOutput {
@@ -86,10 +178,10 @@ pub fn run(cli: &Cli, cmd: IssueCommand) -> Result<(), GritError> {
         IssueCommand::Create { title, body, label } => run_create(cli, title, body, label),
         IssueCommand::List { state, label } => run_list(cli, state, label),
         IssueCommand::Show { id } => run_show(cli, id),
-        IssueCommand::Update { id, title, body } => run_update(cli, id, title, body),
-        IssueCommand::Comment { id, body } => run_comment(cli, id, body),
-        IssueCommand::Close { id } => run_close(cli, id),
-        IssueCommand::Reopen { id } => run_reopen(cli, id),
+        IssueCommand::Update { id, title, body, lock } => run_update(cli, id, title, body, lock),
+        IssueCommand::Comment { id, body, lock } => run_comment(cli, id, body, lock),
+        IssueCommand::Close { id, lock } => run_close(cli, id, lock),
+        IssueCommand::Reopen { id, lock } => run_reopen(cli, id, lock),
         IssueCommand::Label { cmd } => run_label(cli, cmd),
         IssueCommand::Assignee { cmd } => run_assignee(cli, cmd),
         IssueCommand::Link { cmd } => run_link(cli, cmd),
@@ -106,6 +198,10 @@ fn current_ts() -> u64 {
 
 fn run_create(cli: &Cli, title: String, body: String, labels: Vec<String>) -> Result<(), GritError> {
     let ctx = GritContext::resolve(cli)?;
+
+    // Check for repo-level locks before creating
+    check_repo_lock(cli, &ctx)?;
+
     let store = ctx.open_store()?;
     let wal = ctx.open_wal().map_err(|e| GritError::Internal(e.to_string()))?;
     let actor = ctx.actor_config.actor_id_bytes()?;
@@ -115,6 +211,7 @@ fn run_create(cli: &Cli, title: String, body: String, labels: Vec<String>) -> Re
     let kind = EventKind::IssueCreated { title, body, labels };
     let event_id = compute_event_id(&issue_id, &actor, ts, None, &kind);
     let event = Event::new(event_id, issue_id, actor, ts, None, kind);
+    let event = ctx.sign_event(event);
 
     let result = insert_and_append(&store, &wal, &actor, &event)?;
 
@@ -183,12 +280,19 @@ fn run_show(cli: &Cli, id: String) -> Result<(), GritError> {
     Ok(())
 }
 
-fn run_update(cli: &Cli, id: String, title: Option<String>, body: Option<String>) -> Result<(), GritError> {
+fn run_update(cli: &Cli, id: String, title: Option<String>, body: Option<String>, lock: bool) -> Result<(), GritError> {
     if title.is_none() && body.is_none() {
         return Err(GritError::InvalidArgs("At least one of --title or --body must be provided".to_string()));
     }
 
     let ctx = GritContext::resolve(cli)?;
+
+    // Acquire lock if requested (or just check for conflicts)
+    let _lock_guard = LockGuard::acquire(&ctx, &id, lock)?;
+    if !lock {
+        check_issue_lock(cli, &ctx, &id)?;
+    }
+
     let store = ctx.open_store()?;
     let wal = ctx.open_wal().map_err(|e| GritError::Internal(e.to_string()))?;
     let actor = ctx.actor_config.actor_id_bytes()?;
@@ -203,6 +307,7 @@ fn run_update(cli: &Cli, id: String, title: Option<String>, body: Option<String>
     let kind = EventKind::IssueUpdated { title, body };
     let event_id = compute_event_id(&issue_id, &actor, ts, None, &kind);
     let event = Event::new(event_id, issue_id, actor, ts, None, kind);
+    let event = ctx.sign_event(event);
 
     let result = insert_and_append(&store, &wal, &actor, &event)?;
 
@@ -215,8 +320,15 @@ fn run_update(cli: &Cli, id: String, title: Option<String>, body: Option<String>
     Ok(())
 }
 
-fn run_comment(cli: &Cli, id: String, body: String) -> Result<(), GritError> {
+fn run_comment(cli: &Cli, id: String, body: String, lock: bool) -> Result<(), GritError> {
     let ctx = GritContext::resolve(cli)?;
+
+    // Acquire lock if requested (or just check for conflicts)
+    let _lock_guard = LockGuard::acquire(&ctx, &id, lock)?;
+    if !lock {
+        check_issue_lock(cli, &ctx, &id)?;
+    }
+
     let store = ctx.open_store()?;
     let wal = ctx.open_wal().map_err(|e| GritError::Internal(e.to_string()))?;
     let actor = ctx.actor_config.actor_id_bytes()?;
@@ -231,6 +343,7 @@ fn run_comment(cli: &Cli, id: String, body: String) -> Result<(), GritError> {
     let kind = EventKind::CommentAdded { body };
     let event_id = compute_event_id(&issue_id, &actor, ts, None, &kind);
     let event = Event::new(event_id, issue_id, actor, ts, None, kind);
+    let event = ctx.sign_event(event);
 
     let result = insert_and_append(&store, &wal, &actor, &event)?;
 
@@ -243,8 +356,15 @@ fn run_comment(cli: &Cli, id: String, body: String) -> Result<(), GritError> {
     Ok(())
 }
 
-fn run_close(cli: &Cli, id: String) -> Result<(), GritError> {
+fn run_close(cli: &Cli, id: String, lock: bool) -> Result<(), GritError> {
     let ctx = GritContext::resolve(cli)?;
+
+    // Acquire lock if requested (or just check for conflicts)
+    let _lock_guard = LockGuard::acquire(&ctx, &id, lock)?;
+    if !lock {
+        check_issue_lock(cli, &ctx, &id)?;
+    }
+
     let store = ctx.open_store()?;
     let wal = ctx.open_wal().map_err(|e| GritError::Internal(e.to_string()))?;
     let actor = ctx.actor_config.actor_id_bytes()?;
@@ -259,6 +379,7 @@ fn run_close(cli: &Cli, id: String) -> Result<(), GritError> {
     let kind = EventKind::StateChanged { state: IssueState::Closed };
     let event_id = compute_event_id(&issue_id, &actor, ts, None, &kind);
     let event = Event::new(event_id, issue_id, actor, ts, None, kind);
+    let event = ctx.sign_event(event);
 
     let result = insert_and_append(&store, &wal, &actor, &event)?;
 
@@ -272,8 +393,15 @@ fn run_close(cli: &Cli, id: String) -> Result<(), GritError> {
     Ok(())
 }
 
-fn run_reopen(cli: &Cli, id: String) -> Result<(), GritError> {
+fn run_reopen(cli: &Cli, id: String, lock: bool) -> Result<(), GritError> {
     let ctx = GritContext::resolve(cli)?;
+
+    // Acquire lock if requested (or just check for conflicts)
+    let _lock_guard = LockGuard::acquire(&ctx, &id, lock)?;
+    if !lock {
+        check_issue_lock(cli, &ctx, &id)?;
+    }
+
     let store = ctx.open_store()?;
     let wal = ctx.open_wal().map_err(|e| GritError::Internal(e.to_string()))?;
     let actor = ctx.actor_config.actor_id_bytes()?;
@@ -288,6 +416,7 @@ fn run_reopen(cli: &Cli, id: String) -> Result<(), GritError> {
     let kind = EventKind::StateChanged { state: IssueState::Open };
     let event_id = compute_event_id(&issue_id, &actor, ts, None, &kind);
     let event = Event::new(event_id, issue_id, actor, ts, None, kind);
+    let event = ctx.sign_event(event);
 
     let result = insert_and_append(&store, &wal, &actor, &event)?;
 
@@ -303,8 +432,12 @@ fn run_reopen(cli: &Cli, id: String) -> Result<(), GritError> {
 
 fn run_label(cli: &Cli, cmd: LabelCommand) -> Result<(), GritError> {
     match cmd {
-        LabelCommand::Add { id, label } => {
+        LabelCommand::Add { id, label, lock } => {
             let ctx = GritContext::resolve(cli)?;
+            let _lock_guard = LockGuard::acquire(&ctx, &id, lock)?;
+            if !lock {
+                check_issue_lock(cli, &ctx, &id)?;
+            }
             let store = ctx.open_store()?;
             let wal = ctx.open_wal().map_err(|e| GritError::Internal(e.to_string()))?;
             let actor = ctx.actor_config.actor_id_bytes()?;
@@ -317,6 +450,7 @@ fn run_label(cli: &Cli, cmd: LabelCommand) -> Result<(), GritError> {
             let kind = EventKind::LabelAdded { label };
             let event_id = compute_event_id(&issue_id, &actor, ts, None, &kind);
             let event = Event::new(event_id, issue_id, actor, ts, None, kind);
+            let event = ctx.sign_event(event);
 
             let result = insert_and_append(&store, &wal, &actor, &event)?;
 
@@ -326,8 +460,12 @@ fn run_label(cli: &Cli, cmd: LabelCommand) -> Result<(), GritError> {
                 wal_head: result.wal_head,
             });
         }
-        LabelCommand::Remove { id, label } => {
+        LabelCommand::Remove { id, label, lock } => {
             let ctx = GritContext::resolve(cli)?;
+            let _lock_guard = LockGuard::acquire(&ctx, &id, lock)?;
+            if !lock {
+                check_issue_lock(cli, &ctx, &id)?;
+            }
             let store = ctx.open_store()?;
             let wal = ctx.open_wal().map_err(|e| GritError::Internal(e.to_string()))?;
             let actor = ctx.actor_config.actor_id_bytes()?;
@@ -340,6 +478,7 @@ fn run_label(cli: &Cli, cmd: LabelCommand) -> Result<(), GritError> {
             let kind = EventKind::LabelRemoved { label };
             let event_id = compute_event_id(&issue_id, &actor, ts, None, &kind);
             let event = Event::new(event_id, issue_id, actor, ts, None, kind);
+            let event = ctx.sign_event(event);
 
             let result = insert_and_append(&store, &wal, &actor, &event)?;
 
@@ -355,8 +494,12 @@ fn run_label(cli: &Cli, cmd: LabelCommand) -> Result<(), GritError> {
 
 fn run_assignee(cli: &Cli, cmd: AssigneeCommand) -> Result<(), GritError> {
     match cmd {
-        AssigneeCommand::Add { id, user } => {
+        AssigneeCommand::Add { id, user, lock } => {
             let ctx = GritContext::resolve(cli)?;
+            let _lock_guard = LockGuard::acquire(&ctx, &id, lock)?;
+            if !lock {
+                check_issue_lock(cli, &ctx, &id)?;
+            }
             let store = ctx.open_store()?;
             let wal = ctx.open_wal().map_err(|e| GritError::Internal(e.to_string()))?;
             let actor = ctx.actor_config.actor_id_bytes()?;
@@ -369,6 +512,7 @@ fn run_assignee(cli: &Cli, cmd: AssigneeCommand) -> Result<(), GritError> {
             let kind = EventKind::AssigneeAdded { user };
             let event_id = compute_event_id(&issue_id, &actor, ts, None, &kind);
             let event = Event::new(event_id, issue_id, actor, ts, None, kind);
+            let event = ctx.sign_event(event);
 
             let result = insert_and_append(&store, &wal, &actor, &event)?;
 
@@ -378,8 +522,12 @@ fn run_assignee(cli: &Cli, cmd: AssigneeCommand) -> Result<(), GritError> {
                 wal_head: result.wal_head,
             });
         }
-        AssigneeCommand::Remove { id, user } => {
+        AssigneeCommand::Remove { id, user, lock } => {
             let ctx = GritContext::resolve(cli)?;
+            let _lock_guard = LockGuard::acquire(&ctx, &id, lock)?;
+            if !lock {
+                check_issue_lock(cli, &ctx, &id)?;
+            }
             let store = ctx.open_store()?;
             let wal = ctx.open_wal().map_err(|e| GritError::Internal(e.to_string()))?;
             let actor = ctx.actor_config.actor_id_bytes()?;
@@ -392,6 +540,7 @@ fn run_assignee(cli: &Cli, cmd: AssigneeCommand) -> Result<(), GritError> {
             let kind = EventKind::AssigneeRemoved { user };
             let event_id = compute_event_id(&issue_id, &actor, ts, None, &kind);
             let event = Event::new(event_id, issue_id, actor, ts, None, kind);
+            let event = ctx.sign_event(event);
 
             let result = insert_and_append(&store, &wal, &actor, &event)?;
 
@@ -407,8 +556,12 @@ fn run_assignee(cli: &Cli, cmd: AssigneeCommand) -> Result<(), GritError> {
 
 fn run_link(cli: &Cli, cmd: LinkCommand) -> Result<(), GritError> {
     match cmd {
-        LinkCommand::Add { id, url, note } => {
+        LinkCommand::Add { id, url, note, lock } => {
             let ctx = GritContext::resolve(cli)?;
+            let _lock_guard = LockGuard::acquire(&ctx, &id, lock)?;
+            if !lock {
+                check_issue_lock(cli, &ctx, &id)?;
+            }
             let store = ctx.open_store()?;
             let wal = ctx.open_wal().map_err(|e| GritError::Internal(e.to_string()))?;
             let actor = ctx.actor_config.actor_id_bytes()?;
@@ -421,6 +574,7 @@ fn run_link(cli: &Cli, cmd: LinkCommand) -> Result<(), GritError> {
             let kind = EventKind::LinkAdded { url, note };
             let event_id = compute_event_id(&issue_id, &actor, ts, None, &kind);
             let event = Event::new(event_id, issue_id, actor, ts, None, kind);
+            let event = ctx.sign_event(event);
 
             let result = insert_and_append(&store, &wal, &actor, &event)?;
 
@@ -436,8 +590,12 @@ fn run_link(cli: &Cli, cmd: LinkCommand) -> Result<(), GritError> {
 
 fn run_attachment(cli: &Cli, cmd: AttachmentCommand) -> Result<(), GritError> {
     match cmd {
-        AttachmentCommand::Add { id, name, sha256, mime } => {
+        AttachmentCommand::Add { id, name, sha256, mime, lock } => {
             let ctx = GritContext::resolve(cli)?;
+            let _lock_guard = LockGuard::acquire(&ctx, &id, lock)?;
+            if !lock {
+                check_issue_lock(cli, &ctx, &id)?;
+            }
             let store = ctx.open_store()?;
             let wal = ctx.open_wal().map_err(|e| GritError::Internal(e.to_string()))?;
             let actor = ctx.actor_config.actor_id_bytes()?;
@@ -452,6 +610,7 @@ fn run_attachment(cli: &Cli, cmd: AttachmentCommand) -> Result<(), GritError> {
             let kind = EventKind::AttachmentAdded { name, sha256: sha256_bytes, mime };
             let event_id = compute_event_id(&issue_id, &actor, ts, None, &kind);
             let event = Event::new(event_id, issue_id, actor, ts, None, kind);
+            let event = ctx.sign_event(event);
 
             let result = insert_and_append(&store, &wal, &actor, &event)?;
 

@@ -32,4 +32,20 @@ pub enum GitError {
 
     #[error("Not a git repository")]
     NotARepo,
+
+    #[error("Parse error: {0}")]
+    ParseError(String),
+
+    #[error("Lock conflict: {resource} is locked by {owner} (expires in {expires_in_ms}ms)")]
+    LockConflict {
+        resource: String,
+        owner: String,
+        expires_in_ms: u64,
+    },
+
+    #[error("Lock not owned: {resource} is owned by {owner}")]
+    LockNotOwned {
+        resource: String,
+        owner: String,
+    },
 }

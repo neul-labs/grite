@@ -41,3 +41,11 @@
 - Corruption recovery
 - Security (signing and verification)
 - DB maintenance (`grit db stats`, rebuild thresholds)
+
+## Milestone 6: Future Directions
+
+- Remote collaboration (GitHub/GitLab integration, remote sync workflows)
+- UI/TUI (Terminal UI or web dashboard)
+- Advanced queries (search, filters, saved views)
+- Webhooks/Automation (CI integration, triggers)
+- Import/Migration (from GitHub Issues, Jira, etc.)

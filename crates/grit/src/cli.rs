@@ -20,6 +20,10 @@ pub struct Cli {
     #[arg(long, global = true)]
     pub actor: Option<String>,
 
+    /// Force local execution (skip daemon)
+    #[arg(long, global = true)]
+    pub no_daemon: bool,
+
     #[command(subcommand)]
     pub command: Command,
 }
@@ -81,6 +85,18 @@ pub enum Command {
         #[command(subcommand)]
         cmd: SnapshotCommand,
     },
+
+    /// Daemon management
+    Daemon {
+        #[command(subcommand)]
+        cmd: DaemonCommand,
+    },
+
+    /// Lock management for team coordination
+    Lock {
+        #[command(subcommand)]
+        cmd: LockCommand,
+    },
 }
 
 #[derive(Clone, Subcommand)]
@@ -90,6 +106,10 @@ pub enum ActorCommand {
         /// Human-friendly label for the actor
         #[arg(long)]
         label: Option<String>,
+
+        /// Generate Ed25519 signing key for this actor
+        #[arg(long)]
+        generate_key: bool,
     },
 
     /// List all actors
@@ -157,6 +177,10 @@ pub enum IssueCommand {
         /// New body
         #[arg(long)]
         body: Option<String>,
+
+        /// Acquire lock before operation, release after
+        #[arg(long)]
+        lock: bool,
     },
 
     /// Add a comment to an issue
@@ -167,18 +191,30 @@ pub enum IssueCommand {
         /// Comment body
         #[arg(long)]
         body: String,
+
+        /// Acquire lock before operation, release after
+        #[arg(long)]
+        lock: bool,
     },
 
     /// Close an issue
     Close {
         /// Issue ID
         id: String,
+
+        /// Acquire lock before operation, release after
+        #[arg(long)]
+        lock: bool,
     },
 
     /// Reopen an issue
     Reopen {
         /// Issue ID
         id: String,
+
+        /// Acquire lock before operation, release after
+        #[arg(long)]
+        lock: bool,
     },
 
     /// Label operations
@@ -216,6 +252,10 @@ pub enum LabelCommand {
         /// Label to add
         #[arg(long)]
         label: String,
+
+        /// Acquire lock before operation, release after
+        #[arg(long)]
+        lock: bool,
     },
 
     /// Remove a label from an issue
@@ -226,6 +266,10 @@ pub enum LabelCommand {
         /// Label to remove
         #[arg(long)]
         label: String,
+
+        /// Acquire lock before operation, release after
+        #[arg(long)]
+        lock: bool,
     },
 }
 
@@ -239,6 +283,10 @@ pub enum AssigneeCommand {
         /// User to assign
         #[arg(long)]
         user: String,
+
+        /// Acquire lock before operation, release after
+        #[arg(long)]
+        lock: bool,
     },
 
     /// Remove an assignee from an issue
@@ -249,6 +297,10 @@ pub enum AssigneeCommand {
         /// User to unassign
         #[arg(long)]
         user: String,
+
+        /// Acquire lock before operation, release after
+        #[arg(long)]
+        lock: bool,
     },
 }
 
@@ -266,6 +318,10 @@ pub enum LinkCommand {
         /// Optional note
         #[arg(long)]
         note: Option<String>,
+
+        /// Acquire lock before operation, release after
+        #[arg(long)]
+        lock: bool,
     },
 }
 
@@ -287,6 +343,10 @@ pub enum AttachmentCommand {
         /// MIME type
         #[arg(long)]
         mime: String,
+
+        /// Acquire lock before operation, release after
+        #[arg(long)]
+        lock: bool,
     },
 }
 
@@ -294,6 +354,20 @@ pub enum AttachmentCommand {
 pub enum DbCommand {
     /// Show database statistics
     Stats,
+
+    /// Check database integrity (hash verification)
+    Check {
+        /// Also verify parent event references
+        #[arg(long)]
+        verify_parents: bool,
+    },
+
+    /// Verify event signatures
+    Verify {
+        /// Show details for each event
+        #[arg(long)]
+        verbose: bool,
+    },
 }
 
 #[derive(Clone, Subcommand)]
@@ -316,4 +390,38 @@ pub enum SnapshotCommand {
 pub enum ExportFormat {
     Json,
     Md,
+}
+
+#[derive(Clone, Subcommand)]
+pub enum DaemonCommand {
+    /// Show daemon status
+    Status,
+
+    /// Stop the daemon
+    Stop,
+}
+
+#[derive(Clone, Subcommand)]
+pub enum LockCommand {
+    /// Acquire a lock on a resource
+    Acquire {
+        /// Resource to lock (e.g., "repo:global", "issue:abc123", "path:src/")
+        resource: String,
+
+        /// Lock duration in seconds (default: 300)
+        #[arg(long, default_value = "300")]
+        ttl: u64,
+    },
+
+    /// Release a lock
+    Release {
+        /// Resource to unlock
+        resource: String,
+    },
+
+    /// Show lock status
+    Status,
+
+    /// Garbage collect expired locks
+    Gc,
 }

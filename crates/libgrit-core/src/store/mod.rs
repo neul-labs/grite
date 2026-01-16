@@ -5,6 +5,12 @@ use crate::types::ids::{EventId, IssueId};
 use crate::types::issue::{IssueProjection, IssueSummary};
 use crate::types::event::IssueState;
 
+/// Default threshold for events since rebuild before recommending rebuild
+pub const DEFAULT_REBUILD_EVENTS_THRESHOLD: usize = 10000;
+
+/// Default threshold for days since rebuild before recommending rebuild
+pub const DEFAULT_REBUILD_DAYS_THRESHOLD: u32 = 7;
+
 /// Filter for listing issues
 #[derive(Debug, Default)]
 pub struct IssueFilter {
@@ -20,6 +26,12 @@ pub struct DbStats {
     pub event_count: usize,
     pub issue_count: usize,
     pub last_rebuild_ts: Option<u64>,
+    /// Events inserted since last rebuild
+    pub events_since_rebuild: usize,
+    /// Days since last rebuild
+    pub days_since_rebuild: Option<u32>,
+    /// Whether rebuild is recommended based on thresholds
+    pub rebuild_recommended: bool,
 }
 
 /// Statistics from a rebuild operation
@@ -73,6 +85,21 @@ impl GritStore {
         // Update projection
         self.update_projection(event)?;
 
+        // Increment events_since_rebuild counter
+        self.increment_events_since_rebuild()?;
+
+        Ok(())
+    }
+
+    /// Increment the events_since_rebuild counter
+    fn increment_events_since_rebuild(&self) -> Result<(), GritError> {
+        let current = self.metadata.get("events_since_rebuild")?.map(|bytes| {
+            let arr: [u8; 8] = bytes.as_ref().try_into().unwrap_or([0; 8]);
+            u64::from_le_bytes(arr)
+        }).unwrap_or(0);
+
+        let new_count = current + 1;
+        self.metadata.insert("events_since_rebuild", &new_count.to_le_bytes())?;
         Ok(())
     }
 
@@ -233,12 +260,13 @@ impl GritStore {
             self.issue_states.insert(&issue_key, proj_json)?;
         }
 
-        // Update rebuild timestamp
+        // Update rebuild timestamp and reset counter
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
             .as_millis() as u64;
         self.metadata.insert("last_rebuild_ts", &now.to_le_bytes())?;
+        self.metadata.insert("events_since_rebuild", &0u64.to_le_bytes())?;
 
         Ok(RebuildStats {
             event_count: events.len(),
@@ -259,12 +287,35 @@ impl GritStore {
             u64::from_le_bytes(arr)
         });
 
+        let events_since_rebuild = self.metadata.get("events_since_rebuild")?.map(|bytes| {
+            let arr: [u8; 8] = bytes.as_ref().try_into().unwrap_or([0; 8]);
+            u64::from_le_bytes(arr) as usize
+        }).unwrap_or(event_count); // If never rebuilt, assume all events are since rebuild
+
+        // Calculate days since last rebuild
+        let now_ms = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_millis() as u64;
+
+        let days_since_rebuild = last_rebuild_ts.map(|ts| {
+            let ms_diff = now_ms.saturating_sub(ts);
+            (ms_diff / (24 * 60 * 60 * 1000)) as u32
+        });
+
+        // Recommend rebuild if events > 10000 or days > 7
+        let rebuild_recommended = events_since_rebuild > DEFAULT_REBUILD_EVENTS_THRESHOLD
+            || days_since_rebuild.map(|d| d > DEFAULT_REBUILD_DAYS_THRESHOLD).unwrap_or(false);
+
         Ok(DbStats {
             path: path.to_string_lossy().to_string(),
             size_bytes,
             event_count,
             issue_count,
             last_rebuild_ts,
+            events_since_rebuild,
+            days_since_rebuild,
+            rebuild_recommended,
         })
     }
 
