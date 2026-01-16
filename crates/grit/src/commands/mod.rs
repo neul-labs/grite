@@ -8,3 +8,4 @@ pub mod sync;
 pub mod snapshot;
 pub mod daemon;
 pub mod lock;
+pub mod doctor;

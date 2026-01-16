@@ -24,6 +24,14 @@ struct LockReleaseOutput {
 }
 
 #[derive(Serialize)]
+struct LockRenewOutput {
+    resource: String,
+    owner: String,
+    expires_unix_ms: u64,
+    ttl_seconds: u64,
+}
+
+#[derive(Serialize)]
 struct LockStatusOutput {
     locks: Vec<LockInfo>,
     total: usize,
@@ -48,6 +56,7 @@ pub fn run(cli: &Cli, cmd: LockCommand) -> Result<(), GritError> {
     match cmd {
         LockCommand::Acquire { resource, ttl } => run_acquire(cli, resource, ttl),
         LockCommand::Release { resource } => run_release(cli, resource),
+        LockCommand::Renew { resource, ttl } => run_renew(cli, resource, ttl),
         LockCommand::Status => run_status(cli),
         LockCommand::Gc => run_gc(cli),
     }
@@ -102,6 +111,34 @@ fn run_release(cli: &Cli, resource: String) -> Result<(), GritError> {
     output_success(cli, LockReleaseOutput {
         resource,
         released: true,
+    });
+
+    Ok(())
+}
+
+fn run_renew(cli: &Cli, resource: String, ttl_seconds: u64) -> Result<(), GritError> {
+    let ctx = GritContext::resolve(cli)?;
+    let git_dir = ctx.repo_root().join(".git");
+    let manager = LockManager::open(&git_dir)
+        .map_err(|e| GritError::Internal(e.to_string()))?;
+
+    let ttl_ms = ttl_seconds * 1000;
+    let lock = manager.renew(&resource, &ctx.actor_id, Some(ttl_ms))
+        .map_err(|e| match e {
+            libgrit_git::GitError::LockNotOwned { resource, owner } => {
+                GritError::Conflict(format!(
+                    "Cannot renew lock on {} - owned by {}",
+                    resource, owner
+                ))
+            }
+            _ => GritError::Internal(e.to_string()),
+        })?;
+
+    output_success(cli, LockRenewOutput {
+        resource: lock.resource,
+        owner: lock.owner,
+        expires_unix_ms: lock.expires_unix_ms,
+        ttl_seconds,
     });
 
     Ok(())

@@ -44,6 +44,7 @@ fn run_command(cli: &Cli) -> Result<(), GritError> {
         Command::Snapshot { cmd } => commands::snapshot::run(cli, cmd.clone()),
         Command::Daemon { cmd } => commands::daemon::run(cli, cmd.clone()),
         Command::Lock { cmd } => commands::lock::run(cli, cmd.clone()),
+        Command::Doctor { fix } => commands::doctor::run(cli, *fix),
     }
 }
 

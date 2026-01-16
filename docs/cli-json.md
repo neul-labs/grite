@@ -254,7 +254,33 @@ The JSON blocks below describe the `data` payload inside the envelope.
   "size_bytes": 1234567,
   "event_count": 1234,
   "issue_count": 12,
-  "last_rebuild_ts": 1700000000000
+  "last_rebuild_ts": 1700000000000,
+  "events_since_rebuild": 42,
+  "days_since_rebuild": 3,
+  "rebuild_recommended": false
+}
+```
+
+### `grit db check`
+
+```json
+{
+  "events_checked": 1234,
+  "events_valid": 1234,
+  "corrupt_count": 0,
+  "errors": []
+}
+```
+
+### `grit db verify`
+
+```json
+{
+  "events_checked": 1234,
+  "signatures_checked": 1000,
+  "signatures_valid": 1000,
+  "error_count": 0,
+  "errors": []
 }
 ```
 

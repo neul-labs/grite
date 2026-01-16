@@ -97,6 +97,13 @@ pub enum Command {
         #[command(subcommand)]
         cmd: LockCommand,
     },
+
+    /// Run health checks and optionally repair issues
+    Doctor {
+        /// Automatically fix issues where possible
+        #[arg(long)]
+        fix: bool,
+    },
 }
 
 #[derive(Clone, Subcommand)]
@@ -417,6 +424,16 @@ pub enum LockCommand {
     Release {
         /// Resource to unlock
         resource: String,
+    },
+
+    /// Renew a lock's TTL
+    Renew {
+        /// Resource to renew
+        resource: String,
+
+        /// New lock duration in seconds (default: 300)
+        #[arg(long, default_value = "300")]
+        ttl: u64,
     },
 
     /// Show lock status

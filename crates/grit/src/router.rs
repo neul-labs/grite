@@ -85,6 +85,9 @@ pub fn should_route_through_daemon(cmd: &crate::cli::Command) -> bool {
             DbCommand::Verify { .. } => false, // Signature verify is local
         },
 
+        // Doctor is local-only (health checks)
+        Command::Doctor { .. } => false,
+
         // These can be routed through daemon
         Command::Issue { .. } => true,
         Command::Export { .. } => true,
@@ -118,7 +121,7 @@ pub fn cli_to_ipc_command(cmd: &crate::cli::Command) -> Option<IpcCommand> {
         }),
         Command::Snapshot { cmd: snap_cmd } => Some(snapshot_to_ipc(snap_cmd)),
         // These don't route through daemon
-        Command::Init | Command::Actor { .. } | Command::Daemon { .. } | Command::Lock { .. } => None,
+        Command::Init | Command::Actor { .. } | Command::Daemon { .. } | Command::Lock { .. } | Command::Doctor { .. } => None,
     }
 }
 
