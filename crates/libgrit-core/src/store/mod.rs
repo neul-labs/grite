@@ -1,4 +1,9 @@
+use std::fs::File;
 use std::path::Path;
+use std::time::{Duration, Instant};
+
+use fs2::FileExt;
+
 use crate::error::GritError;
 use crate::types::event::Event;
 use crate::types::ids::{EventId, IssueId};
@@ -41,6 +46,47 @@ pub struct RebuildStats {
     pub issue_count: usize,
 }
 
+/// A GritStore with filesystem-level exclusive lock.
+///
+/// The lock is held for the lifetime of this struct and automatically
+/// released when dropped. This prevents multiple processes from opening
+/// the same sled database concurrently.
+pub struct LockedStore {
+    /// Lock file handle - flock released on drop
+    _lock_file: File,
+    /// The underlying store
+    store: GritStore,
+}
+
+impl std::fmt::Debug for LockedStore {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("LockedStore")
+            .field("store", &"GritStore { ... }")
+            .finish()
+    }
+}
+
+impl LockedStore {
+    /// Get a reference to the inner GritStore
+    pub fn inner(&self) -> &GritStore {
+        &self.store
+    }
+}
+
+impl std::ops::Deref for LockedStore {
+    type Target = GritStore;
+
+    fn deref(&self) -> &Self::Target {
+        &self.store
+    }
+}
+
+impl std::ops::DerefMut for LockedStore {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.store
+    }
+}
+
 /// Main storage interface backed by sled
 pub struct GritStore {
     db: sled::Db,
@@ -68,6 +114,64 @@ impl GritStore {
             issue_events,
             label_index,
             metadata,
+        })
+    }
+
+    /// Open store with exclusive filesystem lock (non-blocking).
+    ///
+    /// Lock file is created at `<path>.lock` (e.g., `.git/grit/actors/<id>/sled.lock`).
+    /// Returns `GritError::DbBusy` if another process holds the lock.
+    pub fn open_locked(path: &Path) -> Result<LockedStore, GritError> {
+        let lock_path = path.with_extension("lock");
+
+        // Create/open lock file
+        let lock_file = File::create(&lock_path)?;
+
+        // Try to acquire exclusive lock (non-blocking)
+        lock_file.try_lock_exclusive().map_err(|e| {
+            GritError::DbBusy(format!("Database locked by another process: {}", e))
+        })?;
+
+        // Now safe to open sled
+        let store = Self::open(path)?;
+
+        Ok(LockedStore {
+            _lock_file: lock_file,
+            store,
+        })
+    }
+
+    /// Open store with exclusive filesystem lock (blocking with timeout).
+    ///
+    /// Retries with exponential backoff until the lock is acquired or timeout is reached.
+    /// Returns `GritError::DbBusy` if timeout expires before acquiring the lock.
+    pub fn open_locked_blocking(path: &Path, timeout: Duration) -> Result<LockedStore, GritError> {
+        let lock_path = path.with_extension("lock");
+        let lock_file = File::create(&lock_path)?;
+
+        let start = Instant::now();
+        let mut delay = Duration::from_millis(10);
+
+        loop {
+            match lock_file.try_lock_exclusive() {
+                Ok(()) => break,
+                Err(_) if start.elapsed() < timeout => {
+                    std::thread::sleep(delay);
+                    delay = (delay * 2).min(Duration::from_millis(200));
+                }
+                Err(e) => {
+                    return Err(GritError::DbBusy(format!(
+                        "Timeout waiting for database lock: {}",
+                        e
+                    )))
+                }
+            }
+        }
+
+        let store = Self::open(path)?;
+        Ok(LockedStore {
+            _lock_file: lock_file,
+            store,
         })
     }
 
@@ -514,5 +618,101 @@ mod tests {
         // Verify projection is the same after rebuild
         let proj_after = store.get_issue(&issue_id).unwrap().unwrap();
         assert_eq!(proj_after.title, "Updated");
+    }
+
+    #[test]
+    fn test_locked_store_creates_lock_file() {
+        let dir = tempdir().unwrap();
+        let store_path = dir.path().join("sled");
+        let lock_path = dir.path().join("sled.lock");
+
+        // Lock file shouldn't exist yet
+        assert!(!lock_path.exists());
+
+        // Open locked store
+        let _store = GritStore::open_locked(&store_path).unwrap();
+
+        // Lock file should now exist
+        assert!(lock_path.exists());
+    }
+
+    #[test]
+    fn test_locked_store_second_open_fails() {
+        let dir = tempdir().unwrap();
+        let store_path = dir.path().join("sled");
+
+        // First open succeeds
+        let _store1 = GritStore::open_locked(&store_path).unwrap();
+
+        // Second open should fail with DbBusy
+        let result = GritStore::open_locked(&store_path);
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            GritError::DbBusy(msg) => {
+                assert!(msg.contains("locked"));
+            }
+            other => panic!("Expected DbBusy error, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn test_locked_store_released_on_drop() {
+        let dir = tempdir().unwrap();
+        let store_path = dir.path().join("sled");
+
+        // First open
+        {
+            let _store = GritStore::open_locked(&store_path).unwrap();
+            // Store is dropped here
+        }
+
+        // Second open should succeed after drop
+        let _store2 = GritStore::open_locked(&store_path).unwrap();
+    }
+
+    #[test]
+    fn test_locked_store_blocking_timeout() {
+        let dir = tempdir().unwrap();
+        let store_path = dir.path().join("sled");
+
+        // First open succeeds
+        let _store1 = GritStore::open_locked(&store_path).unwrap();
+
+        // Blocking open with very short timeout should fail
+        let result = GritStore::open_locked_blocking(&store_path, Duration::from_millis(50));
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            GritError::DbBusy(msg) => {
+                assert!(msg.contains("Timeout"));
+            }
+            other => panic!("Expected DbBusy timeout error, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn test_locked_store_deref_access() {
+        let dir = tempdir().unwrap();
+        let store_path = dir.path().join("sled");
+
+        let store = GritStore::open_locked(&store_path).unwrap();
+
+        // Verify we can access GritStore methods through Deref
+        let issue_id = generate_issue_id();
+        let actor = [1u8; 16];
+        let event = make_event(
+            issue_id,
+            actor,
+            1000,
+            EventKind::IssueCreated {
+                title: "Test".to_string(),
+                body: "Body".to_string(),
+                labels: vec![],
+            },
+        );
+
+        // These calls go through Deref to GritStore
+        store.insert_event(&event).unwrap();
+        let retrieved = store.get_event(&event.event_id).unwrap();
+        assert!(retrieved.is_some());
     }
 }

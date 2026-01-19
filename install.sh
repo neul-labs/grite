@@ -29,14 +29,15 @@ done
 
 BIN_DIR="${PREFIX}/bin"
 
-echo "Building grit (release)..."
-cargo build --release --package grit
+echo "Building grit and gritd (release)..."
+cargo build --release --package grit --package gritd
 
-echo "Installing to ${BIN_DIR}/grit..."
+echo "Installing to ${BIN_DIR}..."
 mkdir -p "${BIN_DIR}"
 cp target/release/grit "${BIN_DIR}/grit"
+cp target/release/gritd "${BIN_DIR}/gritd"
 
-echo "Done."
+echo "Done. Installed: grit, gritd"
 echo ""
 if [[ ":$PATH:" != *":${BIN_DIR}:"* ]]; then
     echo "Note: ${BIN_DIR} is not in your PATH."

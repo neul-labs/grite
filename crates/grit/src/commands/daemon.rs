@@ -1,15 +1,160 @@
 //! Daemon management commands
 
+use std::process::{Command, Stdio};
+use std::time::{Duration, Instant};
+use std::thread;
+
 use libgrit_core::GritError;
-use libgrit_ipc::DaemonLock;
+use libgrit_ipc::{DaemonLock, IpcClient};
 
 use crate::cli::{Cli, DaemonCommand};
 use crate::context::GritContext;
 
+/// Default IPC endpoint for daemon
+pub const DEFAULT_DAEMON_ENDPOINT: &str = "ipc:///tmp/gritd.sock";
+
 pub fn run(cli: &Cli, cmd: DaemonCommand) -> Result<(), GritError> {
     match cmd {
+        DaemonCommand::Start { idle_timeout } => start(cli, idle_timeout),
         DaemonCommand::Status => status(cli),
         DaemonCommand::Stop => stop(cli),
+    }
+}
+
+/// Start the daemon in background
+fn start(cli: &Cli, idle_timeout: u64) -> Result<(), GritError> {
+    let ctx = GritContext::resolve(cli)?;
+
+    // Check if daemon is already running
+    if let Ok(Some(lock)) = DaemonLock::read(&ctx.data_dir) {
+        if !lock.is_expired() {
+            // Try to connect to verify it's actually running
+            if IpcClient::connect(&lock.ipc_endpoint).is_ok() {
+                if cli.json {
+                    println!("{}", serde_json::json!({
+                        "started": false,
+                        "reason": "Daemon already running",
+                        "pid": lock.pid,
+                        "endpoint": lock.ipc_endpoint,
+                    }));
+                } else if !cli.quiet {
+                    println!("Daemon already running (PID {})", lock.pid);
+                }
+                return Ok(());
+            }
+        }
+        // Stale lock, clean it up
+        let _ = DaemonLock::remove(&ctx.data_dir);
+    }
+
+    // Spawn gritd in background
+    let endpoint = DEFAULT_DAEMON_ENDPOINT;
+    let result = spawn_daemon(endpoint, idle_timeout)?;
+
+    // Wait for daemon to be ready
+    let ready = wait_for_daemon(endpoint, Duration::from_secs(5))?;
+
+    if ready {
+        if cli.json {
+            println!("{}", serde_json::json!({
+                "started": true,
+                "pid": result.pid,
+                "endpoint": endpoint,
+                "idle_timeout_secs": idle_timeout,
+            }));
+        } else if !cli.quiet {
+            println!("Daemon started (PID {})", result.pid);
+            println!("  Endpoint: {}", endpoint);
+            println!("  Idle timeout: {}s", idle_timeout);
+        }
+    } else {
+        return Err(GritError::Internal("Daemon started but failed to become ready".to_string()));
+    }
+
+    Ok(())
+}
+
+/// Result of spawning daemon
+struct SpawnResult {
+    pid: u32,
+}
+
+/// Spawn the gritd process in background
+fn spawn_daemon(endpoint: &str, idle_timeout: u64) -> Result<SpawnResult, GritError> {
+    // Find gritd binary - assume it's in the same directory as grit or in PATH
+    let gritd_path = find_gritd_binary()?;
+
+    let child = Command::new(&gritd_path)
+        .arg("--endpoint")
+        .arg(endpoint)
+        .arg("--idle-timeout")
+        .arg(idle_timeout.to_string())
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
+        .map_err(|e| GritError::Internal(format!("Failed to spawn gritd: {}", e)))?;
+
+    Ok(SpawnResult { pid: child.id() })
+}
+
+/// Find the gritd binary
+fn find_gritd_binary() -> Result<String, GritError> {
+    // First, try to find it relative to current executable
+    if let Ok(current_exe) = std::env::current_exe() {
+        if let Some(dir) = current_exe.parent() {
+            let gritd_path = dir.join("gritd");
+            if gritd_path.exists() {
+                return Ok(gritd_path.to_string_lossy().to_string());
+            }
+        }
+    }
+
+    // Fall back to PATH
+    Ok("gritd".to_string())
+}
+
+/// Wait for daemon to become ready
+fn wait_for_daemon(endpoint: &str, timeout: Duration) -> Result<bool, GritError> {
+    let start = Instant::now();
+    let mut delay = Duration::from_millis(50);
+
+    while start.elapsed() < timeout {
+        if IpcClient::connect(endpoint).is_ok() {
+            return Ok(true);
+        }
+        thread::sleep(delay);
+        delay = (delay * 2).min(Duration::from_millis(500));
+    }
+
+    Ok(false)
+}
+
+/// Spawn daemon if not running (for auto-spawn from CLI commands)
+pub fn ensure_daemon_running(cli: &Cli) -> Result<Option<String>, GritError> {
+    let ctx = GritContext::resolve(cli)?;
+
+    // Check if daemon is already running
+    if let Ok(Some(lock)) = DaemonLock::read(&ctx.data_dir) {
+        if !lock.is_expired() {
+            if IpcClient::connect(&lock.ipc_endpoint).is_ok() {
+                return Ok(Some(lock.ipc_endpoint));
+            }
+        }
+        // Stale lock, clean it up
+        let _ = DaemonLock::remove(&ctx.data_dir);
+    }
+
+    // Spawn daemon with default idle timeout (5 minutes)
+    let endpoint = DEFAULT_DAEMON_ENDPOINT;
+    let idle_timeout = 300; // 5 minutes default
+    spawn_daemon(endpoint, idle_timeout)?;
+
+    // Wait for daemon to be ready
+    if wait_for_daemon(endpoint, Duration::from_secs(5))? {
+        Ok(Some(endpoint.to_string()))
+    } else {
+        Err(GritError::Internal("Failed to start daemon".to_string()))
     }
 }
 

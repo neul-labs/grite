@@ -843,6 +843,7 @@ dependencies = [
  "chrono",
  "ciborium",
  "ed25519-dalek",
+ "fs2",
  "hex",
  "rand",
  "serde",

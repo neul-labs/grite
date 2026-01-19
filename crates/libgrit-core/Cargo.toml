@@ -17,6 +17,7 @@ chrono = { workspace = true }
 uuid = { workspace = true }
 sha2 = { workspace = true }
 ed25519-dalek = { workspace = true }
+fs2 = { workspace = true }
 
 [dev-dependencies]
 tempfile = "3.10"

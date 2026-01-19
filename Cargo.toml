@@ -35,3 +35,4 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 sha2 = "0.10"
 ed25519-dalek = { version = "2.1", features = ["rand_core"] }
+fs2 = "0.4"

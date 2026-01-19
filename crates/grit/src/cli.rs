@@ -401,6 +401,13 @@ pub enum ExportFormat {
 
 #[derive(Clone, Subcommand)]
 pub enum DaemonCommand {
+    /// Start the daemon in background
+    Start {
+        /// Idle timeout in seconds (daemon auto-stops after this period of inactivity)
+        #[arg(long, default_value = "300")]
+        idle_timeout: u64,
+    },
+
     /// Show daemon status
     Status,
 

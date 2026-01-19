@@ -7,6 +7,7 @@ use libgrit_core::GritError;
 use libgrit_ipc::{IpcClient, IpcCommand, IpcRequest, IpcResponse};
 
 use crate::cli::Cli;
+use crate::commands::daemon::ensure_daemon_running;
 use crate::context::{ExecutionMode, GritContext};
 
 /// Result of routing a command
@@ -24,13 +25,29 @@ pub enum RouteResult {
 /// Returns RouteResult::Local if the command should be executed locally.
 /// Returns RouteResult::DaemonResponse if the daemon handled it.
 /// Returns RouteResult::Blocked if the data dir is owned by another process.
+///
+/// When no daemon is running and --no-daemon is not set, this function
+/// will attempt to auto-spawn the daemon before routing the command.
 pub fn route_command(
     ctx: &GritContext,
     cli: &Cli,
     command: IpcCommand,
 ) -> Result<RouteResult, GritError> {
     match ctx.execution_mode(cli.no_daemon) {
-        ExecutionMode::Local => Ok(RouteResult::Local),
+        ExecutionMode::Local => {
+            // Try to auto-spawn daemon unless --no-daemon is set
+            if !cli.no_daemon {
+                if let Ok(Some(endpoint)) = ensure_daemon_running(cli) {
+                    // Daemon started, try to connect and route through it
+                    if let Ok(client) = IpcClient::connect(&endpoint) {
+                        let response = send_to_daemon(ctx, &client, command)?;
+                        return Ok(RouteResult::DaemonResponse(response));
+                    }
+                }
+            }
+            // Fall back to local execution
+            Ok(RouteResult::Local)
+        }
         ExecutionMode::Daemon { client, endpoint: _ } => {
             let response = send_to_daemon(ctx, &client, command)?;
             Ok(RouteResult::DaemonResponse(response))

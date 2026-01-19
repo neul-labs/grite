@@ -11,6 +11,7 @@ mod supervisor;
 mod worker;
 
 use std::path::PathBuf;
+use std::time::Duration;
 
 use clap::Parser;
 use tracing::{error, info};
@@ -36,6 +37,10 @@ struct Cli {
     /// Log level (trace, debug, info, warn, error)
     #[arg(long, default_value = "info")]
     log_level: String,
+
+    /// Idle timeout in seconds (daemon auto-stops after this period of inactivity, 0 = no timeout)
+    #[arg(long, default_value = "0")]
+    idle_timeout: u64,
 }
 
 #[tokio::main]
@@ -73,7 +78,12 @@ async fn main() {
     let shutdown = setup_signal_handlers();
 
     // Create and run supervisor
-    let supervisor = Supervisor::new(cli.endpoint);
+    let idle_timeout = if cli.idle_timeout > 0 {
+        Some(Duration::from_secs(cli.idle_timeout))
+    } else {
+        None
+    };
+    let supervisor = Supervisor::new(cli.endpoint, idle_timeout);
 
     tokio::select! {
         result = supervisor.run() => {

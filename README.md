@@ -2,61 +2,181 @@
 
 Grit is a repo-local, git-backed issue/task system designed for coding agents and humans. It keeps an append-only event log in git refs, builds a fast local materialized view, and never writes tracked state into the working tree.
 
-This repository contains the design, data model, and implementation roadmap needed to build Grit.
+## Features
 
-## Why
+- **Git-native storage** - Events stored in `refs/grit/wal`, synced with `git fetch/push`
+- **CRDT-based merging** - Deterministic conflict resolution, no manual merge needed
+- **Per-actor isolation** - Each agent/device gets its own actor ID and local database
+- **Optional daemon** - Auto-spawns for performance, not required for correctness
+- **Ed25519 signing** - Optional cryptographic signatures on events
+- **Team coordination** - Distributed locks for coordinated workflows
 
-- Keep state local, auditable, and diffable in git.
-- Avoid worktree conflicts and tracked-file churn.
-- Make merges deterministic and non-destructive.
-- Require no daemon for correctness; daemon is only a performance accelerator.
+## Installation
 
-## Core design (one screen)
-
-- Canonical state lives in an append-only WAL stored in `refs/grit/wal`.
-- Local state is a deterministic materialized view in `.git/grit/actors/<actor_id>/sled/`.
-- Sync is `git fetch/push refs/grit/*` with monotonic fast-forward only.
-- Conflicts are resolved by event union + deterministic projection rules.
-
-## Repository layout (planned)
-
-- `libgrit-core`: event types, hashing, projections, sled store
-- `libgrit-git`: WAL commits, ref sync, snapshots
-- `libgrit-ipc`: rkyv schemas + async-nng IPC
-- `grit`: CLI
-- `gritd`: optional daemon
-
-## Docs
-
-- `docs/architecture.md`
-- `docs/actors.md`
-- `docs/configuration.md`
-- `docs/data-model.md`
-- `docs/hash-vectors.md`
-- `docs/ipc.md`
-- `docs/git-wal.md`
-- `docs/cli.md`
-- `docs/cli-json.md`
-- `docs/daemon.md`
-- `docs/export-format.md`
-- `docs/agent-playbook.md`
-- `docs/locking.md`
-- `docs/operations.md`
-- `docs/roadmap.md`
-
-## Build prerequisites (planned)
-
-- Rust stable
-- Git 2.38+
-- `nng` (for IPC, optional for CLI-only builds)
-
-## Development quickstart (planned)
+### From source
 
 ```bash
-cargo build
-cargo test
+git clone https://github.com/anthropics/grit.git
+cd grit
+./install.sh
 ```
 
-## Status
+This installs `grit` and `gritd` to `~/.local/bin/`.
 
-This repo is currently design-first. The docs define the target architecture and implementation milestones.
+### Prerequisites
+
+- Rust 1.70+ (stable)
+- Git 2.38+
+- nng library (for IPC)
+
+On Ubuntu/Debian:
+```bash
+sudo apt install libnng-dev
+```
+
+On macOS:
+```bash
+brew install nng
+```
+
+## Quick Start
+
+```bash
+# Initialize grit in a git repository
+cd your-repo
+grit init
+
+# Create an issue
+grit issue create --title "Fix login bug" --body "Users can't login"
+
+# List issues
+grit issue list
+
+# Add a comment
+grit issue comment <issue-id> --body "Working on this"
+
+# Close an issue
+grit issue close <issue-id>
+
+# Sync with remote
+grit sync
+```
+
+## Architecture
+
+Grit uses a three-layer architecture:
+
+```
++------------------+     +-------------------+     +------------------+
+|   Git WAL        | --> | Materialized View | <-- | CLI / Daemon     |
+| refs/grit/wal    |     | sled database     |     | grit / gritd     |
+| (source of truth)|     | (fast queries)    |     | (user interface) |
++------------------+     +-------------------+     +------------------+
+```
+
+### Crate Structure
+
+| Crate | Purpose |
+|-------|---------|
+| `libgrit-core` | Event types, hashing, projections, sled store, signing |
+| `libgrit-git` | WAL commits, ref sync, snapshots, distributed locks |
+| `libgrit-ipc` | IPC message schemas (rkyv), daemon lock, client/server |
+| `grit` | CLI frontend |
+| `gritd` | Optional background daemon |
+
+### ID Types
+
+| Type | Size | Format | Purpose |
+|------|------|--------|---------|
+| `ActorId` | 128-bit | Random | Identifies device/agent |
+| `IssueId` | 128-bit | Random | Identifies issue |
+| `EventId` | 256-bit | BLAKE2b hash | Content-addressed event ID |
+
+IDs are stored as byte arrays internally and displayed as lowercase hex strings.
+
+## Daemon
+
+The daemon (`gritd`) is optional and provides:
+
+- **Auto-spawn** - Automatically starts on first CLI command
+- **Idle shutdown** - Stops after 5 minutes of inactivity (configurable)
+- **Concurrent access** - Multiple CLI calls handled efficiently
+- **Warm cache** - Keeps materialized view ready for fast queries
+
+```bash
+# Manual daemon control
+grit daemon start --idle-timeout 300
+grit daemon status
+grit daemon stop
+
+# Force local execution (skip daemon)
+grit --no-daemon issue list
+```
+
+The daemon uses filesystem-level locking (`flock`) to prevent database corruption from concurrent access.
+
+## Storage Layout
+
+```
+.git/
+  grit/
+    config.toml                    # Repo-level config (default actor, lock policy)
+    actors/
+      <actor_id>/
+        config.toml                # Actor config (label, public key)
+        sled/                      # Materialized view database
+        sled.lock                  # flock for exclusive access
+        daemon.lock                # Daemon ownership marker
+
+refs/grit/
+  wal                              # Append-only event log
+  snapshots/<ts>                   # Periodic snapshots
+  locks/<resource_hash>            # Distributed lease locks
+```
+
+## Documentation
+
+| Document | Description |
+|----------|-------------|
+| [Architecture](docs/architecture.md) | System design and data flow |
+| [Data Model](docs/data-model.md) | Event schema, hashing, projections |
+| [CLI Reference](docs/cli.md) | Command-line interface |
+| [CLI JSON Output](docs/cli-json.md) | JSON output format for scripting |
+| [Daemon](docs/daemon.md) | Background daemon details |
+| [Actors](docs/actors.md) | Actor identity and isolation |
+| [Configuration](docs/configuration.md) | Config files and options |
+| [Git WAL](docs/git-wal.md) | WAL format and chunk encoding |
+| [IPC Protocol](docs/ipc.md) | Inter-process communication |
+| [Locking](docs/locking.md) | Distributed lock coordination |
+| [Export Format](docs/export-format.md) | JSON/Markdown export |
+| [Hash Vectors](docs/hash-vectors.md) | Canonical hashing test vectors |
+| [Operations](docs/operations.md) | Backup, recovery, debugging |
+| [Agent Playbook](docs/agent-playbook.md) | Guide for AI coding agents |
+
+## Development
+
+```bash
+# Build
+cargo build
+
+# Run tests
+cargo test
+
+# Run with debug logging
+RUST_LOG=debug cargo run --bin grit -- issue list
+
+# Install locally
+./install.sh
+```
+
+## Design Principles
+
+1. **Git is the source of truth** - All state derivable from `refs/grit/*`
+2. **No working tree pollution** - Never writes tracked files
+3. **Daemon optional** - CLI works standalone, daemon is performance optimization
+4. **Deterministic merges** - CRDT semantics, no manual conflict resolution
+5. **Per-actor isolation** - Multiple agents can work independently
+
+## License
+
+Apache 2.0

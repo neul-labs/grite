@@ -1,4 +1,5 @@
 use std::path::PathBuf;
+use std::time::Duration;
 use libgrit_core::{
     config::{load_repo_config, save_repo_config, load_actor_config, save_actor_config, actor_dir, list_actors, RepoConfig, load_signing_key},
     lock::{LockPolicy, LockCheckResult},
@@ -6,7 +7,7 @@ use libgrit_core::{
     types::actor::ActorConfig,
     types::event::Event,
     types::ids::{generate_actor_id, id_to_hex},
-    GritStore, GritError,
+    GritStore, LockedStore, GritError,
 };
 use libgrit_git::{WalManager, SnapshotManager, SyncManager, LockManager, GitError};
 use libgrit_ipc::{DaemonLock, IpcClient};
@@ -192,10 +193,20 @@ impl GritContext {
         })
     }
 
-    /// Open the store for this context
-    pub fn open_store(&self) -> Result<GritStore, GritError> {
+    /// Open the store for this context with exclusive filesystem lock.
+    ///
+    /// Returns `GritError::DbBusy` if another process holds the lock.
+    pub fn open_store(&self) -> Result<LockedStore, GritError> {
         let sled_path = self.data_dir.join("sled");
-        GritStore::open(&sled_path)
+        GritStore::open_locked(&sled_path)
+    }
+
+    /// Open the store with blocking lock and timeout.
+    ///
+    /// Waits up to `timeout` for the lock to become available.
+    pub fn open_store_blocking(&self, timeout: Duration) -> Result<LockedStore, GritError> {
+        let sled_path = self.data_dir.join("sled");
+        GritStore::open_locked_blocking(&sled_path, timeout)
     }
 
     /// Get the sled database path

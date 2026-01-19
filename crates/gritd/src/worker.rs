@@ -1,11 +1,15 @@
 //! Worker module - handles commands for a single (repo, actor) pair
 //!
 //! Each worker owns exclusive access to the sled database for its actor.
+//! Commands are processed concurrently using tokio tasks, with sled's
+//! internal MVCC handling concurrent access safely.
 
 use std::path::PathBuf;
+use std::sync::Arc;
+use std::time::Duration;
 
 use libgrit_core::types::ids::{hex_to_id, ActorId};
-use libgrit_core::{GritError, GritStore};
+use libgrit_core::{GritError, GritStore, LockedStore};
 use libgrit_core::store::IssueFilter;
 use libgrit_ipc::{DaemonLock, IpcCommand, IpcResponse, Notification};
 use tokio::sync::mpsc;
@@ -41,8 +45,8 @@ pub struct Worker {
     sled_path: PathBuf,
     /// Git directory
     git_dir: PathBuf,
-    /// Sled store (owned exclusively)
-    store: GritStore,
+    /// Sled store with filesystem lock (shared for concurrent access)
+    store: Arc<LockedStore>,
     /// Channel for receiving messages
     rx: mpsc::Receiver<WorkerMessage>,
     /// Notification sender
@@ -71,8 +75,12 @@ impl Worker {
         let actor_id_bytes = hex_to_id(&actor_id)
             .map_err(|e| DaemonError::Grit(GritError::InvalidArgs(e.to_string())))?;
 
-        // Open store (this acquires exclusive access)
-        let store = GritStore::open(&sled_path)?;
+        // Open store with filesystem lock (blocking with timeout)
+        // This ensures exclusive process-level access to the sled database
+        let store = Arc::new(GritStore::open_locked_blocking(
+            &sled_path,
+            Duration::from_secs(5),
+        )?);
 
         Ok(Self {
             repo_root,
@@ -140,7 +148,7 @@ impl Worker {
             })
             .await;
 
-        // Event loop
+        // Event loop - commands are spawned as concurrent tasks
         while let Some(msg) = self.rx.recv().await {
             match msg {
                 WorkerMessage::Command {
@@ -148,8 +156,25 @@ impl Worker {
                     command,
                     response_tx,
                 } => {
-                    let response = self.handle_command(&request_id, command);
-                    let _ = response_tx.send(response);
+                    // Clone data needed for the spawned task
+                    let store = Arc::clone(&self.store);
+                    let actor_id_bytes = self.actor_id_bytes;
+                    let sled_path = self.sled_path.clone();
+                    let data_dir = self.data_dir.clone();
+
+                    // Spawn task for concurrent command execution
+                    // sled's MVCC handles concurrent access safely
+                    tokio::spawn(async move {
+                        let response = execute_command(
+                            &store,
+                            actor_id_bytes,
+                            &sled_path,
+                            &data_dir,
+                            &request_id,
+                            &command,
+                        );
+                        let _ = response_tx.send(response);
+                    });
                 }
                 WorkerMessage::Heartbeat => {
                     if let Err(e) = self.refresh_lock() {
@@ -165,498 +190,6 @@ impl Worker {
 
         // Cleanup
         self.shutdown();
-    }
-
-    /// Handle a command
-    fn handle_command(&mut self, request_id: &str, command: IpcCommand) -> IpcResponse {
-        let result = self.execute_command(&command);
-
-        match result {
-            Ok(data) => IpcResponse::success(request_id.to_string(), data),
-            Err(e) => {
-                let (code, message) = error_to_code_message(&e);
-                IpcResponse::error(request_id.to_string(), code, message)
-            }
-        }
-    }
-
-    /// Execute a command and return the result
-    fn execute_command(&mut self, command: &IpcCommand) -> Result<Option<String>, DaemonError> {
-        match command {
-            // Issue commands
-            IpcCommand::IssueList { state, label } => {
-                self.issue_list(state.as_deref(), label.as_deref())
-            }
-            IpcCommand::IssueShow { issue_id } => self.issue_show(issue_id),
-            IpcCommand::IssueCreate { title, body, labels } => {
-                self.issue_create(title, body, labels)
-            }
-            IpcCommand::IssueUpdate { issue_id, title, body } => {
-                self.issue_update(issue_id, title.as_deref(), body.as_deref())
-            }
-            IpcCommand::IssueComment { issue_id, body } => {
-                self.issue_comment(issue_id, body)
-            }
-            IpcCommand::IssueClose { issue_id } => self.issue_close(issue_id),
-            IpcCommand::IssueReopen { issue_id } => self.issue_reopen(issue_id),
-            IpcCommand::IssueLabel { issue_id, add, remove } => {
-                self.issue_label(issue_id, add, remove)
-            }
-            IpcCommand::IssueAssign { issue_id, add, remove } => {
-                self.issue_assign(issue_id, add, remove)
-            }
-            IpcCommand::IssueLink { issue_id, url, note } => {
-                self.issue_link(issue_id, url, note.as_deref())
-            }
-            IpcCommand::IssueAttach { issue_id, file_path } => {
-                self.issue_attach(issue_id, file_path)
-            }
-
-            // Database commands
-            IpcCommand::DbStats => self.db_stats(),
-            IpcCommand::Rebuild => self.rebuild(),
-            IpcCommand::Export { format, since } => {
-                self.export(format, since.as_deref())
-            }
-
-            // Sync commands
-            IpcCommand::Sync { remote, pull, push } => {
-                self.sync(remote, *pull, *push)
-            }
-
-            // Snapshot commands
-            IpcCommand::SnapshotCreate => self.snapshot_create(),
-            IpcCommand::SnapshotList => self.snapshot_list(),
-            IpcCommand::SnapshotGc { keep } => self.snapshot_gc(*keep),
-
-            // Daemon commands
-            IpcCommand::DaemonStatus => self.daemon_status(),
-            IpcCommand::DaemonStop => {
-                Ok(Some(serde_json::json!({"stopping": true}).to_string()))
-            }
-        }
-    }
-
-    // Command implementations
-
-    fn issue_list(&self, state: Option<&str>, label: Option<&str>) -> Result<Option<String>, DaemonError> {
-        use libgrit_core::types::event::IssueState;
-
-        let filter = IssueFilter {
-            state: state.map(|s| match s {
-                "open" => IssueState::Open,
-                "closed" => IssueState::Closed,
-                _ => IssueState::Open,
-            }),
-            label: label.map(String::from),
-        };
-
-        let issues = self.store.list_issues(&filter)?;
-        let json = serde_json::to_string(&serde_json::json!({ "issues": issues }))?;
-        Ok(Some(json))
-    }
-
-    fn issue_show(&self, issue_id: &str) -> Result<Option<String>, DaemonError> {
-        let id = hex_to_id(issue_id)
-            .map_err(|e| DaemonError::Grit(GritError::InvalidArgs(e.to_string())))?;
-        let projection = self.store.get_issue(&id)?
-            .ok_or_else(|| DaemonError::Grit(GritError::NotFound(format!("Issue {} not found", issue_id))))?;
-        let json = serde_json::to_string(&projection)?;
-        Ok(Some(json))
-    }
-
-    fn issue_create(&mut self, title: &str, body: &str, labels: &[String]) -> Result<Option<String>, DaemonError> {
-        use libgrit_core::hash::compute_event_id;
-        use libgrit_core::types::event::{Event, EventKind};
-        use libgrit_core::types::ids::generate_issue_id;
-        use libgrit_core::types::issue::IssueProjection;
-
-        let issue_id = generate_issue_id();
-        let ts = current_time_ms();
-        let kind = EventKind::IssueCreated {
-            title: title.to_string(),
-            body: body.to_string(),
-            labels: labels.to_vec(),
-        };
-        let event_id = compute_event_id(&issue_id, &self.actor_id_bytes, ts, None, &kind);
-        let event = Event::new(event_id, issue_id, self.actor_id_bytes, ts, None, kind);
-
-        // Insert into store
-        self.store.insert_event(&event)?;
-        self.store.flush()?;
-
-        // Create projection for response
-        let projection = IssueProjection::from_event(&event)?;
-
-        let json = serde_json::to_string(&serde_json::json!({
-            "issue_id": libgrit_core::types::ids::id_to_hex(&issue_id),
-            "event_id": libgrit_core::types::ids::id_to_hex(&event_id),
-            "projection": projection,
-        }))?;
-        Ok(Some(json))
-    }
-
-    fn db_stats(&self) -> Result<Option<String>, DaemonError> {
-        let stats = self.store.stats(&self.sled_path)?;
-        let json = serde_json::to_string(&serde_json::json!({
-            "path": stats.path,
-            "size_bytes": stats.size_bytes,
-            "event_count": stats.event_count,
-            "issue_count": stats.issue_count,
-            "last_rebuild_ts": stats.last_rebuild_ts,
-        }))?;
-        Ok(Some(json))
-    }
-
-    fn rebuild(&mut self) -> Result<Option<String>, DaemonError> {
-        let stats = self.store.rebuild()?;
-        let json = serde_json::to_string(&serde_json::json!({
-            "event_count": stats.event_count,
-            "issue_count": stats.issue_count,
-        }))?;
-        Ok(Some(json))
-    }
-
-    fn daemon_status(&self) -> Result<Option<String>, DaemonError> {
-        let lock = DaemonLock::read(&self.data_dir)
-            .map_err(|e| DaemonError::LockFailed(e.to_string()))?;
-
-        let json = match lock {
-            Some(l) => serde_json::to_string(&serde_json::json!({
-                "running": !l.is_expired(),
-                "pid": l.pid,
-                "host_id": l.host_id,
-                "ipc_endpoint": l.ipc_endpoint,
-                "started_ts": l.started_ts,
-                "expires_ts": l.expires_ts,
-            }))?,
-            None => serde_json::to_string(&serde_json::json!({
-                "running": false,
-            }))?,
-        };
-        Ok(Some(json))
-    }
-
-    fn issue_update(&mut self, issue_id: &str, title: Option<&str>, body: Option<&str>) -> Result<Option<String>, DaemonError> {
-        use libgrit_core::hash::compute_event_id;
-        use libgrit_core::types::event::{Event, EventKind};
-        use libgrit_core::types::ids::id_to_hex;
-
-        if title.is_none() && body.is_none() {
-            return Err(DaemonError::Grit(GritError::InvalidArgs(
-                "At least one of title or body must be provided".to_string()
-            )));
-        }
-
-        let id = hex_to_id(issue_id)
-            .map_err(|e| DaemonError::Grit(GritError::InvalidArgs(e.to_string())))?;
-
-        // Verify issue exists
-        self.store.get_issue(&id)?
-            .ok_or_else(|| DaemonError::Grit(GritError::NotFound(format!("Issue {} not found", issue_id))))?;
-
-        let ts = current_time_ms();
-        let kind = EventKind::IssueUpdated {
-            title: title.map(String::from),
-            body: body.map(String::from),
-        };
-        let event_id = compute_event_id(&id, &self.actor_id_bytes, ts, None, &kind);
-        let event = Event::new(event_id, id, self.actor_id_bytes, ts, None, kind);
-
-        self.store.insert_event(&event)?;
-        self.store.flush()?;
-
-        let json = serde_json::to_string(&serde_json::json!({
-            "issue_id": issue_id,
-            "event_id": id_to_hex(&event_id),
-        }))?;
-        Ok(Some(json))
-    }
-
-    fn issue_comment(&mut self, issue_id: &str, body: &str) -> Result<Option<String>, DaemonError> {
-        use libgrit_core::hash::compute_event_id;
-        use libgrit_core::types::event::{Event, EventKind};
-        use libgrit_core::types::ids::id_to_hex;
-
-        let id = hex_to_id(issue_id)
-            .map_err(|e| DaemonError::Grit(GritError::InvalidArgs(e.to_string())))?;
-
-        // Verify issue exists
-        self.store.get_issue(&id)?
-            .ok_or_else(|| DaemonError::Grit(GritError::NotFound(format!("Issue {} not found", issue_id))))?;
-
-        let ts = current_time_ms();
-        let kind = EventKind::CommentAdded { body: body.to_string() };
-        let event_id = compute_event_id(&id, &self.actor_id_bytes, ts, None, &kind);
-        let event = Event::new(event_id, id, self.actor_id_bytes, ts, None, kind);
-
-        self.store.insert_event(&event)?;
-        self.store.flush()?;
-
-        let json = serde_json::to_string(&serde_json::json!({
-            "issue_id": issue_id,
-            "event_id": id_to_hex(&event_id),
-        }))?;
-        Ok(Some(json))
-    }
-
-    fn issue_close(&mut self, issue_id: &str) -> Result<Option<String>, DaemonError> {
-        use libgrit_core::hash::compute_event_id;
-        use libgrit_core::types::event::{Event, EventKind, IssueState};
-        use libgrit_core::types::ids::id_to_hex;
-
-        let id = hex_to_id(issue_id)
-            .map_err(|e| DaemonError::Grit(GritError::InvalidArgs(e.to_string())))?;
-
-        // Verify issue exists
-        self.store.get_issue(&id)?
-            .ok_or_else(|| DaemonError::Grit(GritError::NotFound(format!("Issue {} not found", issue_id))))?;
-
-        let ts = current_time_ms();
-        let kind = EventKind::StateChanged { state: IssueState::Closed };
-        let event_id = compute_event_id(&id, &self.actor_id_bytes, ts, None, &kind);
-        let event = Event::new(event_id, id, self.actor_id_bytes, ts, None, kind);
-
-        self.store.insert_event(&event)?;
-        self.store.flush()?;
-
-        let json = serde_json::to_string(&serde_json::json!({
-            "issue_id": issue_id,
-            "event_id": id_to_hex(&event_id),
-            "state": "closed",
-        }))?;
-        Ok(Some(json))
-    }
-
-    fn issue_reopen(&mut self, issue_id: &str) -> Result<Option<String>, DaemonError> {
-        use libgrit_core::hash::compute_event_id;
-        use libgrit_core::types::event::{Event, EventKind, IssueState};
-        use libgrit_core::types::ids::id_to_hex;
-
-        let id = hex_to_id(issue_id)
-            .map_err(|e| DaemonError::Grit(GritError::InvalidArgs(e.to_string())))?;
-
-        // Verify issue exists
-        self.store.get_issue(&id)?
-            .ok_or_else(|| DaemonError::Grit(GritError::NotFound(format!("Issue {} not found", issue_id))))?;
-
-        let ts = current_time_ms();
-        let kind = EventKind::StateChanged { state: IssueState::Open };
-        let event_id = compute_event_id(&id, &self.actor_id_bytes, ts, None, &kind);
-        let event = Event::new(event_id, id, self.actor_id_bytes, ts, None, kind);
-
-        self.store.insert_event(&event)?;
-        self.store.flush()?;
-
-        let json = serde_json::to_string(&serde_json::json!({
-            "issue_id": issue_id,
-            "event_id": id_to_hex(&event_id),
-            "state": "open",
-        }))?;
-        Ok(Some(json))
-    }
-
-    fn issue_label(&mut self, issue_id: &str, add: &[String], remove: &[String]) -> Result<Option<String>, DaemonError> {
-        use libgrit_core::hash::compute_event_id;
-        use libgrit_core::types::event::{Event, EventKind};
-        use libgrit_core::types::ids::id_to_hex;
-
-        let id = hex_to_id(issue_id)
-            .map_err(|e| DaemonError::Grit(GritError::InvalidArgs(e.to_string())))?;
-
-        // Verify issue exists
-        self.store.get_issue(&id)?
-            .ok_or_else(|| DaemonError::Grit(GritError::NotFound(format!("Issue {} not found", issue_id))))?;
-
-        let mut event_ids = Vec::new();
-        let ts = current_time_ms();
-
-        // Add labels
-        for label in add {
-            let kind = EventKind::LabelAdded { label: label.clone() };
-            let event_id = compute_event_id(&id, &self.actor_id_bytes, ts, None, &kind);
-            let event = Event::new(event_id, id, self.actor_id_bytes, ts, None, kind);
-            self.store.insert_event(&event)?;
-            event_ids.push(id_to_hex(&event_id));
-        }
-
-        // Remove labels
-        for label in remove {
-            let kind = EventKind::LabelRemoved { label: label.clone() };
-            let event_id = compute_event_id(&id, &self.actor_id_bytes, ts, None, &kind);
-            let event = Event::new(event_id, id, self.actor_id_bytes, ts, None, kind);
-            self.store.insert_event(&event)?;
-            event_ids.push(id_to_hex(&event_id));
-        }
-
-        self.store.flush()?;
-
-        let json = serde_json::to_string(&serde_json::json!({
-            "issue_id": issue_id,
-            "event_ids": event_ids,
-        }))?;
-        Ok(Some(json))
-    }
-
-    fn issue_assign(&mut self, issue_id: &str, add: &[String], remove: &[String]) -> Result<Option<String>, DaemonError> {
-        use libgrit_core::hash::compute_event_id;
-        use libgrit_core::types::event::{Event, EventKind};
-        use libgrit_core::types::ids::id_to_hex;
-
-        let id = hex_to_id(issue_id)
-            .map_err(|e| DaemonError::Grit(GritError::InvalidArgs(e.to_string())))?;
-
-        // Verify issue exists
-        self.store.get_issue(&id)?
-            .ok_or_else(|| DaemonError::Grit(GritError::NotFound(format!("Issue {} not found", issue_id))))?;
-
-        let mut event_ids = Vec::new();
-        let ts = current_time_ms();
-
-        // Add assignees
-        for user in add {
-            let kind = EventKind::AssigneeAdded { user: user.clone() };
-            let event_id = compute_event_id(&id, &self.actor_id_bytes, ts, None, &kind);
-            let event = Event::new(event_id, id, self.actor_id_bytes, ts, None, kind);
-            self.store.insert_event(&event)?;
-            event_ids.push(id_to_hex(&event_id));
-        }
-
-        // Remove assignees
-        for user in remove {
-            let kind = EventKind::AssigneeRemoved { user: user.clone() };
-            let event_id = compute_event_id(&id, &self.actor_id_bytes, ts, None, &kind);
-            let event = Event::new(event_id, id, self.actor_id_bytes, ts, None, kind);
-            self.store.insert_event(&event)?;
-            event_ids.push(id_to_hex(&event_id));
-        }
-
-        self.store.flush()?;
-
-        let json = serde_json::to_string(&serde_json::json!({
-            "issue_id": issue_id,
-            "event_ids": event_ids,
-        }))?;
-        Ok(Some(json))
-    }
-
-    fn issue_link(&mut self, issue_id: &str, url: &str, note: Option<&str>) -> Result<Option<String>, DaemonError> {
-        use libgrit_core::hash::compute_event_id;
-        use libgrit_core::types::event::{Event, EventKind};
-        use libgrit_core::types::ids::id_to_hex;
-
-        let id = hex_to_id(issue_id)
-            .map_err(|e| DaemonError::Grit(GritError::InvalidArgs(e.to_string())))?;
-
-        // Verify issue exists
-        self.store.get_issue(&id)?
-            .ok_or_else(|| DaemonError::Grit(GritError::NotFound(format!("Issue {} not found", issue_id))))?;
-
-        let ts = current_time_ms();
-        let kind = EventKind::LinkAdded {
-            url: url.to_string(),
-            note: note.map(String::from),
-        };
-        let event_id = compute_event_id(&id, &self.actor_id_bytes, ts, None, &kind);
-        let event = Event::new(event_id, id, self.actor_id_bytes, ts, None, kind);
-
-        self.store.insert_event(&event)?;
-        self.store.flush()?;
-
-        let json = serde_json::to_string(&serde_json::json!({
-            "issue_id": issue_id,
-            "event_id": id_to_hex(&event_id),
-        }))?;
-        Ok(Some(json))
-    }
-
-    fn issue_attach(&mut self, issue_id: &str, file_path: &str) -> Result<Option<String>, DaemonError> {
-        use libgrit_core::hash::compute_event_id;
-        use libgrit_core::types::event::{Event, EventKind};
-        use libgrit_core::types::ids::id_to_hex;
-
-        let id = hex_to_id(issue_id)
-            .map_err(|e| DaemonError::Grit(GritError::InvalidArgs(e.to_string())))?;
-
-        // Verify issue exists
-        self.store.get_issue(&id)?
-            .ok_or_else(|| DaemonError::Grit(GritError::NotFound(format!("Issue {} not found", issue_id))))?;
-
-        // Parse file_path as "name:sha256:mime"
-        let parts: Vec<&str> = file_path.splitn(3, ':').collect();
-        if parts.len() != 3 {
-            return Err(DaemonError::Grit(GritError::InvalidArgs(
-                "file_path must be in format 'name:sha256:mime'".to_string()
-            )));
-        }
-
-        let name = parts[0].to_string();
-        let sha256: [u8; 32] = hex_to_id(parts[1])
-            .map_err(|e| DaemonError::Grit(GritError::InvalidArgs(e.to_string())))?;
-        let mime = parts[2].to_string();
-
-        let ts = current_time_ms();
-        let kind = EventKind::AttachmentAdded { name, sha256, mime };
-        let event_id = compute_event_id(&id, &self.actor_id_bytes, ts, None, &kind);
-        let event = Event::new(event_id, id, self.actor_id_bytes, ts, None, kind);
-
-        self.store.insert_event(&event)?;
-        self.store.flush()?;
-
-        let json = serde_json::to_string(&serde_json::json!({
-            "issue_id": issue_id,
-            "event_id": id_to_hex(&event_id),
-        }))?;
-        Ok(Some(json))
-    }
-
-    fn export(&self, format: &str, since: Option<&str>) -> Result<Option<String>, DaemonError> {
-        use libgrit_core::export::{export_json, export_markdown, ExportSince};
-
-        // Parse since timestamp
-        let since_opt = since.and_then(|s| s.parse::<u64>().ok()).map(ExportSince::Timestamp);
-
-        let output = match format {
-            "json" => {
-                let export = export_json(&self.store, since_opt)?;
-                serde_json::to_string(&export)?
-            }
-            "md" | "markdown" => export_markdown(&self.store, since_opt)?,
-            _ => return Err(DaemonError::Grit(GritError::InvalidArgs(
-                format!("Unknown format: {}", format)
-            ))),
-        };
-
-        Ok(Some(output))
-    }
-
-    fn sync(&self, _remote: &str, _pull: bool, _push: bool) -> Result<Option<String>, DaemonError> {
-        // Sync requires WAL access which we don't have in the worker yet
-        // Return a stub response for now
-        Err(DaemonError::Grit(GritError::Internal(
-            "Sync through daemon not yet implemented - use --no-daemon".to_string()
-        )))
-    }
-
-    fn snapshot_create(&self) -> Result<Option<String>, DaemonError> {
-        // Snapshot requires git access which we don't have in the worker yet
-        Err(DaemonError::Grit(GritError::Internal(
-            "Snapshot through daemon not yet implemented - use --no-daemon".to_string()
-        )))
-    }
-
-    fn snapshot_list(&self) -> Result<Option<String>, DaemonError> {
-        // Snapshot requires git access
-        Err(DaemonError::Grit(GritError::Internal(
-            "Snapshot through daemon not yet implemented - use --no-daemon".to_string()
-        )))
-    }
-
-    fn snapshot_gc(&self, _keep: u32) -> Result<Option<String>, DaemonError> {
-        // Snapshot requires git access
-        Err(DaemonError::Grit(GritError::Internal(
-            "Snapshot through daemon not yet implemented - use --no-daemon".to_string()
-        )))
     }
 
     /// Shutdown cleanup
@@ -676,6 +209,386 @@ impl Worker {
             actor = %self.actor_id,
             "Worker stopped"
         );
+    }
+}
+
+/// Execute a command with the given context.
+///
+/// This is a standalone function to enable concurrent execution via tokio::spawn.
+fn execute_command(
+    store: &LockedStore,
+    actor_id_bytes: ActorId,
+    sled_path: &PathBuf,
+    data_dir: &PathBuf,
+    request_id: &str,
+    command: &IpcCommand,
+) -> IpcResponse {
+    let result = execute_command_inner(store, actor_id_bytes, sled_path, data_dir, command);
+
+    match result {
+        Ok(data) => IpcResponse::success(request_id.to_string(), data),
+        Err(e) => {
+            let (code, message) = error_to_code_message(&e);
+            IpcResponse::error(request_id.to_string(), code, message)
+        }
+    }
+}
+
+/// Inner command execution logic
+fn execute_command_inner(
+    store: &LockedStore,
+    actor_id_bytes: ActorId,
+    sled_path: &PathBuf,
+    data_dir: &PathBuf,
+    command: &IpcCommand,
+) -> Result<Option<String>, DaemonError> {
+    use libgrit_core::hash::compute_event_id;
+    use libgrit_core::types::event::{Event, EventKind, IssueState};
+    use libgrit_core::types::ids::{generate_issue_id, id_to_hex};
+    use libgrit_core::types::issue::IssueProjection;
+    use libgrit_core::export::{export_json, export_markdown, ExportSince};
+
+    match command {
+        IpcCommand::IssueList { state, label } => {
+            let filter = IssueFilter {
+                state: state.as_ref().map(|s| match s.as_str() {
+                    "open" => IssueState::Open,
+                    "closed" => IssueState::Closed,
+                    _ => IssueState::Open,
+                }),
+                label: label.clone(),
+            };
+            let issues = store.list_issues(&filter)?;
+            let json = serde_json::to_string(&serde_json::json!({ "issues": issues }))?;
+            Ok(Some(json))
+        }
+
+        IpcCommand::IssueShow { issue_id } => {
+            let id = hex_to_id(issue_id)
+                .map_err(|e| DaemonError::Grit(GritError::InvalidArgs(e.to_string())))?;
+            let projection = store.get_issue(&id)?
+                .ok_or_else(|| DaemonError::Grit(GritError::NotFound(format!("Issue {} not found", issue_id))))?;
+            let json = serde_json::to_string(&projection)?;
+            Ok(Some(json))
+        }
+
+        IpcCommand::IssueCreate { title, body, labels } => {
+            let issue_id = generate_issue_id();
+            let ts = current_time_ms();
+            let kind = EventKind::IssueCreated {
+                title: title.clone(),
+                body: body.clone(),
+                labels: labels.clone(),
+            };
+            let event_id = compute_event_id(&issue_id, &actor_id_bytes, ts, None, &kind);
+            let event = Event::new(event_id, issue_id, actor_id_bytes, ts, None, kind);
+
+            store.insert_event(&event)?;
+            store.flush()?;
+
+            let projection = IssueProjection::from_event(&event)?;
+            let json = serde_json::to_string(&serde_json::json!({
+                "issue_id": id_to_hex(&issue_id),
+                "event_id": id_to_hex(&event_id),
+                "projection": projection,
+            }))?;
+            Ok(Some(json))
+        }
+
+        IpcCommand::IssueUpdate { issue_id, title, body } => {
+            if title.is_none() && body.is_none() {
+                return Err(DaemonError::Grit(GritError::InvalidArgs(
+                    "At least one of title or body must be provided".to_string()
+                )));
+            }
+
+            let id = hex_to_id(issue_id)
+                .map_err(|e| DaemonError::Grit(GritError::InvalidArgs(e.to_string())))?;
+            store.get_issue(&id)?
+                .ok_or_else(|| DaemonError::Grit(GritError::NotFound(format!("Issue {} not found", issue_id))))?;
+
+            let ts = current_time_ms();
+            let kind = EventKind::IssueUpdated {
+                title: title.clone(),
+                body: body.clone(),
+            };
+            let event_id = compute_event_id(&id, &actor_id_bytes, ts, None, &kind);
+            let event = Event::new(event_id, id, actor_id_bytes, ts, None, kind);
+
+            store.insert_event(&event)?;
+            store.flush()?;
+
+            let json = serde_json::to_string(&serde_json::json!({
+                "issue_id": issue_id,
+                "event_id": id_to_hex(&event_id),
+            }))?;
+            Ok(Some(json))
+        }
+
+        IpcCommand::IssueComment { issue_id, body } => {
+            let id = hex_to_id(issue_id)
+                .map_err(|e| DaemonError::Grit(GritError::InvalidArgs(e.to_string())))?;
+            store.get_issue(&id)?
+                .ok_or_else(|| DaemonError::Grit(GritError::NotFound(format!("Issue {} not found", issue_id))))?;
+
+            let ts = current_time_ms();
+            let kind = EventKind::CommentAdded { body: body.clone() };
+            let event_id = compute_event_id(&id, &actor_id_bytes, ts, None, &kind);
+            let event = Event::new(event_id, id, actor_id_bytes, ts, None, kind);
+
+            store.insert_event(&event)?;
+            store.flush()?;
+
+            let json = serde_json::to_string(&serde_json::json!({
+                "issue_id": issue_id,
+                "event_id": id_to_hex(&event_id),
+            }))?;
+            Ok(Some(json))
+        }
+
+        IpcCommand::IssueClose { issue_id } => {
+            let id = hex_to_id(issue_id)
+                .map_err(|e| DaemonError::Grit(GritError::InvalidArgs(e.to_string())))?;
+            store.get_issue(&id)?
+                .ok_or_else(|| DaemonError::Grit(GritError::NotFound(format!("Issue {} not found", issue_id))))?;
+
+            let ts = current_time_ms();
+            let kind = EventKind::StateChanged { state: IssueState::Closed };
+            let event_id = compute_event_id(&id, &actor_id_bytes, ts, None, &kind);
+            let event = Event::new(event_id, id, actor_id_bytes, ts, None, kind);
+
+            store.insert_event(&event)?;
+            store.flush()?;
+
+            let json = serde_json::to_string(&serde_json::json!({
+                "issue_id": issue_id,
+                "event_id": id_to_hex(&event_id),
+                "state": "closed",
+            }))?;
+            Ok(Some(json))
+        }
+
+        IpcCommand::IssueReopen { issue_id } => {
+            let id = hex_to_id(issue_id)
+                .map_err(|e| DaemonError::Grit(GritError::InvalidArgs(e.to_string())))?;
+            store.get_issue(&id)?
+                .ok_or_else(|| DaemonError::Grit(GritError::NotFound(format!("Issue {} not found", issue_id))))?;
+
+            let ts = current_time_ms();
+            let kind = EventKind::StateChanged { state: IssueState::Open };
+            let event_id = compute_event_id(&id, &actor_id_bytes, ts, None, &kind);
+            let event = Event::new(event_id, id, actor_id_bytes, ts, None, kind);
+
+            store.insert_event(&event)?;
+            store.flush()?;
+
+            let json = serde_json::to_string(&serde_json::json!({
+                "issue_id": issue_id,
+                "event_id": id_to_hex(&event_id),
+                "state": "open",
+            }))?;
+            Ok(Some(json))
+        }
+
+        IpcCommand::IssueLabel { issue_id, add, remove } => {
+            let id = hex_to_id(issue_id)
+                .map_err(|e| DaemonError::Grit(GritError::InvalidArgs(e.to_string())))?;
+            store.get_issue(&id)?
+                .ok_or_else(|| DaemonError::Grit(GritError::NotFound(format!("Issue {} not found", issue_id))))?;
+
+            let mut event_ids = Vec::new();
+            let ts = current_time_ms();
+
+            for label in add {
+                let kind = EventKind::LabelAdded { label: label.clone() };
+                let event_id = compute_event_id(&id, &actor_id_bytes, ts, None, &kind);
+                let event = Event::new(event_id, id, actor_id_bytes, ts, None, kind);
+                store.insert_event(&event)?;
+                event_ids.push(id_to_hex(&event_id));
+            }
+
+            for label in remove {
+                let kind = EventKind::LabelRemoved { label: label.clone() };
+                let event_id = compute_event_id(&id, &actor_id_bytes, ts, None, &kind);
+                let event = Event::new(event_id, id, actor_id_bytes, ts, None, kind);
+                store.insert_event(&event)?;
+                event_ids.push(id_to_hex(&event_id));
+            }
+
+            store.flush()?;
+
+            let json = serde_json::to_string(&serde_json::json!({
+                "issue_id": issue_id,
+                "event_ids": event_ids,
+            }))?;
+            Ok(Some(json))
+        }
+
+        IpcCommand::IssueAssign { issue_id, add, remove } => {
+            let id = hex_to_id(issue_id)
+                .map_err(|e| DaemonError::Grit(GritError::InvalidArgs(e.to_string())))?;
+            store.get_issue(&id)?
+                .ok_or_else(|| DaemonError::Grit(GritError::NotFound(format!("Issue {} not found", issue_id))))?;
+
+            let mut event_ids = Vec::new();
+            let ts = current_time_ms();
+
+            for user in add {
+                let kind = EventKind::AssigneeAdded { user: user.clone() };
+                let event_id = compute_event_id(&id, &actor_id_bytes, ts, None, &kind);
+                let event = Event::new(event_id, id, actor_id_bytes, ts, None, kind);
+                store.insert_event(&event)?;
+                event_ids.push(id_to_hex(&event_id));
+            }
+
+            for user in remove {
+                let kind = EventKind::AssigneeRemoved { user: user.clone() };
+                let event_id = compute_event_id(&id, &actor_id_bytes, ts, None, &kind);
+                let event = Event::new(event_id, id, actor_id_bytes, ts, None, kind);
+                store.insert_event(&event)?;
+                event_ids.push(id_to_hex(&event_id));
+            }
+
+            store.flush()?;
+
+            let json = serde_json::to_string(&serde_json::json!({
+                "issue_id": issue_id,
+                "event_ids": event_ids,
+            }))?;
+            Ok(Some(json))
+        }
+
+        IpcCommand::IssueLink { issue_id, url, note } => {
+            let id = hex_to_id(issue_id)
+                .map_err(|e| DaemonError::Grit(GritError::InvalidArgs(e.to_string())))?;
+            store.get_issue(&id)?
+                .ok_or_else(|| DaemonError::Grit(GritError::NotFound(format!("Issue {} not found", issue_id))))?;
+
+            let ts = current_time_ms();
+            let kind = EventKind::LinkAdded {
+                url: url.clone(),
+                note: note.clone(),
+            };
+            let event_id = compute_event_id(&id, &actor_id_bytes, ts, None, &kind);
+            let event = Event::new(event_id, id, actor_id_bytes, ts, None, kind);
+
+            store.insert_event(&event)?;
+            store.flush()?;
+
+            let json = serde_json::to_string(&serde_json::json!({
+                "issue_id": issue_id,
+                "event_id": id_to_hex(&event_id),
+            }))?;
+            Ok(Some(json))
+        }
+
+        IpcCommand::IssueAttach { issue_id, file_path } => {
+            let id = hex_to_id(issue_id)
+                .map_err(|e| DaemonError::Grit(GritError::InvalidArgs(e.to_string())))?;
+            store.get_issue(&id)?
+                .ok_or_else(|| DaemonError::Grit(GritError::NotFound(format!("Issue {} not found", issue_id))))?;
+
+            let parts: Vec<&str> = file_path.splitn(3, ':').collect();
+            if parts.len() != 3 {
+                return Err(DaemonError::Grit(GritError::InvalidArgs(
+                    "file_path must be in format 'name:sha256:mime'".to_string()
+                )));
+            }
+
+            let name = parts[0].to_string();
+            let sha256: [u8; 32] = hex_to_id(parts[1])
+                .map_err(|e| DaemonError::Grit(GritError::InvalidArgs(e.to_string())))?;
+            let mime = parts[2].to_string();
+
+            let ts = current_time_ms();
+            let kind = EventKind::AttachmentAdded { name, sha256, mime };
+            let event_id = compute_event_id(&id, &actor_id_bytes, ts, None, &kind);
+            let event = Event::new(event_id, id, actor_id_bytes, ts, None, kind);
+
+            store.insert_event(&event)?;
+            store.flush()?;
+
+            let json = serde_json::to_string(&serde_json::json!({
+                "issue_id": issue_id,
+                "event_id": id_to_hex(&event_id),
+            }))?;
+            Ok(Some(json))
+        }
+
+        IpcCommand::DbStats => {
+            let stats = store.stats(sled_path)?;
+            let json = serde_json::to_string(&serde_json::json!({
+                "path": stats.path,
+                "size_bytes": stats.size_bytes,
+                "event_count": stats.event_count,
+                "issue_count": stats.issue_count,
+                "last_rebuild_ts": stats.last_rebuild_ts,
+            }))?;
+            Ok(Some(json))
+        }
+
+        IpcCommand::Rebuild => {
+            let stats = store.rebuild()?;
+            let json = serde_json::to_string(&serde_json::json!({
+                "event_count": stats.event_count,
+                "issue_count": stats.issue_count,
+            }))?;
+            Ok(Some(json))
+        }
+
+        IpcCommand::Export { format, since } => {
+            let since_opt = since.as_ref()
+                .and_then(|s| s.parse::<u64>().ok())
+                .map(ExportSince::Timestamp);
+
+            let output = match format.as_str() {
+                "json" => {
+                    let export = export_json(store, since_opt)?;
+                    serde_json::to_string(&export)?
+                }
+                "md" | "markdown" => export_markdown(store, since_opt)?,
+                _ => return Err(DaemonError::Grit(GritError::InvalidArgs(
+                    format!("Unknown format: {}", format)
+                ))),
+            };
+            Ok(Some(output))
+        }
+
+        IpcCommand::DaemonStatus => {
+            let lock = DaemonLock::read(data_dir)
+                .map_err(|e| DaemonError::LockFailed(e.to_string()))?;
+
+            let json = match lock {
+                Some(l) => serde_json::to_string(&serde_json::json!({
+                    "running": !l.is_expired(),
+                    "pid": l.pid,
+                    "host_id": l.host_id,
+                    "ipc_endpoint": l.ipc_endpoint,
+                    "started_ts": l.started_ts,
+                    "expires_ts": l.expires_ts,
+                }))?,
+                None => serde_json::to_string(&serde_json::json!({
+                    "running": false,
+                }))?,
+            };
+            Ok(Some(json))
+        }
+
+        IpcCommand::DaemonStop => {
+            Ok(Some(serde_json::json!({"stopping": true}).to_string()))
+        }
+
+        IpcCommand::Sync { .. } => {
+            Err(DaemonError::Grit(GritError::Internal(
+                "Sync through daemon not yet implemented - use --no-daemon".to_string()
+            )))
+        }
+
+        IpcCommand::SnapshotCreate | IpcCommand::SnapshotList | IpcCommand::SnapshotGc { .. } => {
+            Err(DaemonError::Grit(GritError::Internal(
+                "Snapshot through daemon not yet implemented - use --no-daemon".to_string()
+            )))
+        }
     }
 }
 

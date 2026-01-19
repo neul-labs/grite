@@ -10,7 +10,8 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
-use std::time::Duration;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::time::{Duration, Instant};
 
 use libgrit_ipc::{
     messages::{ArchivedIpcRequest, IpcRequest, IpcResponse},
@@ -54,12 +55,19 @@ pub struct Supervisor {
     notify_tx: mpsc::Sender<Notification>,
     /// Shutdown signal
     shutdown_tx: Option<tokio::sync::broadcast::Sender<()>>,
+    /// Idle timeout (None = no auto-shutdown)
+    idle_timeout: Option<Duration>,
+    /// Last activity timestamp (monotonic, as ms since process start)
+    last_activity_ms: Arc<AtomicU64>,
+    /// Process start instant for relative timing
+    start_instant: Instant,
 }
 
 impl Supervisor {
     /// Create a new supervisor
-    pub fn new(ipc_endpoint: String) -> Self {
+    pub fn new(ipc_endpoint: String, idle_timeout: Option<Duration>) -> Self {
         let (notify_tx, notify_rx) = mpsc::channel(1000);
+        let start_instant = Instant::now();
 
         Self {
             daemon_id: uuid::Uuid::new_v4().to_string(),
@@ -69,6 +77,27 @@ impl Supervisor {
             notify_rx,
             notify_tx,
             shutdown_tx: None,
+            idle_timeout,
+            last_activity_ms: Arc::new(AtomicU64::new(0)),
+            start_instant,
+        }
+    }
+
+    /// Update the last activity timestamp
+    fn touch_activity(&self) {
+        let elapsed_ms = self.start_instant.elapsed().as_millis() as u64;
+        self.last_activity_ms.store(elapsed_ms, Ordering::Relaxed);
+    }
+
+    /// Check if we've been idle too long
+    fn is_idle_timeout(&self) -> bool {
+        if let Some(timeout) = self.idle_timeout {
+            let last_activity_ms = self.last_activity_ms.load(Ordering::Relaxed);
+            let now_ms = self.start_instant.elapsed().as_millis() as u64;
+            let idle_ms = now_ms.saturating_sub(last_activity_ms);
+            idle_ms >= timeout.as_millis() as u64
+        } else {
+            false
         }
     }
 
@@ -77,8 +106,12 @@ impl Supervisor {
         info!(
             daemon_id = %self.daemon_id,
             endpoint = %self.ipc_endpoint,
+            idle_timeout_secs = ?self.idle_timeout.map(|d| d.as_secs()),
             "Supervisor starting"
         );
+
+        // Initialize last activity to now
+        self.touch_activity();
 
         // Create shutdown channel
         let (shutdown_tx, _) = tokio::sync::broadcast::channel::<()>(1);
@@ -100,17 +133,34 @@ impl Supervisor {
         let pub_socket = Socket::new(Protocol::Pub0)?;
         let _ = pub_socket.listen(&pub_endpoint); // Optional - may fail if not supported
 
-        // Spawn heartbeat task
+        // Spawn heartbeat task (also checks idle timeout)
         let workers_clone = self.workers.clone();
+        let last_activity_ms = self.last_activity_ms.clone();
+        let idle_timeout = self.idle_timeout;
+        let start_instant = self.start_instant;
+        let idle_shutdown_tx = shutdown_tx.clone();
         let mut heartbeat_shutdown = shutdown_tx.subscribe();
         tokio::spawn(async move {
             let mut interval = tokio::time::interval(Duration::from_secs(10));
             loop {
                 tokio::select! {
                     _ = interval.tick() => {
+                        // Send heartbeats to workers
                         let workers = workers_clone.read().await;
                         for handle in workers.values() {
                             let _ = handle.tx.send(WorkerMessage::Heartbeat).await;
+                        }
+
+                        // Check idle timeout
+                        if let Some(timeout) = idle_timeout {
+                            let last_ms = last_activity_ms.load(Ordering::Relaxed);
+                            let now_ms = start_instant.elapsed().as_millis() as u64;
+                            let idle_ms = now_ms.saturating_sub(last_ms);
+                            if idle_ms >= timeout.as_millis() as u64 {
+                                info!("Idle timeout reached ({} ms), shutting down", idle_ms);
+                                let _ = idle_shutdown_tx.send(());
+                                break;
+                            }
                         }
                     }
                     _ = heartbeat_shutdown.recv() => {
@@ -157,6 +207,9 @@ impl Supervisor {
                 }) => {
                     match result {
                         Ok(Ok(msg)) => {
+                            // Update activity timestamp
+                            self.touch_activity();
+
                             let response = self.handle_request(&msg).await;
                             if let Ok(bytes) = rkyv::to_bytes::<rkyv::rancor::Error>(&response) {
                                 let reply = Message::from(bytes.as_slice());

@@ -1,51 +1,87 @@
 # Roadmap
 
-## Milestone 1: Local-only MVP
+## Completed
 
-- Event model + hashing
-- sled projections
-- CLI: init, actor management, create/list/show/update/comment/close
-- Export to markdown/json (with schema)
-- Tests: deterministic rebuild
-- `grit db stats` output schema
+### Milestone 1: Local-only MVP
 
-## Milestone 2: Git WAL
+- [x] Event model + BLAKE2b-256 hashing
+- [x] Sled projections with CRDT semantics
+- [x] CLI: init, actor management, create/list/show/update/comment/close
+- [x] Export to markdown/json
+- [x] Tests: deterministic rebuild
+- [x] `grit db stats` output
 
-- WAL commit writer/reader
-- Push/pull `refs/grit/*`
-- Handle remote-advanced push (fast-forward rebase)
-- Snapshot support
-- Portable WAL encoding (CBOR)
-- Hash test vectors
+### Milestone 2: Git WAL
 
-## Milestone 3: Daemon and IPC
+- [x] WAL commit writer/reader
+- [x] Push/pull `refs/grit/*`
+- [x] Snapshot support with GC
+- [x] Portable WAL encoding (CBOR chunks)
+- [x] Hash test vectors
 
-- Daemon discovery
-- `grit` routes all commands through the daemon if present for the selected `(repo, actor)`
-- Pub/sub notifications
-- Daemon ownership lock with lease/heartbeat
-- Multi-repo, multi-actor workers
-- `grit daemon status`/`grit daemon stop` behavior and output schema
+### Milestone 3: Daemon and IPC
 
-## Milestone 4: Locks + Team workflows
+- [x] Daemon supervisor/worker architecture
+- [x] IPC via nng (REQ/REP pattern)
+- [x] CLI routes commands through daemon if present
+- [x] Daemon ownership lock with lease/heartbeat
+- [x] Multi-repo, multi-actor workers
+- [x] `grit daemon start/status/stop`
+- [x] Auto-spawn on first CLI command
+- [x] Idle timeout with auto-shutdown
+- [x] Filesystem-level flock for database exclusion
+- [x] Concurrent command handling in daemon
 
-- Lease locks stored in refs
-- Lock GC
-- `grit issue edit --lock` (optional)
-- Lock policy enforcement (`off|warn|require`)
-- `grit lock status`
+### Milestone 4: Locks + Team workflows
 
-## Milestone 5: Hardening
+- [x] Lease locks stored in `refs/grit/locks/*`
+- [x] Lock GC
+- [x] `--lock` flag on issue commands
+- [x] Lock policy enforcement (`off|warn|require`)
+- [x] `grit lock acquire/release/renew/status/gc`
 
-- Stress tests (concurrent writers)
-- Corruption recovery
-- Security (signing and verification)
-- DB maintenance (`grit db stats`, rebuild thresholds)
+### Milestone 5: Hardening
 
-## Milestone 6: Future Directions
+- [x] Stress tests (concurrent writers)
+- [x] Ed25519 signing and verification
+- [x] `grit db check` for integrity verification
+- [x] `grit db verify` for signature verification
+- [x] `grit doctor` for health checks
 
-- Remote collaboration (GitHub/GitLab integration, remote sync workflows)
-- UI/TUI (Terminal UI or web dashboard)
-- Advanced queries (search, filters, saved views)
-- Webhooks/Automation (CI integration, triggers)
-- Import/Migration (from GitHub Issues, Jira, etc.)
+## In Progress
+
+### Milestone 5b: Production Hardening
+
+- [ ] Corruption recovery tools
+- [ ] Database rebuild thresholds
+- [ ] Better error messages and user guidance
+- [ ] Performance benchmarks
+
+## Planned
+
+### Milestone 6: Enhanced Sync
+
+- [ ] Handle remote-advanced push (fast-forward rebase)
+- [ ] Background sync in daemon
+- [ ] Sync conflict reporting
+- [ ] Partial sync (specific issues)
+
+### Milestone 7: Future Directions
+
+- [ ] Remote collaboration (GitHub/GitLab integration)
+- [ ] UI/TUI (Terminal UI or web dashboard)
+- [ ] Advanced queries (search, filters, saved views)
+- [ ] Webhooks/Automation (CI integration, triggers)
+- [ ] Import/Migration (from GitHub Issues, Jira, etc.)
+- [ ] Pub/sub notifications for external consumers
+
+## Test Coverage
+
+| Area | Status |
+|------|--------|
+| Core types and hashing | 68 tests |
+| Git WAL and snapshots | 17 tests |
+| IPC protocol | 16 tests |
+| Daemon integration | 6 tests |
+| Stress tests | 12 tests |
+| **Total** | **119 tests** |

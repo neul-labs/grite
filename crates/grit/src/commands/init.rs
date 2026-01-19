@@ -28,9 +28,9 @@ pub fn run(cli: &Cli) -> Result<(), GritError> {
     let actor_config = ActorConfig::new(actor_id, None);
     save_actor_config(&data_dir, &actor_config)?;
 
-    // Initialize empty sled database
+    // Initialize empty sled database with lock
     let sled_path = data_dir.join("sled");
-    let _store = GritStore::open(&sled_path)?;
+    let _store = GritStore::open_locked(&sled_path)?;
 
     // Set repo default
     let repo_config = RepoConfig {
