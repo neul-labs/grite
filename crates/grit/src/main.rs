@@ -1,3 +1,4 @@
+mod agents_md;
 mod cli;
 mod commands;
 mod context;
@@ -34,7 +35,7 @@ fn run_command(cli: &Cli) -> Result<(), GritError> {
 
     // Execute locally
     match &cli.command {
-        Command::Init => commands::init::run(cli),
+        Command::Init { no_agents_md } => commands::init::run(cli, *no_agents_md),
         Command::Actor { cmd } => commands::actor::run(cli, cmd.clone()),
         Command::Issue { cmd } => commands::issue::run(cli, cmd.clone()),
         Command::Db { cmd } => commands::db::run(cli, cmd.clone()),

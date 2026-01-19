@@ -99,6 +99,7 @@ The nng library is bundled with the pre-built binaries.
 # Initialize grit in a git repository
 cd your-repo
 grit init
+# This also creates AGENTS.md with instructions for AI coding agents
 
 # Create an issue
 grit issue create --title "Fix login bug" --body "Users can't login"
@@ -227,10 +228,11 @@ RUST_LOG=debug cargo run --bin grit -- issue list
 ## Design Principles
 
 1. **Git is the source of truth** - All state derivable from `refs/grit/*`
-2. **No working tree pollution** - Never writes tracked files
+2. **No working tree pollution** - Never writes tracked files (except AGENTS.md for agent discoverability)
 3. **Daemon optional** - CLI works standalone, daemon is performance optimization
 4. **Deterministic merges** - CRDT semantics, no manual conflict resolution
 5. **Per-actor isolation** - Multiple agents can work independently
+6. **Agent discoverability** - `grit init` creates AGENTS.md so AI coding agents automatically discover grit
 
 ## License
 

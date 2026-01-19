@@ -88,7 +88,7 @@ pub fn should_route_through_daemon(cmd: &crate::cli::Command) -> bool {
 
     match cmd {
         // Always local - these manage the grit setup itself
-        Command::Init => false,
+        Command::Init { .. } => false,
         Command::Actor { .. } => false,
 
         // Daemon and lock commands are handled specially
@@ -138,7 +138,7 @@ pub fn cli_to_ipc_command(cmd: &crate::cli::Command) -> Option<IpcCommand> {
         }),
         Command::Snapshot { cmd: snap_cmd } => Some(snapshot_to_ipc(snap_cmd)),
         // These don't route through daemon
-        Command::Init | Command::Actor { .. } | Command::Daemon { .. } | Command::Lock { .. } | Command::Doctor { .. } => None,
+        Command::Init { .. } | Command::Actor { .. } | Command::Daemon { .. } | Command::Lock { .. } | Command::Doctor { .. } => None,
     }
 }
 

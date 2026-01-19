@@ -8,7 +8,7 @@
 
 ## Command overview
 
-- `grit init`
+- `grit init [--no-agents-md]`
 - `grit actor init [--label <name>]`
 - `grit actor list [--json]`
 - `grit actor show [<id>] [--json]`
@@ -55,6 +55,15 @@
 - Default is `.git/grit/actors/<actor_id>/`
 - Each concurrent agent should use a distinct data dir
 - If a daemon owns the selected data dir, the CLI routes all commands through it and does not open the DB directly
+
+## AGENTS.md
+
+By default, `grit init` creates or updates an `AGENTS.md` file in the repository root with instructions for AI coding agents to use grit as the canonical task and memory system.
+
+- If `AGENTS.md` does not exist, it is created with grit instructions
+- If `AGENTS.md` exists but has no `## Grit` section, the section is appended
+- If `AGENTS.md` already contains a `## Grit` section, no changes are made
+- Use `--no-agents-md` to skip AGENTS.md creation/modification
 
 ## Actor identity
 

@@ -31,7 +31,11 @@ pub struct Cli {
 #[derive(Subcommand)]
 pub enum Command {
     /// Initialize grit in the current repository
-    Init,
+    Init {
+        /// Skip creating/updating AGENTS.md
+        #[arg(long)]
+        no_agents_md: bool,
+    },
 
     /// Actor management commands
     Actor {
