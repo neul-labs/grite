@@ -1,0 +1,471 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'Cargo.toml'
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  check-version:
+    name: Check Version
+    runs-on: ubuntu-latest
+    outputs:
+      should_release: ${{ steps.check.outputs.should_release }}
+      version: ${{ steps.check.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get version from Cargo.toml
+        id: cargo_version
+        run: |
+          VERSION=$(grep '^version' Cargo.toml | head -1 | sed 's/.*"\(.*\)"/\1/')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Get latest release
+        id: latest_release
+        run: |
+          LATEST=$(gh release view --json tagName -q '.tagName' 2>/dev/null || echo "none")
+          echo "latest=$LATEST" >> $GITHUB_OUTPUT
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Compare versions
+        id: check
+        run: |
+          CARGO_VERSION="${{ steps.cargo_version.outputs.version }}"
+          LATEST_TAG="${{ steps.latest_release.outputs.latest }}"
+
+          echo "Cargo.toml version: $CARGO_VERSION"
+          echo "Latest release tag: $LATEST_TAG"
+
+          if [ "$LATEST_TAG" = "none" ] || [ "$LATEST_TAG" != "v$CARGO_VERSION" ]; then
+            echo "should_release=true" >> $GITHUB_OUTPUT
+            echo "Version changed, will release v$CARGO_VERSION"
+          else
+            echo "should_release=false" >> $GITHUB_OUTPUT
+            echo "Version unchanged, skipping release"
+          fi
+          echo "version=$CARGO_VERSION" >> $GITHUB_OUTPUT
+
+  build:
+    name: Build (${{ matrix.target }})
+    needs: check-version
+    if: needs.check-version.outputs.should_release == 'true'
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Linux x86_64
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+            cross: false
+          - target: x86_64-unknown-linux-musl
+            os: ubuntu-latest
+            cross: true
+          # Linux ARM64
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu-latest
+            cross: true
+          - target: aarch64-unknown-linux-musl
+            os: ubuntu-latest
+            cross: true
+          # macOS
+          - target: x86_64-apple-darwin
+            os: macos-latest
+            cross: false
+          - target: aarch64-apple-darwin
+            os: macos-latest
+            cross: false
+          # Windows
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+            cross: false
+          - target: aarch64-pc-windows-msvc
+            os: windows-latest
+            cross: false
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-action@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Install system dependencies (Ubuntu)
+        if: matrix.os == 'ubuntu-latest' && !matrix.cross
+        run: sudo apt-get update && sudo apt-get install -y libnng-dev
+
+      - name: Install system dependencies (macOS)
+        if: matrix.os == 'macos-latest'
+        run: brew install nng
+
+      - name: Install system dependencies (Windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          vcpkg integrate install
+          vcpkg install nng:x64-windows
+          vcpkg install nng:arm64-windows
+        shell: pwsh
+
+      - name: Install cross
+        if: matrix.cross
+        run: cargo install cross --git https://github.com/cross-rs/cross
+
+      - name: Build with cross
+        if: matrix.cross
+        run: cross build --release --target ${{ matrix.target }} --package grit --package gritd
+        env:
+          CROSS_CONTAINER_OPTS: "--platform linux/amd64"
+
+      - name: Build native
+        if: "!matrix.cross"
+        run: cargo build --release --target ${{ matrix.target }} --package grit --package gritd
+        env:
+          NNG_LIB_DIR: ${{ matrix.os == 'windows-latest' && 'C:/vcpkg/installed/x64-windows/lib' || '' }}
+
+      - name: Package (Unix)
+        if: matrix.os != 'windows-latest'
+        run: |
+          VERSION="${{ needs.check-version.outputs.version }}"
+          ARCHIVE_NAME="grit-${VERSION}-${{ matrix.target }}"
+          mkdir -p "${ARCHIVE_NAME}"
+          cp target/${{ matrix.target }}/release/grit "${ARCHIVE_NAME}/"
+          cp target/${{ matrix.target }}/release/gritd "${ARCHIVE_NAME}/"
+          cp README.md "${ARCHIVE_NAME}/"
+          tar -czvf "${ARCHIVE_NAME}.tar.gz" "${ARCHIVE_NAME}"
+          echo "ASSET=${ARCHIVE_NAME}.tar.gz" >> $GITHUB_ENV
+
+      - name: Package (Windows)
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        run: |
+          $VERSION = "${{ needs.check-version.outputs.version }}"
+          $ARCHIVE_NAME = "grit-${VERSION}-${{ matrix.target }}"
+          New-Item -ItemType Directory -Path $ARCHIVE_NAME -Force
+          Copy-Item "target/${{ matrix.target }}/release/grit.exe" "$ARCHIVE_NAME/"
+          Copy-Item "target/${{ matrix.target }}/release/gritd.exe" "$ARCHIVE_NAME/"
+          Copy-Item "README.md" "$ARCHIVE_NAME/"
+          Compress-Archive -Path $ARCHIVE_NAME -DestinationPath "${ARCHIVE_NAME}.zip"
+          echo "ASSET=${ARCHIVE_NAME}.zip" >> $env:GITHUB_ENV
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.target }}
+          path: grit-*-${{ matrix.target }}.*
+
+  # Create macOS universal binary
+  build-macos-universal:
+    name: Build (macOS Universal)
+    needs: [check-version, build]
+    if: needs.check-version.outputs.should_release == 'true'
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download x86_64 artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: x86_64-apple-darwin
+          path: x86_64
+
+      - name: Download aarch64 artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: aarch64-apple-darwin
+          path: aarch64
+
+      - name: Create universal binary
+        run: |
+          VERSION="${{ needs.check-version.outputs.version }}"
+
+          # Extract both architectures
+          cd x86_64 && tar -xzf grit-${VERSION}-x86_64-apple-darwin.tar.gz && cd ..
+          cd aarch64 && tar -xzf grit-${VERSION}-aarch64-apple-darwin.tar.gz && cd ..
+
+          # Create universal binaries
+          ARCHIVE_NAME="grit-${VERSION}-universal-apple-darwin"
+          mkdir -p "${ARCHIVE_NAME}"
+
+          lipo -create \
+            "x86_64/grit-${VERSION}-x86_64-apple-darwin/grit" \
+            "aarch64/grit-${VERSION}-aarch64-apple-darwin/grit" \
+            -output "${ARCHIVE_NAME}/grit"
+
+          lipo -create \
+            "x86_64/grit-${VERSION}-x86_64-apple-darwin/gritd" \
+            "aarch64/grit-${VERSION}-aarch64-apple-darwin/gritd" \
+            -output "${ARCHIVE_NAME}/gritd"
+
+          cp README.md "${ARCHIVE_NAME}/"
+          tar -czvf "${ARCHIVE_NAME}.tar.gz" "${ARCHIVE_NAME}"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: universal-apple-darwin
+          path: grit-*-universal-apple-darwin.tar.gz
+
+  release:
+    name: Create Release
+    needs: [check-version, build, build-macos-universal]
+    if: needs.check-version.outputs.should_release == 'true'
+    runs-on: ubuntu-latest
+    outputs:
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: List artifacts
+        run: find artifacts -type f
+
+      - name: Create Release
+        id: create_release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ needs.check-version.outputs.version }}
+          name: v${{ needs.check-version.outputs.version }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          files: |
+            artifacts/**/*.tar.gz
+            artifacts/**/*.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  publish-cargo:
+    name: Publish to Cargo
+    needs: [check-version, release]
+    if: needs.check-version.outputs.should_release == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-action@stable
+
+      - name: Install system dependencies
+        run: sudo apt-get update && sudo apt-get install -y libnng-dev
+
+      - name: Publish crates
+        run: |
+          # Publish in dependency order with delay between each
+          cargo publish --package libgrit-core --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
+          sleep 30
+          cargo publish --package libgrit-git --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
+          sleep 30
+          cargo publish --package libgrit-ipc --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
+          sleep 30
+          cargo publish --package grit --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
+          sleep 30
+          cargo publish --package gritd --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
+
+  publish-npm:
+    name: Publish to npm
+    needs: [check-version, release]
+    if: needs.check-version.outputs.should_release == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Update package version
+        run: |
+          cd packaging/npm
+          npm version ${{ needs.check-version.outputs.version }} --no-git-tag-version
+
+      - name: Publish
+        run: |
+          cd packaging/npm
+          npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  publish-pypi:
+    name: Publish to PyPI
+    needs: [check-version, release]
+    if: needs.check-version.outputs.should_release == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install build tools
+        run: pip install build twine
+
+      - name: Update version
+        run: |
+          cd packaging/pip
+          sed -i 's/version = ".*"/version = "${{ needs.check-version.outputs.version }}"/' pyproject.toml
+
+      - name: Build package
+        run: |
+          cd packaging/pip
+          python -m build
+
+      - name: Publish to PyPI
+        run: |
+          cd packaging/pip
+          twine upload dist/*
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
+
+  publish-gem:
+    name: Publish to RubyGems
+    needs: [check-version, release]
+    if: needs.check-version.outputs.should_release == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.2'
+
+      - name: Update version
+        run: |
+          cd packaging/gem
+          sed -i "s/spec.version = .*/spec.version = '${{ needs.check-version.outputs.version }}'/" grit-cli.gemspec
+
+      - name: Build gem
+        run: |
+          cd packaging/gem
+          gem build grit-cli.gemspec
+
+      - name: Publish gem
+        run: |
+          cd packaging/gem
+          mkdir -p ~/.gem
+          echo ":rubygems_api_key: ${{ secrets.GEM_HOST_API_KEY }}" > ~/.gem/credentials
+          chmod 600 ~/.gem/credentials
+          gem push grit-cli-*.gem
+
+  publish-homebrew:
+    name: Update Homebrew Tap
+    needs: [check-version, release]
+    if: needs.check-version.outputs.should_release == 'true'
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download macOS universal artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: universal-apple-darwin
+          path: artifacts
+
+      - name: Calculate SHA256
+        id: sha
+        run: |
+          SHA=$(shasum -a 256 artifacts/grit-*-universal-apple-darwin.tar.gz | awk '{print $1}')
+          echo "sha256=$SHA" >> $GITHUB_OUTPUT
+
+      - name: Update Homebrew formula
+        run: |
+          VERSION="${{ needs.check-version.outputs.version }}"
+          SHA256="${{ steps.sha.outputs.sha256 }}"
+
+          # Clone tap repo
+          git clone https://x-access-token:${{ secrets.HOMEBREW_TAP_TOKEN }}@github.com/neul-labs/homebrew-tap.git tap
+
+          # Update formula
+          cat > tap/Formula/grit.rb << EOF
+          class Grit < Formula
+            desc "Git-backed issue tracking for coding agents and humans"
+            homepage "https://github.com/neul-labs/grit"
+            version "${VERSION}"
+            license any_of: ["MIT", "Apache-2.0"]
+
+            on_macos do
+              url "https://github.com/neul-labs/grit/releases/download/v${VERSION}/grit-${VERSION}-universal-apple-darwin.tar.gz"
+              sha256 "${SHA256}"
+            end
+
+            depends_on "nng"
+
+            def install
+              bin.install "grit"
+              bin.install "gritd"
+            end
+
+            test do
+              system "#{bin}/grit", "--version"
+            end
+          end
+          EOF
+
+          # Commit and push
+          cd tap
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git add Formula/grit.rb
+          git commit -m "Update grit to ${VERSION}"
+          git push
+
+  publish-chocolatey:
+    name: Publish to Chocolatey
+    needs: [check-version, release]
+    if: needs.check-version.outputs.should_release == 'true'
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download Windows artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: x86_64-pc-windows-msvc
+          path: artifacts
+
+      - name: Calculate checksum
+        id: checksum
+        shell: pwsh
+        run: |
+          $hash = (Get-FileHash -Algorithm SHA256 artifacts/grit-*-x86_64-pc-windows-msvc.zip).Hash
+          echo "sha256=$hash" >> $env:GITHUB_OUTPUT
+
+      - name: Update nuspec version
+        shell: pwsh
+        run: |
+          $version = "${{ needs.check-version.outputs.version }}"
+          $content = Get-Content packaging/chocolatey/grit.nuspec -Raw
+          $content = $content -replace '<version>.*</version>', "<version>$version</version>"
+          Set-Content packaging/chocolatey/grit.nuspec $content
+
+      - name: Update install script
+        shell: pwsh
+        run: |
+          $version = "${{ needs.check-version.outputs.version }}"
+          $sha = "${{ steps.checksum.outputs.sha256 }}"
+          $content = Get-Content packaging/chocolatey/tools/chocolateyinstall.ps1 -Raw
+          $content = $content -replace '\$version = .*', "`$version = '$version'"
+          $content = $content -replace '\$checksum = .*', "`$checksum = '$sha'"
+          Set-Content packaging/chocolatey/tools/chocolateyinstall.ps1 $content
+
+      - name: Pack and push
+        shell: pwsh
+        run: |
+          cd packaging/chocolatey
+          choco pack
+          choco push grit.${{ needs.check-version.outputs.version }}.nupkg --source https://push.chocolatey.org/ --api-key ${{ secrets.CHOCO_API_KEY }}

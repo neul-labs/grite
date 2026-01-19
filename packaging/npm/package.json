@@ -1,0 +1,42 @@
+{
+  "name": "@neul-labs/grit",
+  "version": "0.1.0",
+  "description": "Git-backed issue tracking for coding agents and humans",
+  "keywords": [
+    "git",
+    "issue-tracking",
+    "task-management",
+    "cli",
+    "coding-agents"
+  ],
+  "homepage": "https://github.com/neul-labs/grit",
+  "bugs": {
+    "url": "https://github.com/neul-labs/grit/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/neul-labs/grit.git"
+  },
+  "license": "(MIT OR Apache-2.0)",
+  "author": "Neul Labs",
+  "main": "index.js",
+  "bin": {
+    "grit": "bin/grit",
+    "gritd": "bin/gritd"
+  },
+  "scripts": {
+    "postinstall": "node install.js"
+  },
+  "os": [
+    "darwin",
+    "linux",
+    "win32"
+  ],
+  "cpu": [
+    "x64",
+    "arm64"
+  ],
+  "engines": {
+    "node": ">=14"
+  }
+}

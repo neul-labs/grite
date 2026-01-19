@@ -27,31 +27,71 @@ See [Use Cases](docs/use-cases.md) for detailed workflows and examples.
 
 ## Installation
 
-### From source
+### Quick Install (Recommended)
 
 ```bash
-git clone https://github.com/anthropics/grit.git
-cd grit
-./install.sh
+curl -fsSL https://raw.githubusercontent.com/neul-labs/grit/main/install.sh | bash
 ```
 
-This installs `grit` and `gritd` to `~/.local/bin/`.
+This downloads the pre-built binary for your platform and installs to `~/.local/bin/`.
+
+### Package Managers
+
+**Homebrew (macOS/Linux):**
+```bash
+brew install neul-labs/tap/grit
+```
+
+**Cargo (Rust):**
+```bash
+cargo install grit gritd
+```
+
+**npm:**
+```bash
+npm install -g @neul-labs/grit
+```
+
+**pip:**
+```bash
+pip install grit-cli
+```
+
+**gem:**
+```bash
+gem install grit-cli
+```
+
+**Chocolatey (Windows):**
+```powershell
+choco install grit
+```
+
+### From Source
+
+```bash
+git clone https://github.com/neul-labs/grit.git
+cd grit
+./install.sh --source
+```
 
 ### Prerequisites
 
-- Rust 1.70+ (stable)
 - Git 2.38+
 - nng library (for IPC)
 
-On Ubuntu/Debian:
+**Ubuntu/Debian:**
 ```bash
 sudo apt install libnng-dev
 ```
 
-On macOS:
+**macOS:**
 ```bash
 brew install nng
 ```
+
+**Windows:**
+The nng library is bundled with the pre-built binaries.
 
 ## Quick Start
 
@@ -194,4 +234,4 @@ RUST_LOG=debug cargo run --bin grit -- issue list
 
 ## License
 
-Apache 2.0
+MIT License - see [LICENSE](LICENSE) for details.

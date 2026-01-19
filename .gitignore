@@ -4,3 +4,6 @@ memista.*
 .vscode
 *.env
 ~/
+
+# Grit data (development artifacts)
+.grit/
