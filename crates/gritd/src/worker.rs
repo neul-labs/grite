@@ -161,6 +161,7 @@ impl Worker {
                     let actor_id_bytes = self.actor_id_bytes;
                     let sled_path = self.sled_path.clone();
                     let data_dir = self.data_dir.clone();
+                    let git_dir = self.git_dir.clone();
 
                     // Spawn task for concurrent command execution
                     // sled's MVCC handles concurrent access safely
@@ -170,6 +171,7 @@ impl Worker {
                             actor_id_bytes,
                             &sled_path,
                             &data_dir,
+                            &git_dir,
                             &request_id,
                             &command,
                         );
@@ -220,10 +222,11 @@ fn execute_command(
     actor_id_bytes: ActorId,
     sled_path: &PathBuf,
     data_dir: &PathBuf,
+    git_dir: &PathBuf,
     request_id: &str,
     command: &IpcCommand,
 ) -> IpcResponse {
-    let result = execute_command_inner(store, actor_id_bytes, sled_path, data_dir, command);
+    let result = execute_command_inner(store, actor_id_bytes, sled_path, data_dir, git_dir, command);
 
     match result {
         Ok(data) => IpcResponse::success(request_id.to_string(), data),
@@ -240,6 +243,7 @@ fn execute_command_inner(
     actor_id_bytes: ActorId,
     sled_path: &PathBuf,
     data_dir: &PathBuf,
+    git_dir: &PathBuf,
     command: &IpcCommand,
 ) -> Result<Option<String>, DaemonError> {
     use libgrit_core::hash::compute_event_id;
@@ -247,6 +251,7 @@ fn execute_command_inner(
     use libgrit_core::types::ids::{generate_issue_id, id_to_hex};
     use libgrit_core::types::issue::IssueProjection;
     use libgrit_core::export::{export_json, export_markdown, ExportSince};
+    use libgrit_git::SyncManager;
 
     match command {
         IpcCommand::IssueList { state, label } => {
@@ -578,10 +583,54 @@ fn execute_command_inner(
             Ok(Some(serde_json::json!({"stopping": true}).to_string()))
         }
 
-        IpcCommand::Sync { .. } => {
-            Err(DaemonError::Grit(GritError::Internal(
-                "Sync through daemon not yet implemented - use --no-daemon".to_string()
-            )))
+        IpcCommand::Sync { remote, pull, push } => {
+            let sync_mgr = SyncManager::open(git_dir)?;
+
+            // If neither flag is set, do both pull and push
+            let do_pull = *pull || (!*pull && !*push);
+            let do_push = *push || (!*pull && !*push);
+
+            let mut result = serde_json::json!({});
+
+            if do_pull && !do_push {
+                // Pull only
+                let pull_result = sync_mgr.pull(remote)?;
+                let wal_head: Option<String> = pull_result.new_wal_head.map(|oid| oid.to_string());
+                result = serde_json::json!({
+                    "pulled": true,
+                    "pushed": false,
+                    "pull_events": pull_result.events_pulled,
+                    "pull_wal_head": wal_head,
+                    "message": pull_result.message,
+                });
+            } else if do_push && !do_pull {
+                // Push only with auto-rebase
+                let push_result = sync_mgr.push_with_rebase(remote, &actor_id_bytes)?;
+                result = serde_json::json!({
+                    "pulled": false,
+                    "pushed": true,
+                    "push_success": push_result.success,
+                    "push_rebased": push_result.rebased,
+                    "push_events_rebased": push_result.events_rebased,
+                    "message": push_result.message,
+                });
+            } else {
+                // Full sync: pull then push with auto-rebase
+                let (pull_result, push_result) = sync_mgr.sync_with_rebase(remote, &actor_id_bytes)?;
+                let wal_head: Option<String> = pull_result.new_wal_head.map(|oid| oid.to_string());
+                result = serde_json::json!({
+                    "pulled": true,
+                    "pushed": true,
+                    "pull_events": pull_result.events_pulled,
+                    "pull_wal_head": wal_head,
+                    "push_success": push_result.success,
+                    "push_rebased": push_result.rebased,
+                    "push_events_rebased": push_result.events_rebased,
+                    "message": format!("{} / {}", pull_result.message, push_result.message),
+                });
+            }
+
+            Ok(Some(result.to_string()))
         }
 
         IpcCommand::SnapshotCreate | IpcCommand::SnapshotList | IpcCommand::SnapshotGc { .. } => {

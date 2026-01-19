@@ -108,7 +108,7 @@ pub fn should_route_through_daemon(cmd: &crate::cli::Command) -> bool {
         // These can be routed through daemon
         Command::Issue { .. } => true,
         Command::Export { .. } => true,
-        Command::Rebuild => true,
+        Command::Rebuild { from_snapshot } => !from_snapshot, // Snapshot-based rebuild is local-only
         Command::Sync { .. } => true,
         Command::Snapshot { .. } => true,
     }
@@ -130,7 +130,8 @@ pub fn cli_to_ipc_command(cmd: &crate::cli::Command) -> Option<IpcCommand> {
             },
             since: since.clone(),
         }),
-        Command::Rebuild => Some(IpcCommand::Rebuild),
+        Command::Rebuild { from_snapshot } if !from_snapshot => Some(IpcCommand::Rebuild),
+        Command::Rebuild { .. } => None, // Snapshot-based rebuild handled locally
         Command::Sync { remote, pull, push } => Some(IpcCommand::Sync {
             remote: remote.clone(),
             pull: *pull,

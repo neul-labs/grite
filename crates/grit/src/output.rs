@@ -40,6 +40,14 @@ pub fn output_success<T: Serialize>(cli: &Cli, data: T) {
 /// Output an error
 pub fn output_error(cli: &Cli, err: &GritError) {
     if cli.json {
+        // Include suggestions in JSON details
+        let suggestions = err.suggestions();
+        let details = if suggestions.is_empty() {
+            serde_json::Value::Null
+        } else {
+            serde_json::json!({ "suggestions": suggestions })
+        };
+
         let response: JsonResponse<()> = JsonResponse {
             schema_version: 1,
             ok: false,
@@ -47,12 +55,21 @@ pub fn output_error(cli: &Cli, err: &GritError) {
             error: Some(JsonError {
                 code: err.error_code().to_string(),
                 message: err.to_string(),
-                details: serde_json::Value::Null,
+                details,
             }),
         };
         eprintln!("{}", serde_json::to_string_pretty(&response).unwrap());
     } else {
         eprintln!("error: {}", err);
+        // Print suggestions for human-readable output
+        let suggestions = err.suggestions();
+        if !suggestions.is_empty() {
+            eprintln!();
+            eprintln!("Suggestions:");
+            for suggestion in suggestions {
+                eprintln!("  - {}", suggestion);
+            }
+        }
     }
 }
 

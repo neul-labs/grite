@@ -284,6 +284,20 @@ session_resume() {
     wait_for_user
 }
 
+# Step 7: Health checks
+run_doctor() {
+    print_step "STEP 7: Health Checks"
+
+    print_info "Run grit doctor to check database health:"
+    run_cmd "$GRIT doctor"
+
+    echo ""
+    print_info "Doctor checks: git repo, WAL ref, actor config, store integrity, rebuild threshold"
+    print_info "Use 'grit doctor --fix' to auto-repair issues"
+
+    wait_for_user
+}
+
 # Final summary
 show_summary() {
     print_step "DEMO COMPLETE"
@@ -295,6 +309,7 @@ show_summary() {
     echo -e "  3. Progress tracked with ${BLUE}grit issue comment${NC} (checkpoints)"
     echo -e "  4. Learnings stored with ${BLUE}--label memory${NC}"
     echo -e "  5. New sessions retrieve context via ${BLUE}grit issue list${NC}"
+    echo -e "  6. Health checks with ${BLUE}grit doctor${NC}"
     echo ""
     echo -e "${GREEN}${BOLD}Try it yourself:${NC}"
     echo ""
@@ -369,6 +384,7 @@ BANNER
     work_with_checkpoints
     store_memory
     session_resume
+    run_doctor
     show_summary
 }
 

@@ -113,8 +113,14 @@ grit issue comment <issue-id> --body "Working on this"
 # Close an issue
 grit issue close <issue-id>
 
-# Sync with remote
+# Sync with remote (auto-rebases on conflict)
 grit sync
+
+# Run health checks
+grit doctor
+
+# Rebuild database (fast mode with snapshots)
+grit rebuild --from-snapshot
 ```
 
 ## Architecture

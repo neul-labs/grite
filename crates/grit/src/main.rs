@@ -40,7 +40,7 @@ fn run_command(cli: &Cli) -> Result<(), GritError> {
         Command::Issue { cmd } => commands::issue::run(cli, cmd.clone()),
         Command::Db { cmd } => commands::db::run(cli, cmd.clone()),
         Command::Export { format, since } => commands::export::run(cli, format.clone(), since.clone()),
-        Command::Rebuild => commands::rebuild::run(cli),
+        Command::Rebuild { from_snapshot } => commands::rebuild::run(cli, *from_snapshot),
         Command::Sync { remote, pull, push } => commands::sync::run(cli, remote.clone(), *pull, *push),
         Command::Snapshot { cmd } => commands::snapshot::run(cli, cmd.clone()),
         Command::Daemon { cmd } => commands::daemon::run(cli, cmd.clone()),

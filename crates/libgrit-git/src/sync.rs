@@ -36,6 +36,8 @@ pub struct PushResult {
     pub success: bool,
     /// Whether a rebase was needed
     pub rebased: bool,
+    /// Number of events rebased (if any)
+    pub events_rebased: usize,
     /// Message describing what happened
     pub message: String,
 }
@@ -130,6 +132,7 @@ impl SyncManager {
             return Ok(PushResult {
                 success: false,
                 rebased: false,
+                events_rebased: 0,
                 message: format!("Push rejected: {}", error_msg),
             });
         }
@@ -137,6 +140,7 @@ impl SyncManager {
         Ok(PushResult {
             success: true,
             rebased: false,
+            events_rebased: 0,
             message: "Push successful".to_string(),
         })
     }
@@ -144,15 +148,21 @@ impl SyncManager {
     /// Push with automatic rebase on conflict
     ///
     /// If push is rejected due to non-fast-forward, this will:
-    /// 1. Pull remote changes
-    /// 2. Re-append local events on top of remote head
-    /// 3. Push again
+    /// 1. Record local head
+    /// 2. Pull remote changes (which updates local ref)
+    /// 3. Find events that were local-only
+    /// 4. Re-append those events on top of remote head
+    /// 5. Push again
     pub fn push_with_rebase(
         &self,
         remote_name: &str,
         actor_id: &ActorId,
-        local_events: &[Event],
     ) -> Result<PushResult, GitError> {
+        let wal = WalManager::open(&self.git_dir)?;
+
+        // Record local head before attempting push
+        let local_head = wal.head()?;
+
         // First try a normal push
         let result = self.push(remote_name)?;
         if result.success {
@@ -160,23 +170,47 @@ impl SyncManager {
         }
 
         // Push failed - need to rebase
-        // 1. Pull to get remote state
+        // 1. Read local events BEFORE pull overwrites the ref
+        let local_events = if let Some(head_oid) = local_head {
+            wal.read_from_oid(head_oid)?
+        } else {
+            vec![]
+        };
+
+        // 2. Pull to get remote state (this updates local ref to remote's head)
         self.pull(remote_name)?;
 
-        // 2. Re-append our events on top
-        if !local_events.is_empty() {
-            let wal = WalManager::open(&self.git_dir)?;
-            wal.append(actor_id, local_events)?;
+        // 3. Get remote events to find which local events are unique
+        let remote_head = wal.head()?;
+        let remote_events = if let Some(head_oid) = remote_head {
+            wal.read_from_oid(head_oid)?
+        } else {
+            vec![]
+        };
+
+        // 4. Find events that exist in local but not in remote (by event_id)
+        let remote_event_ids: std::collections::HashSet<_> =
+            remote_events.iter().map(|e| e.event_id).collect();
+        let unique_local_events: Vec<Event> = local_events
+            .into_iter()
+            .filter(|e| !remote_event_ids.contains(&e.event_id))
+            .collect();
+
+        // 5. Re-append our unique events on top
+        let events_rebased = unique_local_events.len();
+        if !unique_local_events.is_empty() {
+            wal.append(actor_id, &unique_local_events)?;
         }
 
-        // 3. Try push again
+        // 6. Try push again
         let retry_result = self.push(remote_name)?;
 
         Ok(PushResult {
             success: retry_result.success,
             rebased: true,
+            events_rebased,
             message: if retry_result.success {
-                "Push successful after rebase".to_string()
+                format!("Push successful after rebase ({} events rebased)", events_rebased)
             } else {
                 retry_result.message
             },
@@ -187,6 +221,17 @@ impl SyncManager {
     pub fn sync(&self, remote_name: &str) -> Result<(PullResult, PushResult), GitError> {
         let pull_result = self.pull(remote_name)?;
         let push_result = self.push(remote_name)?;
+        Ok((pull_result, push_result))
+    }
+
+    /// Sync with automatic rebase (pull then push with conflict resolution)
+    pub fn sync_with_rebase(
+        &self,
+        remote_name: &str,
+        actor_id: &ActorId,
+    ) -> Result<(PullResult, PushResult), GitError> {
+        let pull_result = self.pull(remote_name)?;
+        let push_result = self.push_with_rebase(remote_name, actor_id)?;
         Ok((pull_result, push_result))
     }
 }

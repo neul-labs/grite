@@ -47,6 +47,11 @@ cargo build
 - `grit sync --pull` retrieves latest state
 - `grit issue list` shows open tasks and memories
 
+### 7. Health Checks
+- `grit doctor` checks database health
+- Shows git repo, WAL ref, actor config, store integrity, rebuild threshold
+- `grit doctor --fix` auto-repairs issues
+
 ## Demo Modes
 
 | Mode | Command | Description |

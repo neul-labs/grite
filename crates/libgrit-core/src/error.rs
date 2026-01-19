@@ -73,4 +73,61 @@ impl GritError {
             _ => 1,
         }
     }
+
+    /// Get actionable suggestions for fixing the error
+    pub fn suggestions(&self) -> Vec<&'static str> {
+        match self {
+            GritError::NotFound(msg) => {
+                if msg.contains("issue") || msg.starts_with("Issue") {
+                    vec!["Run 'grit issue list' to see available issues"]
+                } else if msg.contains("actor") {
+                    vec!["Run 'grit actor init' to create an actor"]
+                } else {
+                    vec![]
+                }
+            }
+            GritError::DbBusy(_) => vec![
+                "Try 'grit --no-daemon <command>' to bypass the daemon",
+                "Or wait for the other process to finish",
+                "Or run 'grit daemon stop' to stop the daemon",
+            ],
+            GritError::Sled(_) => vec![
+                "Run 'grit doctor --fix' to rebuild the database",
+                "If problem persists, check disk space and permissions",
+            ],
+            GritError::Ipc(_) => vec![
+                "Run 'grit daemon stop' and retry",
+                "Or use 'grit --no-daemon <command>' to bypass IPC",
+            ],
+            GritError::Conflict(_) => vec![
+                "Run 'grit sync' to pull latest changes",
+            ],
+            GritError::IdParse(_) => vec![
+                "IDs should be hex strings (e.g., 'abc123...')",
+                "Use 'grit issue list' to see valid issue IDs",
+            ],
+            _ => vec![],
+        }
+    }
+
+    /// Create a NotFound error for an issue with helpful context
+    pub fn issue_not_found(issue_id: &str) -> Self {
+        GritError::NotFound(format!(
+            "Issue '{}' not found",
+            if issue_id.len() > 16 {
+                &issue_id[..16]
+            } else {
+                issue_id
+            }
+        ))
+    }
+
+    /// Create a DbBusy error with process info
+    pub fn database_locked(details: Option<&str>) -> Self {
+        let msg = match details {
+            Some(d) => format!("Database is locked ({})", d),
+            None => "Database is locked by another process".to_string(),
+        };
+        GritError::DbBusy(msg)
+    }
 }

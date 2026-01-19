@@ -67,7 +67,11 @@ pub enum Command {
     },
 
     /// Rebuild local database from events
-    Rebuild,
+    Rebuild {
+        /// Use latest snapshot as base (faster for large repos)
+        #[arg(long)]
+        from_snapshot: bool,
+    },
 
     /// Sync with remote repository
     Sync {

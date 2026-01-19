@@ -2,32 +2,57 @@
 
 ## Doctor
 
-`grit doctor` performs read-only checks and prints a remediation plan. It never rewrites refs.
+`grit doctor` performs health checks and prints remediation suggestions.
 
-Checks include:
+```bash
+# Run health checks
+grit doctor
 
-- WAL ref exists and is monotonic
-- Local materialized view matches WAL head
-- Actor identity is present
-- Remote refs are reachable (optional)
-- Locks are not stale (optional)
+# Auto-fix issues
+grit doctor --fix
+```
 
-`grit doctor --apply` only runs safe local actions and never pushes refs:
+Checks performed:
 
-- rebuild local DB
-- fetch refs
-- create new WAL commits
+| Check | Description |
+|-------|-------------|
+| `git_repo` | Git repository is valid |
+| `wal_ref` | WAL ref exists and is readable |
+| `actor_config` | Actor is properly configured |
+| `store_integrity` | Database integrity (event hashes match) |
+| `rebuild_threshold` | Warns if rebuild is recommended |
+
+**Rebuild threshold:** The doctor checks if too many events have accumulated since the last rebuild (default: 10,000 events or 7 days). When exceeded, it suggests running `grit rebuild`.
+
+`grit doctor --fix` runs safe local repairs:
+
+- Rebuilds local DB on corruption
+- Does not modify git refs
+- Does not push to remote
 
 If remote sync is needed, the remediation plan explicitly lists `grit sync --pull` and/or `grit sync --push`.
 
 ## Rebuild
 
-`grit rebuild` discards the local sled view and replays:
+`grit rebuild` discards the local sled projections and replays all events.
 
-1. Latest snapshot (if present)
-2. WAL commits after the snapshot
+```bash
+# Standard rebuild from local store events
+grit rebuild
 
-Rebuilds also compact the local DB because they rewrite it from scratch.
+# Fast rebuild from latest snapshot
+grit rebuild --from-snapshot
+```
+
+**Standard rebuild:** Clears projections and replays all events from the local store. Use when projections are corrupted but events are intact.
+
+**Snapshot-based rebuild:** Loads events from the latest snapshot instead of the local store. Faster for large repositories because snapshots are pre-consolidated:
+
+1. Loads events from latest snapshot ref
+2. Rebuilds projections from those events
+3. Updates rebuild timestamp
+
+Rebuilds compact the local DB because they rewrite projections from scratch.
 
 ## Limits to be aware of
 
@@ -45,10 +70,43 @@ The sled DB is a cache and can be safely deleted or rebuilt. Management is done 
 
 ## Sync
 
-- `grit sync --pull` fetches `refs/grit/*`
-- `grit sync --push` pushes `refs/grit/*`
+```bash
+# Full sync (pull then push)
+grit sync
 
-If push is rejected, the client rebases by creating a new WAL commit parented to the remote head.
+# Pull only
+grit sync --pull
+
+# Push only
+grit sync --push
+
+# Specify remote
+grit sync --remote upstream
+```
+
+- `grit sync --pull` fetches `refs/grit/*` from the remote
+- `grit sync --push` pushes `refs/grit/*` to the remote
+- `grit sync` (no flags) does both: pull first, then push
+
+### Auto-rebase on conflict
+
+When a push is rejected due to non-fast-forward (remote has commits you don't have), grit automatically resolves the conflict:
+
+1. Records local head before attempting push
+2. Attempts push
+3. If rejected, pulls remote changes (local ref now points to remote head)
+4. Identifies events that were local-only (not in remote)
+5. Re-appends local events on top of remote head
+6. Pushes again
+
+The sync output reports when conflicts were resolved:
+
+```
+Conflict resolved: rebased 3 local events on top of remote
+Pushed to origin
+```
+
+This automatic rebase ensures CRDT semantics are preserved - all events from all actors are included in the final WAL.
 
 ## Multi-agent concurrency (same repo or remote)
 

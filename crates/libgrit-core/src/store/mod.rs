@@ -378,6 +378,70 @@ impl GritStore {
         })
     }
 
+    /// Rebuild all projections from provided events (for snapshot-based rebuild)
+    ///
+    /// This is useful when rebuilding from a snapshot + WAL combination,
+    /// where events come from external sources rather than the local store.
+    pub fn rebuild_from_events(&self, events: &[Event]) -> Result<RebuildStats, GritError> {
+        // Clear existing projections, indexes, and events
+        self.issue_states.clear()?;
+        self.label_index.clear()?;
+        self.events.clear()?;
+
+        // Sort events by (issue_id, ts, actor, event_id) for deterministic ordering
+        let mut sorted_events: Vec<_> = events.to_vec();
+        sorted_events.sort_by(|a, b| {
+            (&a.issue_id, a.ts_unix_ms, &a.actor, &a.event_id)
+                .cmp(&(&b.issue_id, b.ts_unix_ms, &b.actor, &b.event_id))
+        });
+
+        // Insert events and rebuild projections
+        let mut issue_count = 0;
+        for event in &sorted_events {
+            // Insert event into store
+            let event_key = event_key(&event.event_id);
+            let event_json = serde_json::to_vec(event)?;
+            self.events.insert(&event_key, event_json)?;
+
+            // Rebuild projection
+            let issue_key = issue_state_key(&event.issue_id);
+
+            let mut projection = match self.issue_states.get(&issue_key)? {
+                Some(bytes) => serde_json::from_slice(&bytes)?,
+                None => {
+                    issue_count += 1;
+                    IssueProjection::from_event(event)?
+                }
+            };
+
+            if self.issue_states.get(&issue_key)?.is_some() {
+                projection.apply(event)?;
+            }
+
+            // Update label index
+            for label in &projection.labels {
+                let label_key = label_index_key(label, &event.issue_id);
+                self.label_index.insert(&label_key, &[])?;
+            }
+
+            let proj_json = serde_json::to_vec(&projection)?;
+            self.issue_states.insert(&issue_key, proj_json)?;
+        }
+
+        // Update rebuild timestamp and reset counter
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_millis() as u64;
+        self.metadata.insert("last_rebuild_ts", &now.to_le_bytes())?;
+        self.metadata.insert("events_since_rebuild", &0u64.to_le_bytes())?;
+
+        Ok(RebuildStats {
+            event_count: sorted_events.len(),
+            issue_count,
+        })
+    }
+
     /// Get database statistics
     pub fn stats(&self, path: &Path) -> Result<DbStats, GritError> {
         let event_count = self.events.len();

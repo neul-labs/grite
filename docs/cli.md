@@ -27,9 +27,9 @@
 - `grit issue assignee remove <id> --user <name>`
 - `grit issue link add <id> --url ... [--note ...]`
 - `grit issue attachment add <id> --name ... --sha256 ... --mime ...`
-- `grit sync [--pull] [--push]`
-- `grit doctor [--json] [--apply]`
-- `grit rebuild`
+- `grit sync [--pull] [--push] [--remote <name>]`
+- `grit doctor [--fix] [--json]`
+- `grit rebuild [--from-snapshot]`
 - `grit db stats [--json]`
 - `grit export --format md|json`
 - `grit snapshot`
@@ -87,3 +87,79 @@ Actor context for a command is resolved in this order:
 - `grit export --format md` emits a human-readable export
 - `grit export --since <ts|event_id>` emits only changes after a point-in-time
 - Export output is generated into `.grit/` by default and is never canonical
+
+## Sync
+
+The sync command handles pushing and pulling grit refs with remote repositories.
+
+```bash
+# Full sync (pull then push with auto-rebase)
+grit sync
+
+# Pull only
+grit sync --pull
+
+# Push only (auto-rebases on conflict)
+grit sync --push
+
+# Specify remote
+grit sync --remote upstream
+```
+
+**Auto-rebase:** When a push fails due to non-fast-forward (remote has newer commits), grit automatically:
+1. Pulls remote changes
+2. Identifies local-only events
+3. Re-appends local events on top of remote
+4. Pushes again
+
+The sync output reports when conflicts were resolved and how many events were rebased.
+
+## Doctor
+
+Health checks and auto-repair for the grit database.
+
+```bash
+# Run health checks
+grit doctor
+
+# Auto-repair issues (e.g., rebuild on corruption)
+grit doctor --fix
+```
+
+**Checks performed:**
+- `git_repo`: Git repository validity
+- `wal_ref`: WAL ref exists and is readable
+- `actor_config`: Actor is properly configured
+- `store_integrity`: Database integrity (event hashes)
+- `rebuild_threshold`: Warns if too many events since last rebuild
+
+## Rebuild
+
+Rebuild projections from events.
+
+```bash
+# Standard rebuild from store events
+grit rebuild
+
+# Fast rebuild from latest snapshot (for large repos)
+grit rebuild --from-snapshot
+```
+
+The `--from-snapshot` flag loads events from the latest snapshot instead of replaying the entire WAL, which is faster for repositories with many events.
+
+## Error Messages
+
+Errors include actionable suggestions to help resolve issues:
+
+```
+error: Issue 'abc123' not found
+
+Suggestions:
+  - Run 'grit issue list' to see available issues
+```
+
+Common suggestions include:
+- **NotFound (issue)**: Run `grit issue list` to see available issues
+- **DbBusy**: Try `grit --no-daemon <command>` or stop the daemon
+- **Sled errors**: Run `grit doctor --fix` to rebuild
+- **IPC errors**: Run `grit daemon stop` and retry

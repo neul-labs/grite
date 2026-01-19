@@ -48,25 +48,67 @@
 - [x] `grit db verify` for signature verification
 - [x] `grit doctor` for health checks
 
-## In Progress
+### Milestone 5c: Agent Integration
+
+- [x] AGENTS.md auto-generation on `grit init`
+- [x] `--no-agents-md` flag to skip
+- [x] Append to existing AGENTS.md (preserves content)
+- [x] Trigger phrases mapping questions to grit commands
+- [x] Demo script (`./demo.sh` and `./demo.sh --auto`)
 
 ### Milestone 5b: Production Hardening
 
-- [ ] Corruption recovery tools
-- [ ] Database rebuild thresholds
-- [ ] Better error messages and user guidance
-- [ ] Performance benchmarks
-
-## Planned
+- [x] `grit doctor` rebuild threshold check with actionable guidance
+- [x] Snapshot-based fast rebuild (`grit rebuild --from-snapshot`)
+- [x] Better error messages with suggestions for common errors
+- [x] `rebuild_from_events()` for external event sources
 
 ### Milestone 6: Enhanced Sync
 
-- [ ] Handle remote-advanced push (fast-forward rebase)
-- [ ] Background sync in daemon
-- [ ] Sync conflict reporting
+- [x] Auto-rebase on non-fast-forward push (`push_with_rebase`)
+- [x] Sync conflict reporting (events rebased count)
+- [x] Daemon sync handler (full sync through IPC)
+- [x] Human-readable sync output with conflict details
+
+## In Progress
+
+### Milestone 6b: Advanced Sync
+
+- [ ] Background sync in daemon (periodic auto-sync)
+- [ ] Performance benchmarks command (`grit bench`)
 - [ ] Partial sync (specific issues)
 
-### Milestone 7: Future Directions
+### Milestone 7: MCP Server for Claude Code
+
+**Goal:** Deep integration with Claude Code's tool system via Model Context Protocol.
+
+**Problem:** AGENTS.md provides guidance but Claude's planning mode still uses internal `TodoWrite`. MCP makes grit a first-class tool.
+
+**Tools to expose:**
+
+| Tool | Description |
+|------|-------------|
+| `grit_issue_create` | Create a new issue/task |
+| `grit_issue_list` | List issues with filters (state, label) |
+| `grit_issue_show` | Show issue details with comments |
+| `grit_issue_comment` | Add comment to an issue |
+| `grit_issue_close` | Close an issue |
+| `grit_sync` | Sync with remote |
+| `grit_memory_store` | Shortcut to create memory issue |
+| `grit_memory_query` | Shortcut to query memories |
+
+**Implementation options:**
+1. TypeScript MCP server (Node.js, calls grit CLI)
+2. Native Rust MCP server (`grit mcp serve`)
+
+**Tasks:**
+- [ ] MCP server scaffolding
+- [ ] Implement core tools (create, list, show, comment, close)
+- [ ] Memory shortcuts (store, query)
+- [ ] Configuration documentation
+- [ ] Combined AGENTS.md + MCP guidance
+
+### Milestone 8: Future Directions
 
 - [ ] Remote collaboration (GitHub/GitLab integration)
 - [ ] UI/TUI (Terminal UI or web dashboard)

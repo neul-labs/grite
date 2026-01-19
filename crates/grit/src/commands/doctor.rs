@@ -70,6 +70,9 @@ pub fn run(cli: &Cli, fix: bool) -> Result<(), GritError> {
     let (store_check, needs_rebuild) = check_store(cli);
     checks.push(store_check);
 
+    // Check 5: Rebuild threshold
+    checks.push(check_rebuild_threshold(cli));
+
     // Auto-repair if requested
     if fix && needs_rebuild {
         if let Ok(ctx) = GritContext::resolve(cli) {
@@ -246,6 +249,62 @@ fn check_store(cli: &Cli) -> (CheckResult, bool) {
                 vec!["Run 'grit doctor --fix' to rebuild"],
             ),
             true,
+        ),
+    }
+}
+
+fn check_rebuild_threshold(cli: &Cli) -> CheckResult {
+    let ctx = match GritContext::resolve(cli) {
+        Ok(ctx) => ctx,
+        Err(_) => {
+            return CheckResult::warn(
+                "rebuild_threshold",
+                "Cannot check rebuild threshold - no context",
+                vec!["Fix git_repo first"],
+            )
+        }
+    };
+
+    let store = match ctx.open_store() {
+        Ok(store) => store,
+        Err(_) => {
+            return CheckResult::warn(
+                "rebuild_threshold",
+                "Cannot check rebuild threshold - cannot open store",
+                vec!["Fix store_integrity first"],
+            )
+        }
+    };
+
+    let sled_path = ctx.sled_path();
+    match store.stats(&sled_path) {
+        Ok(stats) => {
+            if stats.rebuild_recommended {
+                let days_msg = stats
+                    .days_since_rebuild
+                    .map(|d| format!(" ({} days ago)", d))
+                    .unwrap_or_default();
+                CheckResult::warn(
+                    "rebuild_threshold",
+                    &format!(
+                        "{} events since last rebuild{}",
+                        stats.events_since_rebuild, days_msg
+                    ),
+                    vec!["Run 'grit rebuild' to optimize performance"],
+                )
+            } else {
+                let events_msg = if stats.events_since_rebuild > 0 {
+                    format!("{} events since last rebuild", stats.events_since_rebuild)
+                } else {
+                    "No events since last rebuild".to_string()
+                };
+                CheckResult::ok("rebuild_threshold", &events_msg)
+            }
+        }
+        Err(e) => CheckResult::warn(
+            "rebuild_threshold",
+            &format!("Cannot check rebuild stats: {}", e),
+            vec![],
         ),
     }
 }

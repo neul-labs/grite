@@ -149,6 +149,11 @@ impl WalManager {
         self.read_since_impl(head, Some(since_oid))
     }
 
+    /// Read all events from a specific commit OID (useful for reading orphaned commits)
+    pub fn read_from_oid(&self, oid: Oid) -> Result<Vec<Event>, GitError> {
+        self.read_since_impl(oid, None)
+    }
+
     /// Internal implementation for reading events
     fn read_since_impl(&self, head: Oid, stop_at: Option<Oid>) -> Result<Vec<Event>, GitError> {
         let mut all_events = Vec::new();
