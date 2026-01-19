@@ -11,6 +11,20 @@ Grit is a repo-local, git-backed issue/task system designed for coding agents an
 - **Ed25519 signing** - Optional cryptographic signatures on events
 - **Team coordination** - Distributed locks for coordinated workflows
 
+## Use Cases
+
+Grit serves different audiences with distinct workflows:
+
+| Audience | Primary Use Cases |
+|----------|-------------------|
+| [AI Coding Agents](docs/use-cases.md#ai-coding-agents) | Task decomposition, multi-agent coordination, persistent memory |
+| [Individual Developers](docs/use-cases.md#individual-developers) | Offline issue tracking, personal task lists, technical debt |
+| [Development Teams](docs/use-cases.md#development-teams) | Distributed coordination, code review workflows, knowledge base |
+| [Security & Compliance](docs/use-cases.md#security--compliance) | Private vulnerability tracking, incident response, audit trails |
+| [DevOps & Release Engineering](docs/use-cases.md#devops--release-engineering) | CI/CD integration, release checklists, deployment tracking |
+
+See [Use Cases](docs/use-cases.md) for detailed workflows and examples.
+
 ## Installation
 
 ### From source
@@ -139,6 +153,7 @@ refs/grit/
 | Document | Description |
 |----------|-------------|
 | [Architecture](docs/architecture.md) | System design and data flow |
+| [Use Cases](docs/use-cases.md) | Workflows for agents, developers, and teams |
 | [Data Model](docs/data-model.md) | Event schema, hashing, projections |
 | [CLI Reference](docs/cli.md) | Command-line interface |
 | [CLI JSON Output](docs/cli-json.md) | JSON output format for scripting |
