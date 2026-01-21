@@ -1,0 +1,141 @@
+site_name: Grit Documentation
+site_description: A repo-local, git-backed issue/task system for AI coding agents and humans
+site_url: https://neul-labs.github.io/grit/
+repo_url: https://github.com/neul-labs/grit
+repo_name: neul-labs/grit
+edit_uri: edit/main/documentation/docs/
+
+theme:
+  name: material
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: deep purple
+      accent: purple
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: deep purple
+      accent: purple
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  font:
+    text: Inter
+    code: JetBrains Mono
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.sections
+    - navigation.expand
+    - navigation.indexes
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - search.share
+    - content.code.copy
+    - content.code.annotate
+    - content.tabs.link
+    - toc.follow
+  icon:
+    repo: fontawesome/brands/github
+
+plugins:
+  - search:
+      separator: '[\s\-\.]+'
+      lang: en
+
+markdown_extensions:
+  - abbr
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+      toc_depth: 3
+  - pymdownx.betterem:
+      smart_enable: all
+  - pymdownx.caret
+  - pymdownx.details
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.keys
+  - pymdownx.mark
+  - pymdownx.smartsymbols
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.tilde
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/neul-labs/grit
+  generator: false
+
+extra_css:
+  - stylesheets/extra.css
+
+nav:
+  - Home: index.md
+  - Getting Started:
+    - getting-started/index.md
+    - Installation: getting-started/installation.md
+    - Quick Start: getting-started/quickstart.md
+    - Core Concepts: getting-started/concepts.md
+  - Guides:
+    - guides/index.md
+    - Working with Issues: guides/issues.md
+    - Syncing with Remotes: guides/syncing.md
+    - Actor Identity: guides/actors.md
+    - Distributed Locks: guides/locking.md
+    - Using the Daemon: guides/daemon.md
+    - Exporting Data: guides/export.md
+  - Use Cases:
+    - use-cases/index.md
+    - AI Coding Agents: use-cases/ai-agents.md
+    - Individual Developers: use-cases/developers.md
+    - Development Teams: use-cases/teams.md
+    - Security & Compliance: use-cases/security.md
+    - DevOps & Releases: use-cases/devops.md
+  - Reference:
+    - reference/index.md
+    - CLI Reference: reference/cli.md
+    - JSON Output: reference/cli-json.md
+    - Configuration: reference/configuration.md
+    - Environment Variables: reference/environment.md
+  - Architecture:
+    - architecture/index.md
+    - Three-Layer Design: architecture/three-layer.md
+    - Data Model: architecture/data-model.md
+    - CRDT Merging: architecture/crdt-merging.md
+    - Git WAL: architecture/git-wal.md
+    - Storage Layout: architecture/storage.md
+  - Operations:
+    - operations/index.md
+    - Health Checks: operations/doctor.md
+    - Rebuilding: operations/rebuild.md
+    - Snapshots: operations/snapshots.md
+    - Troubleshooting: operations/troubleshooting.md
+  - For AI Agents:
+    - agents/index.md
+    - Agent Playbook: agents/playbook.md
+  - Contributing:
+    - contributing/index.md
+    - Security Policy: contributing/security.md
