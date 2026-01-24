@@ -2,6 +2,15 @@
 name = "grit"
 version.workspace = true
 edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+keywords.workspace = true
+categories.workspace = true
+description = "Git-backed issue tracker with CRDT merging, designed for AI coding agents"
+readme = "../../README.md"
 
 [[bin]]
 name = "grit"
@@ -18,6 +27,8 @@ thiserror = { workspace = true }
 hex = { workspace = true }
 chrono = { workspace = true }
 uuid = { workspace = true }
+sha2 = { workspace = true }
+glob = { workspace = true }
 
 [dev-dependencies]
 assert_cmd = "2.0"

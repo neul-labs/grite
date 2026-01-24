@@ -199,6 +199,53 @@ The JSON blocks below describe the `data` payload inside the envelope.
 { "issue_id": "...", "event_id": "...", "wal_head": "<git-commit-hash>" }
 ```
 
+### `grit issue dep add`
+
+```json
+{
+  "event_id": "...",
+  "issue_id": "...",
+  "target": "...",
+  "dep_type": "blocks",
+  "action": "added"
+}
+```
+
+### `grit issue dep remove`
+
+```json
+{
+  "event_id": "...",
+  "issue_id": "...",
+  "target": "...",
+  "dep_type": "blocks",
+  "action": "removed"
+}
+```
+
+### `grit issue dep list`
+
+```json
+{
+  "issue_id": "...",
+  "direction": "dependencies|dependents",
+  "deps": [
+    { "issue_id": "...", "dep_type": "blocks", "title": "..." }
+  ]
+}
+```
+
+### `grit issue dep topo`
+
+```json
+{
+  "issues": [
+    { "issue_id": "...", "title": "...", "state": "open", "labels": ["..."] }
+  ],
+  "order": "topological"
+}
+```
+
 ### `grit issue list`
 
 ```json
@@ -359,3 +406,69 @@ The JSON blocks below describe the `data` payload inside the envelope.
 ```json
 { "stopped": true }
 ```
+
+### `grit context index`
+
+```json
+{
+  "indexed": 42,
+  "skipped": 15,
+  "total_files": 57
+}
+```
+
+### `grit context query`
+
+```json
+{
+  "query": "Config",
+  "matches": [
+    { "symbol": "Config", "path": "src/config.rs" }
+  ],
+  "count": 1
+}
+```
+
+### `grit context show`
+
+```json
+{
+  "path": "src/main.rs",
+  "language": "rust",
+  "summary": "rust file with 2 functions: main, setup",
+  "content_hash": "a1b2c3d4...",
+  "symbols": [
+    { "name": "main", "kind": "function", "line_start": 1, "line_end": 10 }
+  ],
+  "symbol_count": 1
+}
+```
+
+### `grit context project`
+
+```json
+{
+  "entries": [
+    { "key": "api_version", "value": "v2" }
+  ],
+  "count": 1
+}
+```
+
+### `grit context project <key>`
+
+```json
+{
+  "key": "api_version",
+  "value": "v2"
+}
+```
+
+### `grit context set`
+
+```json
+{
+  "key": "api_version",
+  "value": "v2",
+  "action": "set"
+}

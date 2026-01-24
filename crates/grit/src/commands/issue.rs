@@ -186,6 +186,7 @@ pub fn run(cli: &Cli, cmd: IssueCommand) -> Result<(), GritError> {
         IssueCommand::Assignee { cmd } => run_assignee(cli, cmd),
         IssueCommand::Link { cmd } => run_link(cli, cmd),
         IssueCommand::Attachment { cmd } => run_attachment(cli, cmd),
+        IssueCommand::Dep { cmd } => super::dep::run(cli, cmd),
     }
 }
 

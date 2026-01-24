@@ -2,10 +2,14 @@
 
 Grit is a repo-local, git-backed issue/task system designed for coding agents and humans. It keeps an append-only event log in git refs, builds a fast local materialized view, and never writes tracked state into the working tree.
 
+**Documentation:** [docs.neullabs.com/grit](https://docs.neullabs.com/grit)
+
 ## Features
 
 - **Git-native storage** - Events stored in `refs/grit/wal`, synced with `git fetch/push`
 - **CRDT-based merging** - Deterministic conflict resolution, no manual merge needed
+- **Dependency DAG** - Typed issue relationships (blocks, depends_on, related_to) with cycle detection and topological ordering
+- **Context store** - Distributed file/symbol index for codebase understanding, syncs between agents
 - **Per-actor isolation** - Each agent/device gets its own actor ID and local database
 - **Optional daemon** - Auto-spawns for performance, not required for correctness
 - **Ed25519 signing** - Optional cryptographic signatures on events
@@ -197,6 +201,8 @@ refs/grit/
 
 ## Documentation
 
+Full documentation is available at [docs.neullabs.com/grit](https://docs.neullabs.com/grit).
+
 | Document | Description |
 |----------|-------------|
 | [Architecture](docs/architecture.md) | System design and data flow |
@@ -214,6 +220,7 @@ refs/grit/
 | [Hash Vectors](docs/hash-vectors.md) | Canonical hashing test vectors |
 | [Operations](docs/operations.md) | Backup, recovery, debugging |
 | [Agent Playbook](docs/agent-playbook.md) | Guide for AI coding agents |
+| [Comparison](docs/comparison.md) | How Grit compares with Beads, git-bug, and others |
 
 ## Development
 

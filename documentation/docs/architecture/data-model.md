@@ -23,6 +23,24 @@ pub struct Event {
 ### Event Kinds
 
 ```rust
+pub enum IssueState {
+  Open,
+  Closed,
+}
+
+pub enum DependencyType {
+  Blocks,      // "this issue blocks target"
+  DependsOn,   // "this issue depends on target"
+  RelatedTo,   // symmetric, no cycle constraint
+}
+
+pub struct SymbolInfo {
+  pub name: String,
+  pub kind: String,       // "function", "struct", "trait", "class", etc.
+  pub line_start: u32,
+  pub line_end: u32,
+}
+
 pub enum EventKind {
   IssueCreated { title: String, body: String, labels: Vec<String> },
   IssueUpdated { title: Option<String>, body: Option<String> },
@@ -34,11 +52,10 @@ pub enum EventKind {
   AssigneeAdded { user: String },
   AssigneeRemoved { user: String },
   AttachmentAdded { name: String, sha256: [u8; 32], mime: String },
-}
-
-pub enum IssueState {
-  Open,
-  Closed,
+  DependencyAdded { target: IssueId, dep_type: DependencyType },
+  DependencyRemoved { target: IssueId, dep_type: DependencyType },
+  ContextUpdated { path: String, language: String, symbols: Vec<SymbolInfo>, summary: String, content_hash: [u8; 32] },
+  ProjectContextUpdated { key: String, value: String },
 }
 ```
 
@@ -56,9 +73,21 @@ pub enum IssueState {
 | `AssigneeAdded` | user | Assign user |
 | `AssigneeRemoved` | user | Unassign user |
 | `AttachmentAdded` | name, sha256, mime | Attach file metadata |
+| `DependencyAdded` | target, dep_type | Add dependency edge |
+| `DependencyRemoved` | target, dep_type | Remove dependency edge |
+| `ContextUpdated` | path, language, symbols, summary, content_hash | Update file context |
+| `ProjectContextUpdated` | key, value | Update project context entry |
 
 !!! note
     `AttachmentAdded` carries only metadata and a content hash. Binary storage is out of scope for the WAL.
+
+!!! note
+    `ContextUpdated` and `ProjectContextUpdated` events use derived IssueIds:
+
+    - File context: `IssueId = blake2b("grit:context:file:" + path)[..16]`
+    - Project context: `IssueId = [0xFF; 16]` (sentinel)
+
+    This allows context events to flow through the standard WAL and sync for free.
 
 ## ID Types
 
@@ -150,6 +179,10 @@ The hash input is the following array (no maps):
 | 8 | AssigneeAdded | `[user]` |
 | 9 | AssigneeRemoved | `[user]` |
 | 10 | AttachmentAdded | `[name, sha256, mime]` |
+| 11 | DependencyAdded | `[target_bytes, dep_type_str]` |
+| 12 | DependencyRemoved | `[target_bytes, dep_type_str]` |
+| 13 | ContextUpdated | `[path, language, sorted_symbols_array, summary, content_hash_bytes]` |
+| 14 | ProjectContextUpdated | `[key, value]` |
 
 ### IssueState Encoding
 
@@ -210,12 +243,38 @@ pub struct IssueProjection {
   pub state: IssueState,
   pub labels: BTreeSet<String>,
   pub assignees: BTreeSet<String>,
+  pub dependencies: BTreeSet<Dependency>,
   pub comments: Vec<Comment>,
   pub links: Vec<Link>,
   pub attachments: Vec<Attachment>,
   pub created_ts: u64,
   pub updated_ts: u64,
   pub version: Version,
+}
+
+pub struct Dependency {
+  pub target: IssueId,
+  pub dep_type: DependencyType,
+}
+```
+
+### Context Projections
+
+Context events are projected separately from issues:
+
+```rust
+pub struct FileContext {
+  pub path: String,
+  pub language: String,
+  pub symbols: Vec<SymbolInfo>,
+  pub summary: String,
+  pub content_hash: [u8; 32],
+  pub version: Version,       // LWW per file path
+}
+
+pub struct ProjectContextEntry {
+  pub value: String,
+  pub version: Version,       // LWW per key
 }
 ```
 

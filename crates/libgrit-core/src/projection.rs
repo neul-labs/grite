@@ -1,6 +1,6 @@
 use crate::error::GritError;
 use crate::types::event::{Event, EventKind};
-use crate::types::issue::{Attachment, Comment, IssueProjection, Link, Version};
+use crate::types::issue::{Attachment, Comment, Dependency, IssueProjection, Link, Version};
 
 impl IssueProjection {
     /// Apply an event to update this projection
@@ -87,6 +87,27 @@ impl IssueProjection {
                     sha256: *sha256,
                     mime: mime.clone(),
                 });
+            }
+
+            EventKind::DependencyAdded { target, dep_type } => {
+                // Commutative add to dependency set
+                self.dependencies.insert(Dependency {
+                    target: *target,
+                    dep_type: *dep_type,
+                });
+            }
+
+            EventKind::DependencyRemoved { target, dep_type } => {
+                // Commutative remove from dependency set
+                self.dependencies.remove(&Dependency {
+                    target: *target,
+                    dep_type: *dep_type,
+                });
+            }
+
+            EventKind::ContextUpdated { .. } | EventKind::ProjectContextUpdated { .. } => {
+                // Context events are handled by the context store, not issue projections
+                return Ok(());
             }
         }
 

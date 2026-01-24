@@ -1,7 +1,7 @@
 use std::collections::BTreeSet;
 use serde::{Deserialize, Serialize};
 use super::ids::{ActorId, EventId, IssueId};
-use super::event::IssueState;
+use super::event::{DependencyType, IssueState};
 
 /// A comment on an issue
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -27,6 +27,13 @@ pub struct Attachment {
     pub name: String,
     pub sha256: [u8; 32],
     pub mime: String,
+}
+
+/// A dependency relationship from this issue to another
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+pub struct Dependency {
+    pub target: IssueId,
+    pub dep_type: DependencyType,
 }
 
 /// Version tuple for LWW comparison: (timestamp, actor, event_id)
@@ -65,6 +72,8 @@ pub struct IssueProjection {
     pub links: Vec<Link>,
     /// Attachments in event order (append-only)
     pub attachments: Vec<Attachment>,
+    /// Dependencies on other issues (add/remove set CRDT)
+    pub dependencies: BTreeSet<Dependency>,
     /// Timestamp when issue was created
     pub created_ts: u64,
     /// Timestamp of last update
@@ -99,6 +108,7 @@ impl IssueProjection {
             comments: Vec::new(),
             links: Vec::new(),
             attachments: Vec::new(),
+            dependencies: BTreeSet::new(),
             created_ts: ts_unix_ms,
             updated_ts: ts_unix_ms,
             title_version: version.clone(),

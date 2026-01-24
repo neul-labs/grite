@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::fs::File;
 use std::path::Path;
 use std::time::{Duration, Instant};
@@ -5,10 +6,12 @@ use std::time::{Duration, Instant};
 use fs2::FileExt;
 
 use crate::error::GritError;
-use crate::types::event::Event;
+use crate::types::event::{DependencyType, Event, EventKind};
 use crate::types::ids::{EventId, IssueId};
 use crate::types::issue::{IssueProjection, IssueSummary};
 use crate::types::event::IssueState;
+use crate::types::context::{FileContext, ProjectContextEntry};
+use crate::types::issue::Version;
 
 /// Default threshold for events since rebuild before recommending rebuild
 pub const DEFAULT_REBUILD_EVENTS_THRESHOLD: usize = 10000;
@@ -95,6 +98,11 @@ pub struct GritStore {
     issue_events: sled::Tree,
     label_index: sled::Tree,
     metadata: sled::Tree,
+    dep_forward: sled::Tree,
+    dep_reverse: sled::Tree,
+    context_files: sled::Tree,
+    context_symbols: sled::Tree,
+    context_project: sled::Tree,
 }
 
 impl GritStore {
@@ -106,6 +114,11 @@ impl GritStore {
         let issue_events = db.open_tree("issue_events")?;
         let label_index = db.open_tree("label_index")?;
         let metadata = db.open_tree("metadata")?;
+        let dep_forward = db.open_tree("dep_forward")?;
+        let dep_reverse = db.open_tree("dep_reverse")?;
+        let context_files = db.open_tree("context_files")?;
+        let context_symbols = db.open_tree("context_symbols")?;
+        let context_project = db.open_tree("context_project")?;
 
         Ok(Self {
             db,
@@ -114,6 +127,11 @@ impl GritStore {
             issue_events,
             label_index,
             metadata,
+            dep_forward,
+            dep_reverse,
+            context_files,
+            context_symbols,
+            context_project,
         })
     }
 
@@ -209,6 +227,17 @@ impl GritStore {
 
     /// Update the issue projection for an event
     fn update_projection(&self, event: &Event) -> Result<(), GritError> {
+        // Handle context events separately (they don't have issue projections)
+        match &event.kind {
+            EventKind::ContextUpdated { path, language, symbols, summary, content_hash } => {
+                return self.update_file_context(event, path, language, symbols, summary, content_hash);
+            }
+            EventKind::ProjectContextUpdated { key, value } => {
+                return self.update_project_context(event, key, value);
+            }
+            _ => {}
+        }
+
         let issue_key = issue_state_key(&event.issue_id);
 
         let mut projection = match self.issue_states.get(&issue_key)? {
@@ -230,9 +259,110 @@ impl GritStore {
             self.label_index.insert(&label_key, &[])?;
         }
 
+        // Update dependency indexes
+        match &event.kind {
+            EventKind::DependencyAdded { target, dep_type } => {
+                let fwd = dep_forward_key(&event.issue_id, target, dep_type);
+                self.dep_forward.insert(&fwd, &[])?;
+                let rev = dep_reverse_key(target, &event.issue_id, dep_type);
+                self.dep_reverse.insert(&rev, &[])?;
+            }
+            EventKind::DependencyRemoved { target, dep_type } => {
+                let fwd = dep_forward_key(&event.issue_id, target, dep_type);
+                self.dep_forward.remove(&fwd)?;
+                let rev = dep_reverse_key(target, &event.issue_id, dep_type);
+                self.dep_reverse.remove(&rev)?;
+            }
+            _ => {}
+        }
+
         // Store updated projection
         let proj_json = serde_json::to_vec(&projection)?;
         self.issue_states.insert(&issue_key, proj_json)?;
+
+        Ok(())
+    }
+
+    /// Update file context (LWW per path)
+    fn update_file_context(
+        &self,
+        event: &Event,
+        path: &str,
+        language: &str,
+        symbols: &[crate::types::event::SymbolInfo],
+        summary: &str,
+        content_hash: &[u8; 32],
+    ) -> Result<(), GritError> {
+        let file_key = context_file_key(path);
+        let new_version = Version::new(event.ts_unix_ms, event.actor, event.event_id);
+
+        let should_update = match self.context_files.get(&file_key)? {
+            Some(existing_bytes) => {
+                let existing: FileContext = serde_json::from_slice(&existing_bytes)?;
+                new_version.is_newer_than(&existing.version)
+            }
+            None => true,
+        };
+
+        if should_update {
+            // Remove old symbol index entries for this path
+            let sym_path_suffix = format!("/{}", path);
+            for result in self.context_symbols.iter() {
+                let (key, _) = result?;
+                if let Ok(key_str) = std::str::from_utf8(&key) {
+                    if key_str.ends_with(&sym_path_suffix) {
+                        self.context_symbols.remove(&key)?;
+                    }
+                }
+            }
+
+            let ctx = FileContext {
+                path: path.to_string(),
+                language: language.to_string(),
+                symbols: symbols.to_vec(),
+                summary: summary.to_string(),
+                content_hash: *content_hash,
+                version: new_version,
+            };
+
+            // Insert file context
+            self.context_files.insert(&file_key, serde_json::to_vec(&ctx)?)?;
+
+            // Insert symbol index entries
+            for sym in symbols {
+                let sym_key = context_symbol_key(&sym.name, path);
+                self.context_symbols.insert(&sym_key, &[])?;
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Update project context (LWW per key)
+    fn update_project_context(
+        &self,
+        event: &Event,
+        key: &str,
+        value: &str,
+    ) -> Result<(), GritError> {
+        let proj_key = context_project_key(key);
+        let new_version = Version::new(event.ts_unix_ms, event.actor, event.event_id);
+
+        let should_update = match self.context_project.get(&proj_key)? {
+            Some(existing_bytes) => {
+                let existing: ProjectContextEntry = serde_json::from_slice(&existing_bytes)?;
+                new_version.is_newer_than(&existing.version)
+            }
+            None => true,
+        };
+
+        if should_update {
+            let entry = ProjectContextEntry {
+                value: value.to_string(),
+                version: new_version,
+            };
+            self.context_project.insert(&proj_key, serde_json::to_vec(&entry)?)?;
+        }
 
         Ok(())
     }
@@ -327,6 +457,11 @@ impl GritStore {
         // Clear existing projections and indexes
         self.issue_states.clear()?;
         self.label_index.clear()?;
+        self.dep_forward.clear()?;
+        self.dep_reverse.clear()?;
+        self.context_files.clear()?;
+        self.context_symbols.clear()?;
+        self.context_project.clear()?;
 
         // Collect all events
         let mut events = self.get_all_events()?;
@@ -338,31 +473,11 @@ impl GritStore {
         });
 
         // Rebuild projections
-        let mut issue_count = 0;
         for event in &events {
-            let issue_key = issue_state_key(&event.issue_id);
-
-            let mut projection = match self.issue_states.get(&issue_key)? {
-                Some(bytes) => serde_json::from_slice(&bytes)?,
-                None => {
-                    issue_count += 1;
-                    IssueProjection::from_event(event)?
-                }
-            };
-
-            if self.issue_states.get(&issue_key)?.is_some() {
-                projection.apply(event)?;
-            }
-
-            // Update label index
-            for label in &projection.labels {
-                let label_key = label_index_key(label, &event.issue_id);
-                self.label_index.insert(&label_key, &[])?;
-            }
-
-            let proj_json = serde_json::to_vec(&projection)?;
-            self.issue_states.insert(&issue_key, proj_json)?;
+            self.update_projection(event)?;
         }
+
+        let issue_count = self.issue_states.len();
 
         // Update rebuild timestamp and reset counter
         let now = std::time::SystemTime::now()
@@ -386,6 +501,11 @@ impl GritStore {
         // Clear existing projections, indexes, and events
         self.issue_states.clear()?;
         self.label_index.clear()?;
+        self.dep_forward.clear()?;
+        self.dep_reverse.clear()?;
+        self.context_files.clear()?;
+        self.context_symbols.clear()?;
+        self.context_project.clear()?;
         self.events.clear()?;
 
         // Sort events by (issue_id, ts, actor, event_id) for deterministic ordering
@@ -396,37 +516,21 @@ impl GritStore {
         });
 
         // Insert events and rebuild projections
-        let mut issue_count = 0;
         for event in &sorted_events {
             // Insert event into store
-            let event_key = event_key(&event.event_id);
+            let ev_key = event_key(&event.event_id);
             let event_json = serde_json::to_vec(event)?;
-            self.events.insert(&event_key, event_json)?;
+            self.events.insert(&ev_key, event_json)?;
 
-            // Rebuild projection
-            let issue_key = issue_state_key(&event.issue_id);
+            // Index by issue
+            let ie_key = issue_events_key(&event.issue_id, event.ts_unix_ms, &event.event_id);
+            self.issue_events.insert(&ie_key, &[])?;
 
-            let mut projection = match self.issue_states.get(&issue_key)? {
-                Some(bytes) => serde_json::from_slice(&bytes)?,
-                None => {
-                    issue_count += 1;
-                    IssueProjection::from_event(event)?
-                }
-            };
-
-            if self.issue_states.get(&issue_key)?.is_some() {
-                projection.apply(event)?;
-            }
-
-            // Update label index
-            for label in &projection.labels {
-                let label_key = label_index_key(label, &event.issue_id);
-                self.label_index.insert(&label_key, &[])?;
-            }
-
-            let proj_json = serde_json::to_vec(&projection)?;
-            self.issue_states.insert(&issue_key, proj_json)?;
+            // Rebuild projection (handles deps, context, labels)
+            self.update_projection(event)?;
         }
+
+        let issue_count = self.issue_states.len();
 
         // Update rebuild timestamp and reset counter
         let now = std::time::SystemTime::now()
@@ -487,6 +591,203 @@ impl GritStore {
         })
     }
 
+    // --- Dependency Query Methods ---
+
+    /// Get all outgoing dependencies for an issue
+    pub fn get_dependencies(&self, issue_id: &IssueId) -> Result<Vec<(IssueId, DependencyType)>, GritError> {
+        let prefix = dep_forward_prefix(issue_id);
+        let mut deps = Vec::new();
+
+        for result in self.dep_forward.scan_prefix(&prefix) {
+            let (key, _) = result?;
+            if let Some((target, dep_type)) = parse_dep_key_suffix(&key, prefix.len()) {
+                deps.push((target, dep_type));
+            }
+        }
+
+        Ok(deps)
+    }
+
+    /// Get all incoming dependencies (what depends on this issue)
+    pub fn get_dependents(&self, issue_id: &IssueId) -> Result<Vec<(IssueId, DependencyType)>, GritError> {
+        let prefix = dep_reverse_prefix(issue_id);
+        let mut deps = Vec::new();
+
+        for result in self.dep_reverse.scan_prefix(&prefix) {
+            let (key, _) = result?;
+            if let Some((source, dep_type)) = parse_dep_key_suffix(&key, prefix.len()) {
+                deps.push((source, dep_type));
+            }
+        }
+
+        Ok(deps)
+    }
+
+    /// Check if adding a dependency would create a cycle.
+    /// Only checks for Blocks/DependsOn (acyclic types).
+    pub fn would_create_cycle(
+        &self,
+        source: &IssueId,
+        target: &IssueId,
+        dep_type: &DependencyType,
+    ) -> Result<bool, GritError> {
+        if !dep_type.is_acyclic() {
+            return Ok(false);
+        }
+
+        // DFS from target: can we reach source via forward deps?
+        let mut visited = HashSet::new();
+        let mut stack = vec![*target];
+
+        while let Some(current) = stack.pop() {
+            if current == *source {
+                return Ok(true);
+            }
+            if !visited.insert(current) {
+                continue;
+            }
+            for (dep_target, dt) in self.get_dependencies(&current)? {
+                if dt == *dep_type {
+                    stack.push(dep_target);
+                }
+            }
+        }
+
+        Ok(false)
+    }
+
+    /// Get issues in topological order based on dependency relationships.
+    /// Issues with no dependencies come first.
+    pub fn topological_order(&self, filter: &IssueFilter) -> Result<Vec<IssueSummary>, GritError> {
+        let issues = self.list_issues(filter)?;
+        let issue_ids: HashSet<IssueId> = issues.iter().map(|i| i.issue_id).collect();
+
+        // Build in-degree map (only count edges within the filtered set)
+        let mut in_degree: std::collections::HashMap<IssueId, usize> = std::collections::HashMap::new();
+        let mut adj: std::collections::HashMap<IssueId, Vec<IssueId>> = std::collections::HashMap::new();
+
+        for issue in &issues {
+            in_degree.entry(issue.issue_id).or_insert(0);
+            adj.entry(issue.issue_id).or_default();
+
+            for (target, dep_type) in self.get_dependencies(&issue.issue_id)? {
+                if dep_type.is_acyclic() && issue_ids.contains(&target) {
+                    // issue depends on target, so target must come first
+                    adj.entry(target).or_default().push(issue.issue_id);
+                    *in_degree.entry(issue.issue_id).or_insert(0) += 1;
+                }
+            }
+        }
+
+        // Kahn's algorithm
+        let mut queue: std::collections::VecDeque<IssueId> = in_degree.iter()
+            .filter(|(_, &deg)| deg == 0)
+            .map(|(&id, _)| id)
+            .collect();
+
+        let mut sorted_ids = Vec::new();
+        while let Some(id) = queue.pop_front() {
+            sorted_ids.push(id);
+            if let Some(neighbors) = adj.get(&id) {
+                for &neighbor in neighbors {
+                    if let Some(deg) = in_degree.get_mut(&neighbor) {
+                        *deg -= 1;
+                        if *deg == 0 {
+                            queue.push_back(neighbor);
+                        }
+                    }
+                }
+            }
+        }
+
+        // Any remaining issues (cycles) go at the end
+        for issue in &issues {
+            if !sorted_ids.contains(&issue.issue_id) {
+                sorted_ids.push(issue.issue_id);
+            }
+        }
+
+        // Map back to summaries in sorted order
+        let issue_map: std::collections::HashMap<IssueId, &IssueSummary> =
+            issues.iter().map(|i| (i.issue_id, i)).collect();
+        let result = sorted_ids.iter()
+            .filter_map(|id| issue_map.get(id).map(|s| (*s).clone()))
+            .collect();
+
+        Ok(result)
+    }
+
+    // --- Context Query Methods ---
+
+    /// Get file context for a specific path
+    pub fn get_file_context(&self, path: &str) -> Result<Option<FileContext>, GritError> {
+        let key = context_file_key(path);
+        match self.context_files.get(&key)? {
+            Some(bytes) => Ok(Some(serde_json::from_slice(&bytes)?)),
+            None => Ok(None),
+        }
+    }
+
+    /// Query symbols by name prefix
+    pub fn query_symbols(&self, query: &str) -> Result<Vec<(String, String)>, GritError> {
+        let prefix = context_symbol_prefix(query);
+        let mut results = Vec::new();
+
+        for result in self.context_symbols.scan_prefix(&prefix) {
+            let (key, _) = result?;
+            if let Ok(key_str) = std::str::from_utf8(&key) {
+                // Key format: "ctx/sym/<name>/<path>"
+                if let Some(rest) = key_str.strip_prefix("ctx/sym/") {
+                    if let Some(slash_pos) = rest.find('/') {
+                        let name = rest[..slash_pos].to_string();
+                        let path = rest[slash_pos + 1..].to_string();
+                        results.push((name, path));
+                    }
+                }
+            }
+        }
+
+        Ok(results)
+    }
+
+    /// List all indexed file paths
+    pub fn list_context_files(&self) -> Result<Vec<String>, GritError> {
+        let mut paths = Vec::new();
+        for result in self.context_files.iter() {
+            let (key, _) = result?;
+            if let Ok(key_str) = std::str::from_utf8(&key) {
+                if let Some(path) = key_str.strip_prefix("ctx/file/") {
+                    paths.push(path.to_string());
+                }
+            }
+        }
+        Ok(paths)
+    }
+
+    /// Get a project context entry by key
+    pub fn get_project_context(&self, key: &str) -> Result<Option<ProjectContextEntry>, GritError> {
+        let k = context_project_key(key);
+        match self.context_project.get(&k)? {
+            Some(bytes) => Ok(Some(serde_json::from_slice(&bytes)?)),
+            None => Ok(None),
+        }
+    }
+
+    /// List all project context entries
+    pub fn list_project_context(&self) -> Result<Vec<(String, ProjectContextEntry)>, GritError> {
+        let mut entries = Vec::new();
+        for result in self.context_project.iter() {
+            let (key, value) = result?;
+            if let Ok(key_str) = std::str::from_utf8(&key) {
+                if let Some(k) = key_str.strip_prefix("ctx/proj/") {
+                    let entry: ProjectContextEntry = serde_json::from_slice(&value)?;
+                    entries.push((k.to_string(), entry));
+                }
+            }
+        }
+        Ok(entries)
+    }
+
     /// Flush pending writes to disk
     pub fn flush(&self) -> Result<(), GritError> {
         self.db.flush()?;
@@ -532,6 +833,101 @@ fn label_index_key(label: &str, issue_id: &IssueId) -> Vec<u8> {
     key.extend_from_slice(label.as_bytes());
     key.push(b'/');
     key.extend_from_slice(issue_id);
+    key
+}
+
+// Dependency key helpers
+
+fn dep_type_to_byte(dep_type: &DependencyType) -> u8 {
+    match dep_type {
+        DependencyType::Blocks => b'B',
+        DependencyType::DependsOn => b'D',
+        DependencyType::RelatedTo => b'R',
+    }
+}
+
+fn byte_to_dep_type(b: u8) -> Option<DependencyType> {
+    match b {
+        b'B' => Some(DependencyType::Blocks),
+        b'D' => Some(DependencyType::DependsOn),
+        b'R' => Some(DependencyType::RelatedTo),
+        _ => None,
+    }
+}
+
+fn dep_forward_prefix(source: &IssueId) -> Vec<u8> {
+    let mut key = Vec::with_capacity(8 + 16 + 1);
+    key.extend_from_slice(b"dep_fwd/");
+    key.extend_from_slice(source);
+    key.push(b'/');
+    key
+}
+
+fn dep_forward_key(source: &IssueId, target: &IssueId, dep_type: &DependencyType) -> Vec<u8> {
+    let mut key = dep_forward_prefix(source);
+    key.extend_from_slice(target);
+    key.push(b'/');
+    key.push(dep_type_to_byte(dep_type));
+    key
+}
+
+fn dep_reverse_prefix(target: &IssueId) -> Vec<u8> {
+    let mut key = Vec::with_capacity(8 + 16 + 1);
+    key.extend_from_slice(b"dep_rev/");
+    key.extend_from_slice(target);
+    key.push(b'/');
+    key
+}
+
+fn dep_reverse_key(target: &IssueId, source: &IssueId, dep_type: &DependencyType) -> Vec<u8> {
+    let mut key = dep_reverse_prefix(target);
+    key.extend_from_slice(source);
+    key.push(b'/');
+    key.push(dep_type_to_byte(dep_type));
+    key
+}
+
+/// Parse the suffix of a dep key (after the prefix) to extract target/source and dep_type
+fn parse_dep_key_suffix(key: &[u8], prefix_len: usize) -> Option<(IssueId, DependencyType)> {
+    // Suffix format: <issue_id 16 bytes> / <dep_type 1 byte>
+    let suffix = &key[prefix_len..];
+    if suffix.len() != 16 + 1 + 1 {
+        return None;
+    }
+    let mut issue_id = [0u8; 16];
+    issue_id.copy_from_slice(&suffix[..16]);
+    // suffix[16] is '/'
+    let dep_type = byte_to_dep_type(suffix[17])?;
+    Some((issue_id, dep_type))
+}
+
+// Context key helpers
+
+fn context_file_key(path: &str) -> Vec<u8> {
+    let mut key = Vec::new();
+    key.extend_from_slice(b"ctx/file/");
+    key.extend_from_slice(path.as_bytes());
+    key
+}
+
+fn context_symbol_prefix(name: &str) -> Vec<u8> {
+    let mut key = Vec::new();
+    key.extend_from_slice(b"ctx/sym/");
+    key.extend_from_slice(name.as_bytes());
+    key
+}
+
+fn context_symbol_key(name: &str, path: &str) -> Vec<u8> {
+    let mut key = context_symbol_prefix(name);
+    key.push(b'/');
+    key.extend_from_slice(path.as_bytes());
+    key
+}
+
+fn context_project_key(key_name: &str) -> Vec<u8> {
+    let mut key = Vec::new();
+    key.extend_from_slice(b"ctx/proj/");
+    key.extend_from_slice(key_name.as_bytes());
     key
 }
 

@@ -201,6 +201,118 @@ Add attachment metadata.
 grit issue attachment add <id> --name <name> --sha256 <hash> --mime <type>
 ```
 
+#### grit issue dep
+
+Manage typed dependencies between issues.
+
+##### grit issue dep add
+
+Add a dependency.
+
+```bash
+grit issue dep add <id> --target <target_id> --type <type>
+```
+
+| Flag | Description |
+|------|-------------|
+| `--target <id>` | Target issue ID (required) |
+| `--type <type>` | Dependency type: `blocks`, `depends_on`, `related_to` (required) |
+
+Cycle detection is enforced for `blocks` and `depends_on` types.
+
+##### grit issue dep remove
+
+Remove a dependency.
+
+```bash
+grit issue dep remove <id> --target <target_id> --type <type>
+```
+
+##### grit issue dep list
+
+List dependencies for an issue.
+
+```bash
+grit issue dep list <id> [--reverse]
+```
+
+| Flag | Description |
+|------|-------------|
+| `--reverse` | Show issues that depend on this one |
+
+##### grit issue dep topo
+
+Show topological ordering of issues based on dependency DAG.
+
+```bash
+grit issue dep topo [--state <state>] [--label <label>]
+```
+
+| Flag | Description |
+|------|-------------|
+| `--state <state>` | Filter by state: `open`, `closed` |
+| `--label <label>` | Filter by label |
+
+---
+
+### grit context
+
+Context store management for file/symbol indexing.
+
+#### grit context index
+
+Index files in the repository.
+
+```bash
+grit context index [--path <path>]... [--pattern <glob>] [--force]
+```
+
+| Flag | Description |
+|------|-------------|
+| `--path <path>` | Restrict to specific paths (can repeat) |
+| `--pattern <glob>` | Filter files by glob pattern (e.g., `"*.rs"`) |
+| `--force` | Re-index even if file hash unchanged |
+
+Uses `git ls-files` for file discovery (respects .gitignore). Supports Rust, Python, TypeScript/JavaScript, and Go.
+
+#### grit context query
+
+Query the symbol index.
+
+```bash
+grit context query <query>
+```
+
+Searches for symbols matching the query string.
+
+#### grit context show
+
+Show context for a specific file.
+
+```bash
+grit context show <path>
+```
+
+Displays language, symbols, summary, and content hash.
+
+#### grit context project
+
+Show project-level context entries.
+
+```bash
+grit context project [<key>]
+```
+
+Without a key, lists all project context entries. With a key, shows that specific entry.
+
+#### grit context set
+
+Set a project-level context entry.
+
+```bash
+grit context set <key> <value>
+```
+
 ---
 
 ### grit sync

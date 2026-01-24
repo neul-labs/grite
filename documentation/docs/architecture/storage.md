@@ -172,6 +172,11 @@ The sled database uses these key patterns:
 | `issue_state/<issue_id>` | IssueProjection | Current issue state |
 | `issue_events/<issue_id>/<ts>/<event_id>` | Empty | Event index per issue |
 | `label_index/<label>/<issue_id>` | Empty | Label-to-issue index |
+| `dep_forward/<source_id>/<target_id>/<type>` | Empty | Dependency: source → target |
+| `dep_reverse/<target_id>/<source_id>/<type>` | Empty | Dependency: target → source (reverse lookup) |
+| `context_files/<path>` | FileContext (JSON) | File context with symbols |
+| `context_symbols/<symbol_name>/<path>` | Empty | Symbol-to-file inverted index |
+| `context_project/<key>` | ProjectContextEntry (JSON) | Project key/value metadata |
 | `meta/last_rebuild_ts` | u64 | Last rebuild timestamp |
 | `meta/wal_head` | String | Last processed WAL commit |
 

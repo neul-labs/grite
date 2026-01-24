@@ -27,6 +27,15 @@
 - `grit issue assignee remove <id> --user <name>`
 - `grit issue link add <id> --url ... [--note ...]`
 - `grit issue attachment add <id> --name ... --sha256 ... --mime ...`
+- `grit issue dep add <id> --target <id> --type blocks|depends_on|related_to`
+- `grit issue dep remove <id> --target <id> --type ...`
+- `grit issue dep list <id> [--reverse]`
+- `grit issue dep topo [--state open] [--label ...]`
+- `grit context index [--path ...] [--pattern "*.rs"] [--force]`
+- `grit context query <query>`
+- `grit context show <path>`
+- `grit context project [key]`
+- `grit context set <key> <value>`
 - `grit sync [--pull] [--push] [--remote <name>]`
 - `grit doctor [--fix] [--json]`
 - `grit rebuild [--from-snapshot]`
@@ -146,6 +155,67 @@ grit rebuild --from-snapshot
 ```
 
 The `--from-snapshot` flag loads events from the latest snapshot instead of replaying the entire WAL, which is faster for repositories with many events.
+
+## Dependencies
+
+Typed relationships between issues with cycle detection and topological ordering.
+
+```bash
+# Add a dependency (issue blocks another)
+grit issue dep add <id> --target <target_id> --type blocks
+
+# Types: blocks, depends_on, related_to
+grit issue dep add <id> --target <target_id> --type depends_on
+
+# Remove a dependency
+grit issue dep remove <id> --target <target_id> --type blocks
+
+# List dependencies for an issue
+grit issue dep list <id>
+
+# List issues that depend on this one (reverse)
+grit issue dep list <id> --reverse
+
+# Topological ordering (respects dependency DAG)
+grit issue dep topo --state open --label sprint-1
+```
+
+**Dependency types:**
+- `blocks` — "this issue blocks target" (acyclic, enforced)
+- `depends_on` — "this issue depends on target" (acyclic, enforced)
+- `related_to` — symmetric link, no cycle constraint
+
+**Cycle detection:** Adding a `blocks` or `depends_on` edge that would create a cycle is rejected at command time. The `related_to` type has no acyclicity constraint.
+
+**CRDT notes:** Dependencies are an add/remove set (commutative). Concurrent add+remove of the same edge: add wins. Cycle detection is local validation; concurrent conflicting edges are accepted by the CRDT but flagged by `grit doctor`.
+
+## Context Store
+
+Distributed file/symbol index for AI agents to query project structure.
+
+```bash
+# Index files (uses git ls-files, skips unchanged)
+grit context index
+grit context index --path src/ --pattern "*.rs"
+grit context index --force  # re-index even if hash unchanged
+
+# Query symbols
+grit context query "Config"
+
+# Show context for a file
+grit context show src/main.rs
+
+# Project-level key/value store
+grit context project              # list all entries
+grit context project "api_version"  # get specific key
+grit context set "api_version" "v2" # set key/value
+```
+
+**Supported languages:** Rust, Python, TypeScript/JavaScript, Go
+
+**Incremental indexing:** Files are SHA-256 hashed; unchanged files are skipped unless `--force` is used.
+
+**CRDT notes:** File context uses last-writer-wins (LWW) per file path. Project context uses LWW per key. Both sync automatically via `grit sync`.
 
 ## Error Messages
 

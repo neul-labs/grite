@@ -276,14 +276,56 @@ fi
 | Acquire lock | `grit lock acquire --resource "..." --ttl 15m --json` |
 | Renew lock | `grit lock renew --resource "..." --ttl 15m --json` |
 | Release lock | `grit lock release --resource "..." --json` |
+| Task order | `grit issue dep topo --state open --json` |
+| Add dependency | `grit issue dep add $ID --target $TARGET --type blocks --json` |
+| Index files | `grit context index --json` |
+| Query symbols | `grit context query "Name" --json` |
+| Project context | `grit context project --json` |
 | Health check | `grit doctor --json` |
+
+## Using Dependencies
+
+Track task ordering with typed dependencies:
+
+```bash
+# Check what blocks your current task
+grit issue dep list $ISSUE_ID --json
+
+# Check what this task blocks (dependents waiting on you)
+grit issue dep list $ISSUE_ID --reverse --json
+
+# Find the next workable task (respects dependency order)
+grit issue dep topo --state open --label agent:todo --json
+```
+
+## Using the Context Store
+
+Orient yourself in a new codebase:
+
+```bash
+# Index project files (incremental, skips unchanged)
+grit context index --json
+
+# Find relevant symbols for your task
+grit context query "Authentication" --json
+
+# Understand a specific file
+grit context show src/auth/mod.rs --json
+
+# Record project knowledge for other agents
+grit context set "auth_library" "argon2"
+grit context set "test_command" "cargo test"
+
+# Read project knowledge
+grit context project --json
+```
 
 ## Quick Reference Card
 
 ```
 STARTUP:
   grit sync --pull --json
-  grit issue list --state open --label agent:todo --json
+  grit issue dep topo --state open --label agent:todo --json
 
 CLAIM:
   grit lock acquire --resource "issue:$ID" --ttl 30m --json

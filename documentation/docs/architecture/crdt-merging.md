@@ -18,9 +18,12 @@ CRDTs allow distributed systems to merge concurrent changes without conflicts. G
 | State | Last-writer-wins | Latest state change wins |
 | Labels | Add/remove set | Add and remove operations commute |
 | Assignees | Add/remove set | Add and remove operations commute |
+| Dependencies | Add/remove set | Add and remove operations commute |
 | Comments | Append-only list | All comments preserved |
 | Links | Append-only list | All links preserved |
 | Attachments | Append-only list | All attachments preserved |
+| File context | Last-writer-wins (per path) | Latest index wins |
+| Project context | Last-writer-wins (per key) | Latest value wins |
 
 ## Last-Writer-Wins (LWW)
 
@@ -236,6 +239,55 @@ Final state:
   labels: ["urgent"]
   comments: ["Local comment", "Remote comment"]
 ```
+
+## Dependencies
+
+Dependencies use the same add/remove set semantics as labels.
+
+### Add/Remove Semantics
+
+```
+Actor A: DependencyAdded { target: issue-2, dep_type: Blocks }
+Actor B: DependencyRemoved { target: issue-2, dep_type: Blocks }
+
+# Applied in timestamp order, same as labels
+```
+
+### Cycle Detection
+
+Cycle detection for `blocks` and `depends_on` types is a **local validation** at command time. It is not enforced at the CRDT level because:
+
+- Concurrent edges from different actors cannot be validated against each other without coordination
+- The CRDT accepts all well-formed events
+- `grit doctor` detects cycles that formed due to concurrent operations
+- The `related_to` type has no acyclicity constraint
+
+### Concurrent Conflict Example
+
+```
+Actor A: DependencyAdded { source: issue-1, target: issue-2, dep_type: Blocks }
+Actor B: DependencyAdded { source: issue-2, target: issue-1, dep_type: Blocks }
+
+# Both are accepted by the CRDT (no coordination needed)
+# Result: A cycle exists in the Blocks graph
+# grit doctor will flag this for manual resolution
+```
+
+## Context Store
+
+Context events use LWW semantics per file path (or per key for project context).
+
+### File Context LWW
+
+Each file path has at most one `FileContext` projection. When multiple `ContextUpdated` events exist for the same path, the one with the highest `(ts, actor, event_id)` version wins.
+
+### Project Context LWW
+
+Each key has at most one `ProjectContextEntry`. The latest `ProjectContextUpdated` event per key wins.
+
+### Why LWW for Context
+
+Context represents the current state of a file or project setting. Unlike labels (where multiple values coexist), there's only one correct current context for a given file path. LWW naturally resolves concurrent updates by preferring the most recent indexing.
 
 ## Guarantees
 

@@ -105,8 +105,11 @@ pub fn should_route_through_daemon(cmd: &crate::cli::Command) -> bool {
         // Doctor is local-only (health checks)
         Command::Doctor { .. } => false,
 
-        // These can be routed through daemon
-        Command::Issue { .. } => true,
+        // Context commands are local-only (need filesystem access)
+        Command::Context { .. } => false,
+
+        // Issue commands can be routed, except dep (needs cycle detection)
+        Command::Issue { cmd } => !matches!(cmd, crate::cli::IssueCommand::Dep { .. }),
         Command::Export { .. } => true,
         Command::Rebuild { from_snapshot } => !from_snapshot, // Snapshot-based rebuild is local-only
         Command::Sync { .. } => true,
@@ -139,7 +142,7 @@ pub fn cli_to_ipc_command(cmd: &crate::cli::Command) -> Option<IpcCommand> {
         }),
         Command::Snapshot { cmd: snap_cmd } => Some(snapshot_to_ipc(snap_cmd)),
         // These don't route through daemon
-        Command::Init { .. } | Command::Actor { .. } | Command::Daemon { .. } | Command::Lock { .. } | Command::Doctor { .. } => None,
+        Command::Init { .. } | Command::Actor { .. } | Command::Daemon { .. } | Command::Lock { .. } | Command::Doctor { .. } | Command::Context { .. } => None,
     }
 }
 
@@ -211,6 +214,10 @@ fn issue_to_ipc(cmd: &crate::cli::IssueCommand) -> IpcCommand {
                 file_path: format!("{}:{}:{}", name, sha256, mime),
             },
         },
+        // Dep commands are local-only, should not reach here
+        IssueCommand::Dep { .. } => {
+            unreachable!("Dep commands should not be routed through daemon")
+        }
     }
 }
 

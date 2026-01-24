@@ -112,6 +112,12 @@ pub enum Command {
         #[arg(long)]
         fix: bool,
     },
+
+    /// Context store management (file/symbol indexing)
+    Context {
+        #[command(subcommand)]
+        cmd: ContextCommand,
+    },
 }
 
 #[derive(Clone, Subcommand)]
@@ -254,6 +260,12 @@ pub enum IssueCommand {
     Attachment {
         #[command(subcommand)]
         cmd: AttachmentCommand,
+    },
+
+    /// Dependency operations
+    Dep {
+        #[command(subcommand)]
+        cmd: DepCommand,
     },
 }
 
@@ -456,4 +468,109 @@ pub enum LockCommand {
 
     /// Garbage collect expired locks
     Gc,
+}
+
+#[derive(Clone, Subcommand)]
+pub enum DepCommand {
+    /// Add a dependency between issues
+    Add {
+        /// Source issue ID (the issue that has the dependency)
+        id: String,
+
+        /// Target issue ID (the issue being depended on / blocked)
+        #[arg(long)]
+        target: String,
+
+        /// Dependency type: blocks, depends_on, related_to
+        #[arg(long, default_value = "depends_on")]
+        r#type: String,
+
+        /// Acquire lock before operation, release after
+        #[arg(long)]
+        lock: bool,
+    },
+
+    /// Remove a dependency between issues
+    Remove {
+        /// Source issue ID
+        id: String,
+
+        /// Target issue ID
+        #[arg(long)]
+        target: String,
+
+        /// Dependency type: blocks, depends_on, related_to
+        #[arg(long, default_value = "depends_on")]
+        r#type: String,
+
+        /// Acquire lock before operation, release after
+        #[arg(long)]
+        lock: bool,
+    },
+
+    /// List dependencies for an issue
+    List {
+        /// Issue ID
+        id: String,
+
+        /// Show reverse dependencies (what depends on this issue)
+        #[arg(long)]
+        reverse: bool,
+    },
+
+    /// Show topological order of issues based on dependencies
+    Topo {
+        /// Filter by state
+        #[arg(long)]
+        state: Option<String>,
+
+        /// Filter by label
+        #[arg(long)]
+        label: Option<String>,
+    },
+}
+
+#[derive(Clone, Subcommand)]
+pub enum ContextCommand {
+    /// Index files in the repository
+    Index {
+        /// Specific paths to index (default: all tracked files)
+        #[arg(long)]
+        path: Vec<String>,
+
+        /// Force re-index even if hash unchanged
+        #[arg(long)]
+        force: bool,
+
+        /// Only index files matching glob pattern
+        #[arg(long)]
+        pattern: Option<String>,
+    },
+
+    /// Query the context store for symbols
+    Query {
+        /// Search query (symbol name)
+        query: String,
+    },
+
+    /// Show context for a specific file
+    Show {
+        /// File path
+        path: String,
+    },
+
+    /// Show or set project-level context
+    Project {
+        /// Key to show (or all if omitted)
+        key: Option<String>,
+    },
+
+    /// Set a project-level context entry
+    Set {
+        /// Key to set
+        key: String,
+
+        /// Value to set
+        value: String,
+    },
 }

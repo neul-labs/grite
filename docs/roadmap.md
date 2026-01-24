@@ -70,6 +70,21 @@
 - [x] Daemon sync handler (full sync through IPC)
 - [x] Human-readable sync output with conflict details
 
+### Milestone 6c: Dependency DAG & Context Store
+
+- [x] Typed dependency edges (blocks, depends_on, related_to)
+- [x] Cycle detection (DFS) for acyclic dependency types
+- [x] Topological ordering (Kahn's algorithm) for execution planning
+- [x] `grit issue dep add/remove/list/topo` CLI commands
+- [x] Context store with file/symbol indexing
+- [x] Regex-based symbol extraction (Rust, Python, TypeScript/JS, Go)
+- [x] Incremental indexing with SHA-256 content hashing
+- [x] Project-level key/value context store
+- [x] `grit context index/query/show/project/set` CLI commands
+- [x] LWW semantics for context (per file path / per key)
+- [x] 4 new EventKind variants (tags 11-14)
+- [x] 5 new sled trees (dep_forward, dep_reverse, context_files, context_symbols, context_project)
+
 ## In Progress
 
 ### Milestone 6b: Advanced Sync
@@ -121,9 +136,9 @@
 
 | Area | Status |
 |------|--------|
-| Core types and hashing | 68 tests |
+| Core types, hashing, and context | 77 tests |
 | Git WAL and snapshots | 17 tests |
 | IPC protocol | 16 tests |
 | Daemon integration | 6 tests |
 | Stress tests | 12 tests |
-| **Total** | **119 tests** |
+| **Total** | **128 tests** |

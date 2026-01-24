@@ -1,6 +1,6 @@
 site_name: Grit Documentation
 site_description: A repo-local, git-backed issue/task system for AI coding agents and humans
-site_url: https://neul-labs.github.io/grit/
+site_url: https://docs.neullabs.com/grit/
 repo_url: https://github.com/neul-labs/grit
 repo_name: neul-labs/grit
 edit_uri: edit/main/documentation/docs/
@@ -102,11 +102,14 @@ nav:
   - Guides:
     - guides/index.md
     - Working with Issues: guides/issues.md
+    - Dependencies: guides/dependencies.md
+    - Context Store: guides/context.md
     - Syncing with Remotes: guides/syncing.md
     - Actor Identity: guides/actors.md
     - Distributed Locks: guides/locking.md
     - Using the Daemon: guides/daemon.md
     - Exporting Data: guides/export.md
+    - Comparison: guides/comparison.md
   - Use Cases:
     - use-cases/index.md
     - AI Coding Agents: use-cases/ai-agents.md

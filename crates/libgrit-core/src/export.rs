@@ -152,6 +152,41 @@ fn event_kind_to_json(kind: &EventKind) -> serde_json::Value {
                 }
             })
         }
+        EventKind::DependencyAdded { target, dep_type } => {
+            serde_json::json!({
+                "DependencyAdded": {
+                    "target": id_to_hex(target),
+                    "dep_type": dep_type.as_str()
+                }
+            })
+        }
+        EventKind::DependencyRemoved { target, dep_type } => {
+            serde_json::json!({
+                "DependencyRemoved": {
+                    "target": id_to_hex(target),
+                    "dep_type": dep_type.as_str()
+                }
+            })
+        }
+        EventKind::ContextUpdated { path, language, symbols, summary, content_hash } => {
+            serde_json::json!({
+                "ContextUpdated": {
+                    "path": path,
+                    "language": language,
+                    "symbol_count": symbols.len(),
+                    "summary": summary,
+                    "content_hash": id_to_hex(content_hash)
+                }
+            })
+        }
+        EventKind::ProjectContextUpdated { key, value } => {
+            serde_json::json!({
+                "ProjectContextUpdated": {
+                    "key": key,
+                    "value": value
+                }
+            })
+        }
     }
 }
 

@@ -51,6 +51,25 @@ Acquire a lock when editing shared or risky areas:
 
 If a lock is unavailable, pick another issue or coordinate in comments.
 
+## Dependencies
+
+Use the dependency DAG to find the right task to work on:
+
+- `grit issue dep topo --state open --json` — get tasks in dependency order
+- `grit issue dep list <ID> --json` — see what this task depends on
+- `grit issue dep list <ID> --reverse --json` — see what's waiting on this task
+- `grit issue dep add <ID> --target <TARGET> --type depends_on --json` — record a dependency you discover
+
+## Context
+
+Use the context store to understand and share codebase knowledge:
+
+- `grit context index --json` — index source files (incremental)
+- `grit context query "SymbolName" --json` — find where a symbol is defined
+- `grit context show <path> --json` — understand a specific file
+- `grit context set <key> <value> --json` — record project knowledge
+- `grit context project --json` — read project knowledge
+
 ## Finish
 
 Before closing:

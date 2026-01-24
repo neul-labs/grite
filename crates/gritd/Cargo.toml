@@ -4,7 +4,13 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
-description = "Grit daemon for improved performance and IPC"
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+keywords.workspace = true
+categories.workspace = true
+description = "Background daemon for grit providing concurrent access and performance"
+readme = "../../README.md"
 
 [[bin]]
 name = "gritd"

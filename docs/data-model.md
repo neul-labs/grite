@@ -10,6 +10,19 @@ pub enum IssueState {
   Closed,
 }
 
+pub enum DependencyType {
+  Blocks,      // "this issue blocks target"
+  DependsOn,   // "this issue depends on target"
+  RelatedTo,   // symmetric, no cycle constraint
+}
+
+pub struct SymbolInfo {
+  pub name: String,
+  pub kind: String,       // "function", "struct", "trait", "class", etc.
+  pub line_start: u32,
+  pub line_end: u32,
+}
+
 pub enum EventKind {
   IssueCreated { title: String, body: String, labels: Vec<String> },
   IssueUpdated { title: Option<String>, body: Option<String> },
@@ -21,6 +34,10 @@ pub enum EventKind {
   AssigneeAdded { user: String },
   AssigneeRemoved { user: String },
   AttachmentAdded { name: String, sha256: [u8; 32], mime: String },
+  DependencyAdded { target: IssueId, dep_type: DependencyType },
+  DependencyRemoved { target: IssueId, dep_type: DependencyType },
+  ContextUpdated { path: String, language: String, symbols: Vec<SymbolInfo>, summary: String, content_hash: [u8; 32] },
+  ProjectContextUpdated { key: String, value: String },
 }
 
 pub struct Event {
@@ -35,6 +52,12 @@ pub struct Event {
 ```
 
 `AttachmentAdded` carries only metadata and a content hash. Binary storage is out of scope for the WAL.
+
+`ContextUpdated` and `ProjectContextUpdated` events use derived IssueIds rather than random ones:
+- File context: `IssueId = blake2b("grit:context:file:" + path)[..16]`
+- Project context: `IssueId = [0xFF; 16]` (sentinel)
+
+This allows context events to flow through the standard WAL and sync for free.
 
 ## ID Types
 
@@ -126,16 +149,20 @@ The hash input is the following array (no maps):
 ### Kind Tags and Payloads
 
 ```
-1:  IssueCreated    => [title, body, labels]
-2:  IssueUpdated    => [title_opt, body_opt]
-3:  CommentAdded    => [body]
-4:  LabelAdded      => [label]
-5:  LabelRemoved    => [label]
-6:  StateChanged    => [state]
-7:  LinkAdded       => [url, note_opt]
-8:  AssigneeAdded   => [user]
-9:  AssigneeRemoved => [user]
-10: AttachmentAdded => [name, sha256, mime]
+1:  IssueCreated           => [title, body, labels]
+2:  IssueUpdated           => [title_opt, body_opt]
+3:  CommentAdded           => [body]
+4:  LabelAdded             => [label]
+5:  LabelRemoved           => [label]
+6:  StateChanged           => [state]
+7:  LinkAdded              => [url, note_opt]
+8:  AssigneeAdded          => [user]
+9:  AssigneeRemoved        => [user]
+10: AttachmentAdded        => [name, sha256, mime]
+11: DependencyAdded        => [target_bytes, dep_type_str]
+12: DependencyRemoved      => [target_bytes, dep_type_str]
+13: ContextUpdated         => [path, language, sorted_symbols_array, summary, content_hash_bytes]
+14: ProjectContextUpdated  => [key, value]
 ```
 
 ### IssueState Encoding
@@ -191,6 +218,7 @@ Configurable in repo config:
 | State | Last-writer-wins by `(ts, actor, event_id)` |
 | Labels | Add/remove set (commutative) |
 | Assignees | Add/remove set (commutative) |
+| Dependencies | Add/remove set (commutative) |
 | Comments | Append-only list by event order |
 | Links | Append-only list by event order |
 | Attachments | Append-only list by event order |
@@ -221,6 +249,11 @@ Key layout in `sled`:
 | `issue_state/<issue_id>` | `IssueProjection` |
 | `issue_events/<issue_id>/<ts>/<event_id>` | Empty (index) |
 | `label_index/<label>/<issue_id>` | Empty (index) |
+| `dep_forward/<source_id>/<target_id>/<type>` | Empty (dependency index) |
+| `dep_reverse/<target_id>/<source_id>/<type>` | Empty (reverse dependency index) |
+| `context_files/<path>` | `FileContext` (JSON) |
+| `context_symbols/<symbol_name>/<path>` | Empty (symbol index) |
+| `context_project/<key>` | `ProjectContextEntry` (JSON) |
 
 The materialized view is a cache. It can be deleted and rebuilt from snapshots and the WAL at any time:
 

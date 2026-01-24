@@ -8,6 +8,7 @@ pub mod error;
 pub mod lock;
 pub mod signing;
 pub mod integrity;
+pub mod context;
 
 pub use error::GritError;
 pub use types::{ActorId, EventId, IssueId};

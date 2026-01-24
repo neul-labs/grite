@@ -143,6 +143,58 @@ pub fn kind_to_tag_and_payload(kind: &EventKind) -> (u32, ciborium::Value) {
                 ]),
             )
         }
+        EventKind::DependencyAdded { target, dep_type } => {
+            (
+                11,
+                Value::Array(vec![
+                    Value::Bytes(target.to_vec()),
+                    Value::Text(dep_type.as_str().to_string()),
+                ]),
+            )
+        }
+        EventKind::DependencyRemoved { target, dep_type } => {
+            (
+                12,
+                Value::Array(vec![
+                    Value::Bytes(target.to_vec()),
+                    Value::Text(dep_type.as_str().to_string()),
+                ]),
+            )
+        }
+        EventKind::ContextUpdated { path, language, symbols, summary, content_hash } => {
+            // Symbols sorted by (name, kind) for deterministic hashing
+            let mut sorted_symbols = symbols.clone();
+            sorted_symbols.sort_by(|a, b| (&a.name, &a.kind).cmp(&(&b.name, &b.kind)));
+            let symbols_value = Value::Array(
+                sorted_symbols.iter().map(|s| {
+                    Value::Array(vec![
+                        Value::Text(s.name.clone()),
+                        Value::Text(s.kind.clone()),
+                        Value::Integer(s.line_start.into()),
+                        Value::Integer(s.line_end.into()),
+                    ])
+                }).collect()
+            );
+            (
+                13,
+                Value::Array(vec![
+                    Value::Text(path.clone()),
+                    Value::Text(language.clone()),
+                    symbols_value,
+                    Value::Text(summary.clone()),
+                    Value::Bytes(content_hash.to_vec()),
+                ]),
+            )
+        }
+        EventKind::ProjectContextUpdated { key, value } => {
+            (
+                14,
+                Value::Array(vec![
+                    Value::Text(key.clone()),
+                    Value::Text(value.clone()),
+                ]),
+            )
+        }
     }
 }
 
@@ -394,5 +446,115 @@ mod tests {
             "dc83946d33437f0b73d8b04c63f7b0b85b9e9a24e790fee3ca129d3d8b870749"
         ).unwrap();
         assert_eq!(event_id, expected_event_id);
+    }
+
+    #[test]
+    fn test_vector_11_dependency_added() {
+        use crate::types::event::DependencyType;
+        let issue_id: IssueId = hex_to_id("000102030405060708090a0b0c0d0e0f").unwrap();
+        let actor: ActorId = hex_to_id("101112131415161718191a1b1c1d1e1f").unwrap();
+        let ts_unix_ms: u64 = 1700000009000;
+        let target: IssueId = hex_to_id("aabbccddeeff00112233445566778899").unwrap();
+        let kind = EventKind::DependencyAdded {
+            target,
+            dep_type: DependencyType::Blocks,
+        };
+
+        // Verify deterministic hashing
+        let id1 = compute_event_id(&issue_id, &actor, ts_unix_ms, None, &kind);
+        let id2 = compute_event_id(&issue_id, &actor, ts_unix_ms, None, &kind);
+        assert_eq!(id1, id2);
+
+        // Different dep_type produces different hash
+        let kind2 = EventKind::DependencyAdded {
+            target,
+            dep_type: DependencyType::DependsOn,
+        };
+        let id3 = compute_event_id(&issue_id, &actor, ts_unix_ms, None, &kind2);
+        assert_ne!(id1, id3);
+    }
+
+    #[test]
+    fn test_vector_12_dependency_removed() {
+        use crate::types::event::DependencyType;
+        let issue_id: IssueId = hex_to_id("000102030405060708090a0b0c0d0e0f").unwrap();
+        let actor: ActorId = hex_to_id("101112131415161718191a1b1c1d1e1f").unwrap();
+        let ts_unix_ms: u64 = 1700000010000;
+        let target: IssueId = hex_to_id("aabbccddeeff00112233445566778899").unwrap();
+        let kind = EventKind::DependencyRemoved {
+            target,
+            dep_type: DependencyType::Blocks,
+        };
+
+        let id1 = compute_event_id(&issue_id, &actor, ts_unix_ms, None, &kind);
+        let id2 = compute_event_id(&issue_id, &actor, ts_unix_ms, None, &kind);
+        assert_eq!(id1, id2);
+
+        // DependencyAdded and DependencyRemoved with same fields produce different hashes
+        let kind_add = EventKind::DependencyAdded {
+            target,
+            dep_type: DependencyType::Blocks,
+        };
+        let id_add = compute_event_id(&issue_id, &actor, ts_unix_ms, None, &kind_add);
+        assert_ne!(id1, id_add);
+    }
+
+    #[test]
+    fn test_vector_13_context_updated() {
+        use crate::types::event::SymbolInfo;
+        let issue_id: IssueId = hex_to_id("000102030405060708090a0b0c0d0e0f").unwrap();
+        let actor: ActorId = hex_to_id("101112131415161718191a1b1c1d1e1f").unwrap();
+        let ts_unix_ms: u64 = 1700000011000;
+        let kind = EventKind::ContextUpdated {
+            path: "src/main.rs".to_string(),
+            language: "rust".to_string(),
+            symbols: vec![
+                SymbolInfo { name: "main".to_string(), kind: "function".to_string(), line_start: 1, line_end: 10 },
+                SymbolInfo { name: "Config".to_string(), kind: "struct".to_string(), line_start: 12, line_end: 20 },
+            ],
+            summary: "Entry point".to_string(),
+            content_hash: [0xAA; 32],
+        };
+
+        let id1 = compute_event_id(&issue_id, &actor, ts_unix_ms, None, &kind);
+        let id2 = compute_event_id(&issue_id, &actor, ts_unix_ms, None, &kind);
+        assert_eq!(id1, id2);
+
+        // Symbol order shouldn't matter (sorted during hashing)
+        let kind_reordered = EventKind::ContextUpdated {
+            path: "src/main.rs".to_string(),
+            language: "rust".to_string(),
+            symbols: vec![
+                SymbolInfo { name: "Config".to_string(), kind: "struct".to_string(), line_start: 12, line_end: 20 },
+                SymbolInfo { name: "main".to_string(), kind: "function".to_string(), line_start: 1, line_end: 10 },
+            ],
+            summary: "Entry point".to_string(),
+            content_hash: [0xAA; 32],
+        };
+        let id3 = compute_event_id(&issue_id, &actor, ts_unix_ms, None, &kind_reordered);
+        assert_eq!(id1, id3, "Symbol order should not affect hash");
+    }
+
+    #[test]
+    fn test_vector_14_project_context_updated() {
+        let issue_id: IssueId = hex_to_id("000102030405060708090a0b0c0d0e0f").unwrap();
+        let actor: ActorId = hex_to_id("101112131415161718191a1b1c1d1e1f").unwrap();
+        let ts_unix_ms: u64 = 1700000012000;
+        let kind = EventKind::ProjectContextUpdated {
+            key: "framework".to_string(),
+            value: "actix-web".to_string(),
+        };
+
+        let id1 = compute_event_id(&issue_id, &actor, ts_unix_ms, None, &kind);
+        let id2 = compute_event_id(&issue_id, &actor, ts_unix_ms, None, &kind);
+        assert_eq!(id1, id2);
+
+        // Different key produces different hash
+        let kind2 = EventKind::ProjectContextUpdated {
+            key: "build_system".to_string(),
+            value: "actix-web".to_string(),
+        };
+        let id3 = compute_event_id(&issue_id, &actor, ts_unix_ms, None, &kind2);
+        assert_ne!(id1, id3);
     }
 }

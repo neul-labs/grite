@@ -9,3 +9,5 @@ pub mod snapshot;
 pub mod daemon;
 pub mod lock;
 pub mod doctor;
+pub mod dep;
+pub mod context;

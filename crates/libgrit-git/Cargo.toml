@@ -2,6 +2,15 @@
 name = "libgrit-git"
 version.workspace = true
 edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+keywords.workspace = true
+categories.workspace = true
+description = "Git WAL, sync, and snapshot operations for grit"
+readme = "../../README.md"
 
 [dependencies]
 libgrit-core = { path = "../libgrit-core" }

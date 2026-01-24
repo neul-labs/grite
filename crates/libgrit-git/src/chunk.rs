@@ -10,7 +10,7 @@
 use blake2::{Blake2b, Digest};
 use blake2::digest::consts::U32;
 use ciborium::Value;
-use libgrit_core::types::event::{Event, EventKind, IssueState};
+use libgrit_core::types::event::{DependencyType, Event, EventKind, IssueState, SymbolInfo};
 use libgrit_core::types::ids::{ActorId, EventId, IssueId};
 
 use crate::GitError;
@@ -320,8 +320,85 @@ fn parse_event_kind(tag: u32, payload: Value) -> Result<EventKind, GitError> {
             let mime = extract_string(&iter.next().unwrap(), "mime")?;
             Ok(EventKind::AttachmentAdded { name, sha256, mime })
         }
+        11 => {
+            // DependencyAdded { target, dep_type }
+            if array.len() != 2 {
+                return Err(GitError::InvalidEvent("DependencyAdded expects 2 fields".to_string()));
+            }
+            let mut iter = array.into_iter();
+            let target: IssueId = extract_bytes(&iter.next().unwrap(), "target", 16)?
+                .try_into()
+                .map_err(|_| GitError::InvalidEvent("Invalid target length".to_string()))?;
+            let dep_type_str = extract_string(&iter.next().unwrap(), "dep_type")?;
+            let dep_type = DependencyType::from_str(&dep_type_str)
+                .ok_or_else(|| GitError::InvalidEvent(format!("Invalid dep_type: {}", dep_type_str)))?;
+            Ok(EventKind::DependencyAdded { target, dep_type })
+        }
+        12 => {
+            // DependencyRemoved { target, dep_type }
+            if array.len() != 2 {
+                return Err(GitError::InvalidEvent("DependencyRemoved expects 2 fields".to_string()));
+            }
+            let mut iter = array.into_iter();
+            let target: IssueId = extract_bytes(&iter.next().unwrap(), "target", 16)?
+                .try_into()
+                .map_err(|_| GitError::InvalidEvent("Invalid target length".to_string()))?;
+            let dep_type_str = extract_string(&iter.next().unwrap(), "dep_type")?;
+            let dep_type = DependencyType::from_str(&dep_type_str)
+                .ok_or_else(|| GitError::InvalidEvent(format!("Invalid dep_type: {}", dep_type_str)))?;
+            Ok(EventKind::DependencyRemoved { target, dep_type })
+        }
+        13 => {
+            // ContextUpdated { path, language, symbols, summary, content_hash }
+            if array.len() != 5 {
+                return Err(GitError::InvalidEvent("ContextUpdated expects 5 fields".to_string()));
+            }
+            let mut iter = array.into_iter();
+            let path = extract_string(&iter.next().unwrap(), "path")?;
+            let language = extract_string(&iter.next().unwrap(), "language")?;
+            let symbols_value = iter.next().unwrap();
+            let symbols = parse_symbols(symbols_value)?;
+            let summary = extract_string(&iter.next().unwrap(), "summary")?;
+            let content_hash: [u8; 32] = extract_bytes(&iter.next().unwrap(), "content_hash", 32)?
+                .try_into()
+                .map_err(|_| GitError::InvalidEvent("Invalid content_hash length".to_string()))?;
+            Ok(EventKind::ContextUpdated { path, language, symbols, summary, content_hash })
+        }
+        14 => {
+            // ProjectContextUpdated { key, value }
+            if array.len() != 2 {
+                return Err(GitError::InvalidEvent("ProjectContextUpdated expects 2 fields".to_string()));
+            }
+            let mut iter = array.into_iter();
+            let key = extract_string(&iter.next().unwrap(), "key")?;
+            let value = extract_string(&iter.next().unwrap(), "value")?;
+            Ok(EventKind::ProjectContextUpdated { key, value })
+        }
         _ => Err(GitError::InvalidEvent(format!("Unknown kind tag: {}", tag))),
     }
+}
+
+/// Parse a CBOR array of symbols into Vec<SymbolInfo>
+fn parse_symbols(value: Value) -> Result<Vec<SymbolInfo>, GitError> {
+    let array = match value {
+        Value::Array(arr) => arr,
+        _ => return Err(GitError::InvalidEvent("symbols must be array".to_string())),
+    };
+    array.into_iter().map(|sym_value| {
+        let sym_arr = match sym_value {
+            Value::Array(arr) => arr,
+            _ => return Err(GitError::InvalidEvent("symbol must be array".to_string())),
+        };
+        if sym_arr.len() != 4 {
+            return Err(GitError::InvalidEvent("symbol expects 4 fields".to_string()));
+        }
+        let mut iter = sym_arr.into_iter();
+        let name = extract_string(&iter.next().unwrap(), "symbol.name")?;
+        let kind = extract_string(&iter.next().unwrap(), "symbol.kind")?;
+        let line_start = extract_u32(&iter.next().unwrap(), "symbol.line_start")?;
+        let line_end = extract_u32(&iter.next().unwrap(), "symbol.line_end")?;
+        Ok(SymbolInfo { name, kind, line_start, line_end })
+    }).collect()
 }
 
 // Helper functions for extracting values from CBOR
@@ -482,6 +559,27 @@ mod tests {
                 sha256: [0u8; 32],
                 mime: "text/plain".to_string(),
             }),
+            make_test_event(EventKind::DependencyAdded {
+                target: [0xAA; 16],
+                dep_type: DependencyType::Blocks,
+            }),
+            make_test_event(EventKind::DependencyRemoved {
+                target: [0xBB; 16],
+                dep_type: DependencyType::DependsOn,
+            }),
+            make_test_event(EventKind::ContextUpdated {
+                path: "src/main.rs".to_string(),
+                language: "rust".to_string(),
+                symbols: vec![
+                    SymbolInfo { name: "main".to_string(), kind: "function".to_string(), line_start: 1, line_end: 10 },
+                ],
+                summary: "Entry point".to_string(),
+                content_hash: [0xCC; 32],
+            }),
+            make_test_event(EventKind::ProjectContextUpdated {
+                key: "framework".to_string(),
+                value: "actix-web".to_string(),
+            }),
         ];
 
         let chunk = encode_chunk(&events).unwrap();
@@ -490,6 +588,7 @@ mod tests {
         assert_eq!(decoded.len(), events.len());
         for (orig, dec) in events.iter().zip(decoded.iter()) {
             assert_eq!(orig.event_id, dec.event_id);
+            assert_eq!(orig.kind, dec.kind);
         }
     }
 

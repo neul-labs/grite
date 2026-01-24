@@ -564,12 +564,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "glob"
+version = "0.3.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0cc23270f6e1808e30a928bdc84dea0b9b4136a8bc82338574f23baf47bbd280"
+
+[[package]]
 name = "grit"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "assert_cmd",
  "chrono",
  "clap",
+ "glob",
  "hex",
  "libgrit-core",
  "libgrit-git",
@@ -577,6 +584,7 @@ dependencies = [
  "predicates",
  "serde",
  "serde_json",
+ "sha2",
  "tempfile",
  "thiserror",
  "uuid",
@@ -584,7 +592,7 @@ dependencies = [
 
 [[package]]
 name = "gritd"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "clap",
  "hex",
@@ -837,7 +845,7 @@ dependencies = [
 
 [[package]]
 name = "libgrit-core"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "blake2",
  "chrono",
@@ -846,6 +854,7 @@ dependencies = [
  "fs2",
  "hex",
  "rand",
+ "regex",
  "serde",
  "serde_json",
  "sha2",
@@ -858,7 +867,7 @@ dependencies = [
 
 [[package]]
 name = "libgrit-git"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "blake2",
  "chrono",
@@ -874,7 +883,7 @@ dependencies = [
 
 [[package]]
 name = "libgrit-ipc"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "libgrit-core",
  "nng",

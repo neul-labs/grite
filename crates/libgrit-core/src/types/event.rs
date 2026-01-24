@@ -19,6 +19,51 @@ impl IssueState {
     }
 }
 
+/// Dependency relationship type between issues
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DependencyType {
+    /// This issue blocks the target from proceeding
+    Blocks,
+    /// This issue depends on the target being completed
+    DependsOn,
+    /// Symmetric relationship, no ordering constraint
+    RelatedTo,
+}
+
+impl DependencyType {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            DependencyType::Blocks => "blocks",
+            DependencyType::DependsOn => "depends_on",
+            DependencyType::RelatedTo => "related_to",
+        }
+    }
+
+    pub fn from_str(s: &str) -> Option<Self> {
+        match s {
+            "blocks" => Some(DependencyType::Blocks),
+            "depends_on" => Some(DependencyType::DependsOn),
+            "related_to" => Some(DependencyType::RelatedTo),
+            _ => None,
+        }
+    }
+
+    /// Whether this relationship type has directed acyclic constraints
+    pub fn is_acyclic(&self) -> bool {
+        matches!(self, DependencyType::Blocks | DependencyType::DependsOn)
+    }
+}
+
+/// Symbol information extracted from source code
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SymbolInfo {
+    pub name: String,
+    pub kind: String,
+    pub line_start: u32,
+    pub line_end: u32,
+}
+
 /// Event kind enum representing all possible issue events
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum EventKind {
@@ -58,6 +103,25 @@ pub enum EventKind {
         sha256: [u8; 32],
         mime: String,
     },
+    DependencyAdded {
+        target: IssueId,
+        dep_type: DependencyType,
+    },
+    DependencyRemoved {
+        target: IssueId,
+        dep_type: DependencyType,
+    },
+    ContextUpdated {
+        path: String,
+        language: String,
+        symbols: Vec<SymbolInfo>,
+        summary: String,
+        content_hash: [u8; 32],
+    },
+    ProjectContextUpdated {
+        key: String,
+        value: String,
+    },
 }
 
 impl EventKind {
@@ -74,6 +138,10 @@ impl EventKind {
             EventKind::AssigneeAdded { .. } => 8,
             EventKind::AssigneeRemoved { .. } => 9,
             EventKind::AttachmentAdded { .. } => 10,
+            EventKind::DependencyAdded { .. } => 11,
+            EventKind::DependencyRemoved { .. } => 12,
+            EventKind::ContextUpdated { .. } => 13,
+            EventKind::ProjectContextUpdated { .. } => 14,
         }
     }
 }
@@ -212,6 +280,41 @@ mod tests {
             }
             .kind_tag(),
             10
+        );
+        assert_eq!(
+            EventKind::DependencyAdded {
+                target: [0; 16],
+                dep_type: DependencyType::Blocks
+            }
+            .kind_tag(),
+            11
+        );
+        assert_eq!(
+            EventKind::DependencyRemoved {
+                target: [0; 16],
+                dep_type: DependencyType::DependsOn
+            }
+            .kind_tag(),
+            12
+        );
+        assert_eq!(
+            EventKind::ContextUpdated {
+                path: String::new(),
+                language: String::new(),
+                symbols: vec![],
+                summary: String::new(),
+                content_hash: [0; 32]
+            }
+            .kind_tag(),
+            13
+        );
+        assert_eq!(
+            EventKind::ProjectContextUpdated {
+                key: String::new(),
+                value: String::new()
+            }
+            .kind_tag(),
+            14
         );
     }
 
