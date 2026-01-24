@@ -17,9 +17,9 @@ name = "grit"
 path = "src/main.rs"
 
 [dependencies]
-libgrit-core = { path = "../libgrit-core" }
-libgrit-git = { path = "../libgrit-git" }
-libgrit-ipc = { path = "../libgrit-ipc" }
+libgrit-core = { path = "../libgrit-core", version = "0.2.0" }
+libgrit-git = { path = "../libgrit-git", version = "0.2.0" }
+libgrit-ipc = { path = "../libgrit-ipc", version = "0.2.0" }
 clap = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
