@@ -12,6 +12,25 @@ This page compares Grit with other git-backed issue trackers, focusing on archit
 | **Trekker** | TypeScript | SQLite only | None (local only) | Yes | No |
 | **git-issue** | Shell | Text files in git | Git push/pull | No | No |
 
+### Feature Matrix
+
+| Feature | Grit | Beads | git-bug | Trekker |
+|---------|------|-------|---------|---------|
+| Dependencies (typed DAG) | blocks, depends_on, related_to | blocks, related, parent-child | No | Basic |
+| Cycle detection | DFS at command time | No | No | No |
+| Topological ordering | Kahn's algorithm | No | No | No |
+| Context store | Tree-sitter (10 langs, AST-accurate) | LLM compaction | No | No |
+| Lease locks | TTL-based, policy enforcement | No | No | No |
+| Actor isolation | Multi-actor with separate data dirs | Multi-role modes | No | Single-agent |
+| Git worktrees | Full support, daemon works | Shared DB, daemon auto-disabled | Likely works | N/A (local) |
+| Snapshots | Fast rebuild from snapshot | No | No | No |
+| Health checks | `grit doctor --fix` (auto-repair) | No | No | No |
+| Agent playbook | AGENTS.md auto-generation | Manual setup | No | MCP plugin |
+| Event signing | Ed25519 per-event | No | GPG commit signing | No |
+| Attachments/Links | SHA-256 verified, structured | No | File attachments | No |
+| Labels + Assignees | Yes | Tags | Labels | Tags |
+| Export | Markdown + JSON | JSON | JSON | JSON + TOON |
+
 ---
 
 ## Beads (bd)
@@ -30,7 +49,10 @@ This page compares Grit with other git-backed issue trackers, focusing on archit
 | Signing | Optional Ed25519 per-event | None |
 | Daemon | Optional (CLI always works standalone) | Required for auto-sync |
 | Dependencies | blocks, depends_on, related_to + cycle detection | blocks, related, parent-child, discovered-from |
-| Context/memory | Built-in symbol index (context store) | LLM-powered compaction (`bd compact`) |
+| Context/memory | Tree-sitter symbol index (10 languages) | LLM-powered compaction (`bd compact`) |
+| Locks | Lease-based with TTL, policy enforcement | No |
+| Agent onboarding | AGENTS.md auto-generation | Manual setup |
+| Git worktrees | Full support, daemon works normally | Shared DB, daemon auto-disabled in worktrees |
 | Hierarchy | Flat issues with labels + dependency DAG | Hierarchical IDs (`bd-a3f8.1.1`) |
 | Binary size | Single static Rust binary | Go binary + npm package |
 
@@ -46,7 +68,11 @@ This page compares Grit with other git-backed issue trackers, focusing on archit
 
 **Dependency cycle detection.** Grit performs DFS-based cycle detection at command time for `blocks` and `depends_on` edges, preventing invalid DAG states. It also provides topological ordering (Kahn's algorithm) for execution planning.
 
-**Context store.** Grit includes a built-in regex-based symbol extractor that indexes source files and provides a queryable symbol index. This is CRDT-backed and syncs between agents automatically. Beads relies on LLM-powered compaction (`bd compact`) for memory management but has no structured code understanding.
+**Context store.** Grit includes a built-in tree-sitter-powered symbol extractor that parses source files across 10 languages with AST-accurate line ranges. The queryable symbol index is CRDT-backed and syncs between agents automatically. Beads relies on LLM-powered compaction (`bd compact`) for memory management but has no structured code understanding.
+
+**Lease-based locks.** Grit provides distributed lease locks (`grit lock acquire --resource <R> --ttl 15m`) for multi-agent coordination. Locks have TTL-based expiry, automatic GC, and configurable policy enforcement (off/warn/require). Beads has no locking mechanism for concurrent agent coordination.
+
+**Agent onboarding.** `grit init` auto-generates an AGENTS.md file with trigger phrases, command references, and workflow patterns. This gives AI agents immediate context on how to use grit without manual configuration.
 
 ### Where Beads Is Ahead
 
@@ -85,6 +111,9 @@ This page compares Grit with other git-backed issue trackers, focusing on archit
 | Language | Rust | Go |
 | Merge | Deterministic CRDT with total ordering | Git-native merging |
 | Agent support | JSON output, context store, agent playbook | Not agent-optimized |
+| Dependencies | Typed DAG with cycle detection + topo sort | No |
+| Context store | Tree-sitter (10 languages) | No |
+| Locks | Lease-based with TTL | No |
 | Bridges | None yet | GitHub, GitLab, Jira |
 | UI | CLI only | CLI + TUI + Web UI |
 | Signing | Ed25519 per-event | GPG commit signing |
@@ -114,7 +143,9 @@ This page compares Grit with other git-backed issue trackers, focusing on archit
 | Language | Rust | TypeScript (Bun) |
 | Agent integration | CLI + agent playbook | MCP plugin (native) |
 | Multi-agent | Actor isolation + CRDT merge | Single-agent only |
-| Dependencies | DAG with cycle detection | Basic dependency tracking |
+| Dependencies | Typed DAG with cycle detection + topo sort | Basic dependency tracking |
+| Context store | Tree-sitter (10 languages, AST-accurate) | No |
+| Locks | Lease-based with TTL + policy enforcement | No |
 | Output format | JSON | JSON + TOON (token-efficient) |
 
 ### Key Differences
@@ -148,7 +179,8 @@ A [single-file bash script](https://news.ycombinator.com/item?id=46487580) using
 - **CRDT-correct distributed merging**: Multiple agents or developers need to work on the same issue set without conflicts
 - **Cryptographic event integrity**: Event signing and content-addressed IDs matter (audit trails, compliance)
 - **Dependency DAG**: Typed relationships with cycle detection and topological ordering for task prioritization
-- **Context store**: Agents need structured codebase understanding that syncs between team members
+- **Context store**: Agents need tree-sitter-powered codebase understanding (10 languages, exact line ranges) that syncs between team members
+- **Lease locks**: Multi-agent coordination with TTL-based resource locking and policy enforcement
 - **Daemon-optional**: CLI must work reliably standalone without background processes
 - **Append-only safety**: No risk of data loss from sync races or file corruption
 

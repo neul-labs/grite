@@ -31,7 +31,16 @@ Distributed file/symbol index for AI agents:
 - Incremental file indexing with symbol extraction
 - Symbol search across the project
 - Project-level key/value metadata
-- Supports Rust, Python, TypeScript/JavaScript, Go
+- Tree-sitter-powered symbol extraction (Rust, Python, TypeScript/TSX, JavaScript, Go, Java, C, C++, Ruby, Elixir)
+
+### [Git Worktrees](worktrees.md)
+
+Use grit with multiple working directories:
+
+- Shared state across all worktrees
+- Multi-agent workflows with parallel development
+- Daemon compatibility
+- Context indexing per worktree
 
 ### [Syncing with Remotes](syncing.md)
 

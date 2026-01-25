@@ -104,6 +104,7 @@ nav:
     - Working with Issues: guides/issues.md
     - Dependencies: guides/dependencies.md
     - Context Store: guides/context.md
+    - Git Worktrees: guides/worktrees.md
     - Syncing with Remotes: guides/syncing.md
     - Actor Identity: guides/actors.md
     - Distributed Locks: guides/locking.md

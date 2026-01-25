@@ -65,6 +65,32 @@
 - Each concurrent agent should use a distinct data dir
 - If a daemon owns the selected data dir, the CLI routes all commands through it and does not open the DB directly
 
+## Git worktrees
+
+Grit fully supports git worktrees. When running grit commands from within a worktree:
+
+- **Shared data**: Issues, events, locks, and context are stored in the main repository's `.git/grit/` directory and shared across all worktrees
+- **Shared refs**: The WAL (`refs/grit/wal`), locks (`refs/grit/locks/*`), and snapshots are stored in the main repository
+- **Context indexing**: `grit context index` indexes files in the current worktree's working directory using `git ls-files`
+- **Actor isolation**: Each worktree can use the same or different actors; actors are shared across worktrees
+
+This enables multi-agent workflows where each agent works on a different branch in its own worktree while sharing the same issue state.
+
+```bash
+# Main repo
+cd /project
+grit init
+grit issue create --title "Feature A"
+
+# Create worktree for feature branch
+git worktree add ../project-feature -b feature
+
+# Work from worktree - issues are shared
+cd ../project-feature
+grit issue list          # Shows "Feature A"
+grit issue comment <id> --body "Working on this in feature branch"
+```
+
 ## AGENTS.md
 
 By default, `grit init` creates or updates an `AGENTS.md` file in the repository root with instructions for AI coding agents to use grit as the canonical task and memory system.
@@ -211,7 +237,7 @@ grit context project "api_version"  # get specific key
 grit context set "api_version" "v2" # set key/value
 ```
 
-**Supported languages:** Rust, Python, TypeScript/JavaScript, Go
+**Supported languages:** Rust, Python, TypeScript/TSX, JavaScript, Go, Java, C, C++, Ruby, Elixir (tree-sitter-powered, AST-accurate line ranges)
 
 **Incremental indexing:** Files are SHA-256 hashed; unchanged files are skipped unless `--force` is used.
 

@@ -77,7 +77,7 @@
 - [x] Topological ordering (Kahn's algorithm) for execution planning
 - [x] `grit issue dep add/remove/list/topo` CLI commands
 - [x] Context store with file/symbol indexing
-- [x] Regex-based symbol extraction (Rust, Python, TypeScript/JS, Go)
+- [x] Tree-sitter-based symbol extraction (Rust, Python, TypeScript/TSX, JavaScript, Go, Java, C, C++, Ruby, Elixir)
 - [x] Incremental indexing with SHA-256 content hashing
 - [x] Project-level key/value context store
 - [x] `grit context index/query/show/project/set` CLI commands

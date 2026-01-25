@@ -9,6 +9,19 @@
 | **git-bug** | Git objects | Git push/pull | Partial | No |
 | **Trekker** | SQLite only | None (local) | No | Yes (MCP) |
 
+### Feature Matrix
+
+| Feature | Grit | Beads | git-bug | Trekker |
+|---------|------|-------|---------|---------|
+| Dependency DAG | Typed (3 edge types) + cycle detection + topo sort | 4 types, no cycle detection | No | Basic |
+| Context store | Tree-sitter (10 langs) | LLM compaction | No | No |
+| Lease locks | TTL + policy enforcement | No | No | No |
+| Actor isolation | Multi-actor, separate data dirs | Multi-role modes | No | Single-agent |
+| Git worktrees | Full support, daemon works | Shared DB, daemon disabled | Likely works | N/A |
+| Event signing | Ed25519 per-event | No | GPG | No |
+| Health checks | `grit doctor --fix` | No | No | No |
+| Agent playbook | AGENTS.md auto-gen | Manual | No | MCP plugin |
+
 ## Grit vs Beads
 
 **Architecture:** Grit uses an append-only event log with formal CRDT merging (LWW + add/remove sets). Beads uses mutable JSONL records with hash-based IDs to avoid collisions.
@@ -21,7 +34,9 @@
 
 **Dependencies:** Grit has typed edges (blocks, depends_on, related_to) with DFS cycle detection and topological ordering. Beads has four dependency types but no cycle detection.
 
-**Context:** Grit includes a built-in symbol extractor and queryable context store that syncs via CRDT. Beads uses LLM-powered compaction (`bd compact`) for memory management.
+**Context:** Grit includes a tree-sitter-powered symbol extractor (10 languages, AST-accurate line ranges) and queryable context store that syncs via CRDT. Beads uses LLM-powered compaction (`bd compact`) for memory management.
+
+**Locks:** Grit provides lease-based locks with TTL, GC, and policy enforcement (off/warn/require) for multi-agent coordination. Beads has no locking mechanism.
 
 **Where Beads is ahead:** Hierarchical IDs (epics/subtasks), LLM compaction, Linear/Jira bridges, larger ecosystem, multi-role modes.
 
@@ -38,7 +53,9 @@ Trekker is SQLite-only (no distributed sync) with a native MCP plugin for Claude
 - CRDT-correct distributed merging for multi-agent workflows
 - Cryptographic event integrity (signing, content-addressed IDs)
 - Dependency DAG with cycle detection and topological ordering
-- Distributed context store for codebase understanding
+- Tree-sitter context store (10 languages, AST-accurate) for codebase understanding
+- Lease locks for multi-agent coordination (TTL, policy enforcement)
+- Git worktree support with full daemon functionality
 - Append-only safety (no sync-induced data loss)
 
 ## When to Choose Alternatives

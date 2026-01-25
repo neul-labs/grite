@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 use std::time::Duration;
+use git2::Repository;
 use libgrit_core::{
     config::{load_repo_config, save_repo_config, load_actor_config, save_actor_config, actor_dir, list_actors, RepoConfig, load_signing_key},
     lock::{LockPolicy, LockCheckResult},
@@ -72,25 +73,37 @@ pub struct GritContext {
 }
 
 impl GritContext {
-    /// Find the .git directory starting from current working directory
+    /// Find the shared git directory (commondir) for this repository.
+    ///
+    /// Works in both regular repositories and git worktrees.
+    /// For worktrees, returns the main repository's .git directory
+    /// where refs/grit/* and .git/grit/ data are stored.
+    ///
+    /// Uses git2::Repository::discover() which handles:
+    /// - Walking up directories to find .git
+    /// - Reading .git files (gitlinks) in worktrees
     pub fn find_git_dir() -> Result<PathBuf, GritError> {
         let cwd = std::env::current_dir()?;
-        let mut dir = cwd.as_path();
 
-        loop {
-            let git_dir = dir.join(".git");
-            if git_dir.is_dir() {
-                return Ok(git_dir);
-            }
-            match dir.parent() {
-                Some(parent) => dir = parent,
-                None => {
-                    return Err(GritError::NotFound(
-                        "Not a git repository (or any parent)".to_string(),
-                    ))
-                }
-            }
-        }
+        let repo = Repository::discover(&cwd).map_err(|_| {
+            GritError::NotFound("Not a git repository (or any parent)".to_string())
+        })?;
+
+        // commondir() returns:
+        // - For normal repos: the .git directory
+        // - For worktrees: the main repo's .git directory (shared)
+        Ok(repo.commondir().to_path_buf())
+    }
+
+    /// Check if we're currently in a git worktree (not the main repo).
+    pub fn is_worktree() -> Result<bool, GritError> {
+        let cwd = std::env::current_dir()?;
+        let repo = Repository::discover(&cwd).map_err(|_| {
+            GritError::NotFound("Not a git repository (or any parent)".to_string())
+        })?;
+
+        // In a worktree, path() != commondir()
+        Ok(repo.path() != repo.commondir())
     }
 
     /// Resolve the actor context from CLI options
@@ -342,5 +355,109 @@ impl GritContext {
                 ExecutionMode::Local
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::process::Command;
+    use tempfile::TempDir;
+
+    /// Helper to run git commands
+    fn git(args: &[&str], dir: &std::path::Path) -> bool {
+        Command::new("git")
+            .args(args)
+            .current_dir(dir)
+            .output()
+            .map(|o| o.status.success())
+            .unwrap_or(false)
+    }
+
+    #[test]
+    fn test_find_git_dir_normal_repo() {
+        let temp = TempDir::new().unwrap();
+        assert!(git(&["init"], temp.path()));
+
+        // Save and restore CWD
+        let original_cwd = std::env::current_dir().unwrap();
+        std::env::set_current_dir(temp.path()).unwrap();
+
+        let git_dir = GritContext::find_git_dir().unwrap();
+        assert_eq!(git_dir, temp.path().join(".git"));
+
+        std::env::set_current_dir(original_cwd).unwrap();
+    }
+
+    #[test]
+    fn test_find_git_dir_worktree() {
+        use git2::Repository;
+
+        let temp = TempDir::new().unwrap();
+        let main_repo = temp.path().join("main");
+        let worktree_path = temp.path().join("feature");
+        std::fs::create_dir_all(&main_repo).unwrap();
+
+        // Create main repo with initial commit
+        assert!(git(&["init"], &main_repo));
+        assert!(git(&["config", "user.email", "test@test.com"], &main_repo));
+        assert!(git(&["config", "user.name", "Test"], &main_repo));
+        assert!(git(&["commit", "--allow-empty", "-m", "init"], &main_repo));
+
+        // Create worktree
+        assert!(git(
+            &["worktree", "add", worktree_path.to_str().unwrap(), "-b", "feature"],
+            &main_repo
+        ));
+
+        // Verify .git is a file in worktree (not a directory)
+        let git_file = worktree_path.join(".git");
+        assert!(git_file.is_file(), ".git should be a file in worktree, not a directory");
+
+        // Use git2 directly to test the worktree discovery logic
+        // (avoiding issues with changing CWD in tests)
+        let repo = Repository::discover(&worktree_path).expect("Should discover repo from worktree");
+
+        // commondir should be the main repo's .git
+        let commondir = repo.commondir();
+        let expected_commondir = main_repo.join(".git").canonicalize().unwrap();
+        let actual_commondir = commondir.canonicalize().unwrap();
+        assert_eq!(actual_commondir, expected_commondir);
+
+        // path() should be different from commondir() for worktrees
+        assert_ne!(repo.path(), repo.commondir(), "In worktree, path() != commondir()");
+    }
+
+    #[test]
+    fn test_is_worktree_main_repo() {
+        let temp = TempDir::new().unwrap();
+        assert!(git(&["init"], temp.path()));
+
+        let original_cwd = std::env::current_dir().unwrap();
+        std::env::set_current_dir(temp.path()).unwrap();
+
+        // Main repo is not a worktree
+        assert!(!GritContext::is_worktree().unwrap());
+
+        std::env::set_current_dir(original_cwd).unwrap();
+    }
+
+    #[test]
+    fn test_find_git_dir_subdirectory() {
+        let temp = TempDir::new().unwrap();
+        assert!(git(&["init"], temp.path()));
+
+        // Create subdirectory
+        let subdir = temp.path().join("src").join("deep");
+        std::fs::create_dir_all(&subdir).unwrap();
+
+        let original_cwd = std::env::current_dir().unwrap();
+        std::env::set_current_dir(&subdir).unwrap();
+
+        // Should still find .git from parent
+        let git_dir = GritContext::find_git_dir().unwrap();
+        assert_eq!(git_dir, temp.path().join(".git"));
+
+        std::env::set_current_dir(original_cwd).unwrap();
     }
 }

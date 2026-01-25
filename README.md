@@ -9,7 +9,7 @@ Grit is a repo-local, git-backed issue/task system designed for coding agents an
 - **Git-native storage** - Events stored in `refs/grit/wal`, synced with `git fetch/push`
 - **CRDT-based merging** - Deterministic conflict resolution, no manual merge needed
 - **Dependency DAG** - Typed issue relationships (blocks, depends_on, related_to) with cycle detection and topological ordering
-- **Context store** - Distributed file/symbol index for codebase understanding, syncs between agents
+- **Context store** - Tree-sitter-powered symbol extraction across 10 languages, with distributed sync between agents
 - **Per-actor isolation** - Each agent/device gets its own actor ID and local database
 - **Optional daemon** - Auto-spawns for performance, not required for correctness
 - **Ed25519 signing** - Optional cryptographic signatures on events

@@ -253,9 +253,82 @@ store_memory() {
     wait_for_user
 }
 
-# Step 6: Close task and show session resume
+# Step 6: Dependencies
+demo_dependencies() {
+    print_step "STEP 6: Dependencies"
+
+    print_info "Grit tracks dependencies between issues with a formal DAG."
+    print_info "This lets agents understand task ordering and blockers."
+    echo ""
+
+    # Create a second task that the first depends on
+    print_info "1. Creating a prerequisite task:"
+    PREREQ_OUTPUT=$($GRIT issue create --title 'Add input validation for name arg' --body 'Validate that name is non-empty and contains only valid characters' --label agent:todo --json)
+    PREREQ_ID=$(echo "$PREREQ_OUTPUT" | jq -r '.data.issue_id // .issue_id')
+    print_cmd "$GRIT issue create --title 'Add input validation for name arg' --label agent:todo --json"
+    echo "$PREREQ_OUTPUT" | jq '.'
+
+    echo ""
+    print_info "2. Adding a dependency: greeting styles depends on input validation:"
+    run_cmd "$GRIT issue dep add $TASK_ISSUE_ID --target $PREREQ_ID --type depends_on"
+
+    echo ""
+    print_info "3. Adding a 'blocks' relationship (validation blocks greeting styles):"
+    run_cmd "$GRIT issue dep add $PREREQ_ID --target $TASK_ISSUE_ID --type blocks"
+
+    echo ""
+    print_info "4. Listing dependencies for the greeting styles task:"
+    run_cmd "$GRIT issue dep list $TASK_ISSUE_ID"
+
+    echo ""
+    print_info "5. Topological order shows the correct execution sequence:"
+    run_cmd "$GRIT issue dep topo --state open"
+
+    echo ""
+    print_info "Agents use 'dep topo' to determine which task to work on next."
+    print_info "Cycle detection prevents circular dependencies."
+
+    wait_for_user
+}
+
+# Step 7: Context Store
+demo_context() {
+    print_step "STEP 7: Context Store"
+
+    print_info "The context store indexes code symbols so agents can quickly"
+    print_info "understand the codebase structure without reading every file."
+    echo ""
+
+    # Index the project files
+    print_info "1. Indexing project files:"
+    run_cmd "$GRIT context index"
+
+    echo ""
+    print_info "2. Querying for a symbol (the greet function):"
+    run_cmd "$GRIT context query greet"
+
+    echo ""
+    print_info "3. Showing context for a specific file:"
+    run_cmd "$GRIT context show greet.py"
+
+    echo ""
+    print_info "4. Setting project-level context (architecture decisions, conventions):"
+    run_cmd "$GRIT context set 'conventions' 'Use argparse for CLI. Functions return strings, main() prints.'"
+
+    echo ""
+    print_info "5. Querying project context:"
+    run_cmd "$GRIT context project"
+
+    echo ""
+    print_info "Agents use context to navigate unfamiliar codebases efficiently."
+    print_info "Symbols are content-addressed — unchanged files skip re-indexing."
+
+    wait_for_user
+}
+
+# Step 8: Close task and show session resume
 session_resume() {
-    print_step "STEP 6: Session Resume"
+    print_step "STEP 8: Session Resume"
 
     # Use the task issue ID from step 3
     print_info "Claude closes the completed task:"
@@ -284,9 +357,9 @@ session_resume() {
     wait_for_user
 }
 
-# Step 7: Health checks
+# Step 9: Health checks
 run_doctor() {
-    print_step "STEP 7: Health Checks"
+    print_step "STEP 9: Health Checks"
 
     print_info "Run grit doctor to check database health:"
     run_cmd "$GRIT doctor"
@@ -308,8 +381,10 @@ show_summary() {
     echo -e "  2. Tasks created with ${BLUE}grit issue create --label agent:todo${NC}"
     echo -e "  3. Progress tracked with ${BLUE}grit issue comment${NC} (checkpoints)"
     echo -e "  4. Learnings stored with ${BLUE}--label memory${NC}"
-    echo -e "  5. New sessions retrieve context via ${BLUE}grit issue list${NC}"
-    echo -e "  6. Health checks with ${BLUE}grit doctor${NC}"
+    echo -e "  5. Dependencies tracked with ${BLUE}grit issue dep${NC} (DAG + topo sort)"
+    echo -e "  6. Codebase indexed with ${BLUE}grit context${NC} (symbols + project)"
+    echo -e "  7. New sessions retrieve context via ${BLUE}grit issue list${NC}"
+    echo -e "  8. Health checks with ${BLUE}grit doctor${NC}"
     echo ""
     echo -e "${GREEN}${BOLD}Try it yourself:${NC}"
     echo ""
@@ -383,6 +458,8 @@ BANNER
     create_task
     work_with_checkpoints
     store_memory
+    demo_dependencies
+    demo_context
     session_resume
     run_doctor
     show_summary

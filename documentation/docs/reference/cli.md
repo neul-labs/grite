@@ -273,7 +273,7 @@ grit context index [--path <path>]... [--pattern <glob>] [--force]
 | `--pattern <glob>` | Filter files by glob pattern (e.g., `"*.rs"`) |
 | `--force` | Re-index even if file hash unchanged |
 
-Uses `git ls-files` for file discovery (respects .gitignore). Supports Rust, Python, TypeScript/JavaScript, and Go.
+Uses `git ls-files` for file discovery (respects .gitignore). Tree-sitter-powered symbol extraction supports Rust, Python, TypeScript/TSX, JavaScript, Go, Java, C, C++, Ruby, and Elixir with AST-accurate line ranges.
 
 #### grit context query
 

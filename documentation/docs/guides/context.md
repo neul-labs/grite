@@ -40,12 +40,26 @@ grit context index --force
 
 ### Supported Languages
 
+Grit uses [tree-sitter](https://tree-sitter.github.io/) for AST-accurate symbol extraction with exact line ranges. A regex fallback handles unsupported languages gracefully.
+
 | Language | Extensions | Extracted Symbols |
 |----------|-----------|-------------------|
-| Rust | `.rs` | `fn`, `struct`, `enum`, `trait`, `impl fn`, `const` |
-| Python | `.py` | `def`, `class`, `async def` |
-| TypeScript/JavaScript | `.ts`, `.tsx`, `.js`, `.jsx` | `function`, `class`, `interface`, `type`, `const`, arrow functions |
-| Go | `.go` | `func`, `type struct`, `type interface` |
+| Rust | `.rs` | `fn`, `struct`, `enum`, `trait`, `impl`, `const`, `static`, `type` |
+| Python | `.py` | `def`, `class`, `async def` (including nested methods) |
+| TypeScript | `.ts`, `.tsx` | `function`, `class`, `interface`, `type`, `enum`, arrow functions |
+| JavaScript | `.js`, `.jsx` | `function`, `class`, arrow functions |
+| Go | `.go` | `func`, methods, `type struct`, `type interface`, type aliases |
+| Java | `.java` | `class`, `interface`, `enum`, methods, constructors |
+| C | `.c`, `.h` | functions, `struct`, `enum`, `typedef` |
+| C++ | `.cpp`, `.hpp`, `.cc`, `.cxx` | functions, `class`, `struct`, `enum`, `namespace` |
+| Ruby | `.rb` | `def`, `class`, `module`, singleton methods |
+| Elixir | `.ex`, `.exs` | `def`, `defp`, `defmodule` |
+
+Unlike regex-based extractors, tree-sitter provides:
+
+- **Exact line ranges** — `line_start` and `line_end` correspond to the actual definition boundaries
+- **Nested symbols** — methods inside classes/impls/modules are correctly extracted
+- **All syntax handled** — generics, decorators, async functions, attributes
 
 ### Example Output
 
