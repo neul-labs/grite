@@ -1,0 +1,7 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require 'grite-cli'
+
+binary = GriteCli.binary_path('grite')
+exec(binary, *ARGV)

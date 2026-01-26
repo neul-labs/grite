@@ -9,12 +9,12 @@
 - [x] CLI: init, actor management, create/list/show/update/comment/close
 - [x] Export to markdown/json
 - [x] Tests: deterministic rebuild
-- [x] `grit db stats` output
+- [x] `grite db stats` output
 
 ### Milestone 2: Git WAL
 
 - [x] WAL commit writer/reader
-- [x] Push/pull `refs/grit/*`
+- [x] Push/pull `refs/grite/*`
 - [x] Snapshot support with GC
 - [x] Portable WAL encoding (CBOR chunks)
 - [x] Hash test vectors
@@ -26,7 +26,7 @@
 - [x] CLI routes commands through daemon if present
 - [x] Daemon ownership lock with lease/heartbeat
 - [x] Multi-repo, multi-actor workers
-- [x] `grit daemon start/status/stop`
+- [x] `grite daemon start/status/stop`
 - [x] Auto-spawn on first CLI command
 - [x] Idle timeout with auto-shutdown
 - [x] Filesystem-level flock for database exclusion
@@ -34,32 +34,32 @@
 
 ### Milestone 4: Locks + Team workflows
 
-- [x] Lease locks stored in `refs/grit/locks/*`
+- [x] Lease locks stored in `refs/grite/locks/*`
 - [x] Lock GC
 - [x] `--lock` flag on issue commands
 - [x] Lock policy enforcement (`off|warn|require`)
-- [x] `grit lock acquire/release/renew/status/gc`
+- [x] `grite lock acquire/release/renew/status/gc`
 
 ### Milestone 5: Hardening
 
 - [x] Stress tests (concurrent writers)
 - [x] Ed25519 signing and verification
-- [x] `grit db check` for integrity verification
-- [x] `grit db verify` for signature verification
-- [x] `grit doctor` for health checks
+- [x] `grite db check` for integrity verification
+- [x] `grite db verify` for signature verification
+- [x] `grite doctor` for health checks
 
 ### Milestone 5c: Agent Integration
 
-- [x] AGENTS.md auto-generation on `grit init`
+- [x] AGENTS.md auto-generation on `grite init`
 - [x] `--no-agents-md` flag to skip
 - [x] Append to existing AGENTS.md (preserves content)
-- [x] Trigger phrases mapping questions to grit commands
+- [x] Trigger phrases mapping questions to grite commands
 - [x] Demo script (`./demo.sh` and `./demo.sh --auto`)
 
 ### Milestone 5b: Production Hardening
 
-- [x] `grit doctor` rebuild threshold check with actionable guidance
-- [x] Snapshot-based fast rebuild (`grit rebuild --from-snapshot`)
+- [x] `grite doctor` rebuild threshold check with actionable guidance
+- [x] Snapshot-based fast rebuild (`grite rebuild --from-snapshot`)
 - [x] Better error messages with suggestions for common errors
 - [x] `rebuild_from_events()` for external event sources
 
@@ -75,12 +75,12 @@
 - [x] Typed dependency edges (blocks, depends_on, related_to)
 - [x] Cycle detection (DFS) for acyclic dependency types
 - [x] Topological ordering (Kahn's algorithm) for execution planning
-- [x] `grit issue dep add/remove/list/topo` CLI commands
+- [x] `grite issue dep add/remove/list/topo` CLI commands
 - [x] Context store with file/symbol indexing
 - [x] Tree-sitter-based symbol extraction (Rust, Python, TypeScript/TSX, JavaScript, Go, Java, C, C++, Ruby, Elixir)
 - [x] Incremental indexing with SHA-256 content hashing
 - [x] Project-level key/value context store
-- [x] `grit context index/query/show/project/set` CLI commands
+- [x] `grite context index/query/show/project/set` CLI commands
 - [x] LWW semantics for context (per file path / per key)
 - [x] 4 new EventKind variants (tags 11-14)
 - [x] 5 new sled trees (dep_forward, dep_reverse, context_files, context_symbols, context_project)
@@ -90,31 +90,31 @@
 ### Milestone 6b: Advanced Sync
 
 - [ ] Background sync in daemon (periodic auto-sync)
-- [ ] Performance benchmarks command (`grit bench`)
+- [ ] Performance benchmarks command (`grite bench`)
 - [ ] Partial sync (specific issues)
 
 ### Milestone 7: MCP Server for Claude Code
 
 **Goal:** Deep integration with Claude Code's tool system via Model Context Protocol.
 
-**Problem:** AGENTS.md provides guidance but Claude's planning mode still uses internal `TodoWrite`. MCP makes grit a first-class tool.
+**Problem:** AGENTS.md provides guidance but Claude's planning mode still uses internal `TodoWrite`. MCP makes grite a first-class tool.
 
 **Tools to expose:**
 
 | Tool | Description |
 |------|-------------|
-| `grit_issue_create` | Create a new issue/task |
-| `grit_issue_list` | List issues with filters (state, label) |
-| `grit_issue_show` | Show issue details with comments |
-| `grit_issue_comment` | Add comment to an issue |
-| `grit_issue_close` | Close an issue |
-| `grit_sync` | Sync with remote |
-| `grit_memory_store` | Shortcut to create memory issue |
-| `grit_memory_query` | Shortcut to query memories |
+| `grite_issue_create` | Create a new issue/task |
+| `grite_issue_list` | List issues with filters (state, label) |
+| `grite_issue_show` | Show issue details with comments |
+| `grite_issue_comment` | Add comment to an issue |
+| `grite_issue_close` | Close an issue |
+| `grite_sync` | Sync with remote |
+| `grite_memory_store` | Shortcut to create memory issue |
+| `grite_memory_query` | Shortcut to query memories |
 
 **Implementation options:**
-1. TypeScript MCP server (Node.js, calls grit CLI)
-2. Native Rust MCP server (`grit mcp serve`)
+1. TypeScript MCP server (Node.js, calls grite CLI)
+2. Native Rust MCP server (`grite mcp serve`)
 
 **Tasks:**
 - [ ] MCP server scaffolding

@@ -1,0 +1,37 @@
+[package]
+name = "grite"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+keywords.workspace = true
+categories.workspace = true
+description = "Git-backed issue tracker with CRDT merging, designed for AI coding agents"
+readme = "../../README.md"
+
+[[bin]]
+name = "grite"
+path = "src/main.rs"
+
+[dependencies]
+libgrite-core = { path = "../libgrite-core", version = "0.3.0" }
+libgrite-git = { path = "../libgrite-git", version = "0.3.0" }
+libgrite-ipc = { path = "../libgrite-ipc", version = "0.3.0" }
+clap = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+hex = { workspace = true }
+chrono = { workspace = true }
+uuid = { workspace = true }
+sha2 = { workspace = true }
+glob = { workspace = true }
+git2 = { workspace = true }
+
+[dev-dependencies]
+assert_cmd = "2.0"
+predicates = "3.1"
+tempfile = "3.10"

@@ -1,10 +1,10 @@
 # Use Cases
 
-Grit is designed for different audiences with distinct workflows. This document provides detailed use cases and practical examples for each.
+Grite is designed for different audiences with distinct workflows. This document provides detailed use cases and practical examples for each.
 
 ## AI Coding Agents
 
-Grit's primary design target is AI coding agents that need a canonical task and memory system. The git-backed architecture ensures agents can work autonomously while coordinating with humans and other agents.
+Grite's primary design target is AI coding agents that need a canonical task and memory system. The git-backed architecture ensures agents can work autonomously while coordinating with humans and other agents.
 
 ### Task Decomposition & Orchestration
 
@@ -12,20 +12,20 @@ A coordinator agent can break down complex tasks into subtasks, each tracked as 
 
 ```bash
 # Coordinator creates parent task
-grit issue create --title "Implement user authentication" \
+grite issue create --title "Implement user authentication" \
   --body "Full auth system with login, registration, and password reset" \
   --label "epic" --json
 
 # Coordinator creates subtasks
-grit issue create --title "Create user database schema" \
+grite issue create --title "Create user database schema" \
   --body "Design and implement User table with necessary fields" \
   --label "subtask" --label "database" --json
 
-grit issue create --title "Implement login endpoint" \
+grite issue create --title "Implement login endpoint" \
   --body "POST /auth/login with JWT token response" \
   --label "subtask" --label "api" --json
 
-grit issue create --title "Implement registration endpoint" \
+grite issue create --title "Implement registration endpoint" \
   --body "POST /auth/register with email verification" \
   --label "subtask" --label "api" --json
 ```
@@ -36,16 +36,16 @@ Multiple agents can work on the same repository by claiming tasks via locks and 
 
 ```bash
 # Agent A claims a task
-grit lock acquire --resource "issue:<ISSUE_ID>" --ttl 30m --json
-grit issue update <ISSUE_ID> --body "Claimed by Agent A" --json
+grite lock acquire --resource "issue:<ISSUE_ID>" --ttl 30m --json
+grite issue update <ISSUE_ID> --body "Claimed by Agent A" --json
 
 # Agent A posts progress
-grit issue comment <ISSUE_ID> --body "Started implementation. Files: src/auth/login.rs" --json
+grite issue comment <ISSUE_ID> --body "Started implementation. Files: src/auth/login.rs" --json
 
 # Agent A completes and releases
-grit issue close <ISSUE_ID> --json
-grit lock release --resource "issue:<ISSUE_ID>" --json
-grit sync --push --json
+grite issue close <ISSUE_ID> --json
+grite lock release --resource "issue:<ISSUE_ID>" --json
+grite sync --push --json
 ```
 
 ### Agent Memory Persistence
@@ -54,17 +54,17 @@ Agents can use issues as persistent memory that survives across sessions.
 
 ```bash
 # Store discoveries about the codebase
-grit issue create --title "[Memory] Authentication patterns" \
+grite issue create --title "[Memory] Authentication patterns" \
   --body "Discovered: All auth uses middleware in src/middleware/auth.rs. Token validation via jsonwebtoken crate." \
   --label "memory" --label "auth" --json
 
 # Store lessons learned
-grit issue create --title "[Memory] Testing conventions" \
+grite issue create --title "[Memory] Testing conventions" \
   --body "Integration tests go in tests/integration/. Use test_helpers::setup_db() for database fixtures." \
   --label "memory" --label "testing" --json
 
 # Query memory at session start
-grit issue list --label "memory" --json
+grite issue list --label "memory" --json
 ```
 
 ### Agent Handoff Protocol
@@ -73,7 +73,7 @@ When an agent completes partial work, it can document state for another agent to
 
 ```bash
 # Agent A documents partial progress before session end
-grit issue comment <ISSUE_ID> --body "$(cat <<'EOF'
+grite issue comment <ISSUE_ID> --body "$(cat <<'EOF'
 ## Handoff Notes
 
 **Completed:**
@@ -99,8 +99,8 @@ EOF
 )" --json
 
 # Agent B picks up later
-grit sync --pull --json
-grit issue show <ISSUE_ID> --json
+grite sync --pull --json
+grite issue show <ISSUE_ID> --json
 ```
 
 ---
@@ -115,14 +115,14 @@ Work on issues without network connectivity, syncing when connected.
 
 ```bash
 # On a plane, create and work on issues
-grit issue create --title "Refactor database connection pool" \
+grite issue create --title "Refactor database connection pool" \
   --body "Current implementation doesn't handle reconnection properly"
 
-grit issue comment <ISSUE_ID> --body "Fixed in commit abc123"
-grit issue close <ISSUE_ID>
+grite issue comment <ISSUE_ID> --body "Fixed in commit abc123"
+grite issue close <ISSUE_ID>
 
 # Later, when back online
-grit sync --push
+grite sync --push
 ```
 
 ### Private Technical Debt Tracking
@@ -131,16 +131,16 @@ Maintain a personal list of cleanup tasks without polluting the team's issue tra
 
 ```bash
 # Track tech debt locally
-grit issue create --title "Replace deprecated DateTime API" \
+grite issue create --title "Replace deprecated DateTime API" \
   --body "chrono 0.4 deprecated some methods we use in src/utils/time.rs" \
   --label "tech-debt" --label "low-priority"
 
-grit issue create --title "Add error context to database errors" \
+grite issue create --title "Add error context to database errors" \
   --body "Raw sqlx errors leak to API responses" \
   --label "tech-debt" --label "error-handling"
 
 # Review tech debt periodically
-grit issue list --label "tech-debt"
+grite issue list --label "tech-debt"
 ```
 
 ### Pre-PR Checklists
@@ -149,7 +149,7 @@ Track checklist items before submitting a pull request.
 
 ```bash
 # Create PR prep checklist
-grit issue create --title "PR Prep: Add rate limiting" \
+grite issue create --title "PR Prep: Add rate limiting" \
   --body "$(cat <<'EOF'
 ## Checklist
 - [ ] Implementation complete
@@ -163,7 +163,7 @@ EOF
 )"
 
 # Update as you complete items
-grit issue update <ISSUE_ID> --body "$(cat <<'EOF'
+grite issue update <ISSUE_ID> --body "$(cat <<'EOF'
 ## Checklist
 - [x] Implementation complete
 - [x] Unit tests added
@@ -181,7 +181,7 @@ EOF
 Document bug investigation steps for complex issues that may recur.
 
 ```bash
-grit issue create --title "Investigation: Intermittent test failures in CI" \
+grite issue create --title "Investigation: Intermittent test failures in CI" \
   --body "$(cat <<'EOF'
 ## Symptoms
 - test_concurrent_writes fails ~10% of CI runs
@@ -207,15 +207,15 @@ Keep a personal task list that travels with the repo.
 
 ```bash
 # Morning: plan the day
-grit issue create --title "Today: Review PR #42" --label "today"
-grit issue create --title "Today: Fix login redirect bug" --label "today"
-grit issue create --title "Today: Update API docs" --label "today"
+grite issue create --title "Today: Review PR #42" --label "today"
+grite issue create --title "Today: Fix login redirect bug" --label "today"
+grite issue create --title "Today: Update API docs" --label "today"
 
 # Track progress
-grit issue list --label "today" --state open
+grite issue list --label "today" --state open
 
 # End of day: close completed, carry over rest
-grit issue close <COMPLETED_ID>
+grite issue close <COMPLETED_ID>
 ```
 
 ---
@@ -230,16 +230,16 @@ Multiple team members sync issues through standard git operations.
 
 ```bash
 # Developer A creates an issue
-grit issue create --title "API response time degradation" \
+grite issue create --title "API response time degradation" \
   --body "P95 latency increased 40% after last deploy" \
   --label "bug" --label "priority:P1"
-grit sync --push
+grite sync --push
 
 # Developer B pulls and claims
-grit sync --pull
-grit issue list --label "priority:P1"
-grit issue comment <ISSUE_ID> --body "I'll investigate this"
-grit sync --push
+grite sync --pull
+grite issue list --label "priority:P1"
+grite issue comment <ISSUE_ID> --body "I'll investigate this"
+grite sync --push
 ```
 
 ### Code Review Workflows
@@ -248,7 +248,7 @@ Track code review feedback offline, sync when ready.
 
 ```bash
 # Reviewer creates review issues
-grit issue create --title "Review: PR #87 - Add caching layer" \
+grite issue create --title "Review: PR #87 - Add caching layer" \
   --body "$(cat <<'EOF'
 ## Overall
 Good approach, some concerns about cache invalidation.
@@ -264,7 +264,7 @@ EOF
 )" --label "review" --label "pr:87"
 
 # Author addresses feedback
-grit issue comment <ISSUE_ID> --body "Addressed TTL and cache miss handling. Will look into dashmap."
+grite issue comment <ISSUE_ID> --body "Addressed TTL and cache miss handling. Will look into dashmap."
 ```
 
 ### Onboarding Task Lists
@@ -273,13 +273,13 @@ Create templated onboarding checklists for new team members.
 
 ```bash
 # Team lead creates onboarding issue for new developer
-grit issue create --title "Onboarding: Alice" \
+grite issue create --title "Onboarding: Alice" \
   --body "$(cat <<'EOF'
 ## Week 1
 - [ ] Set up development environment (see docs/setup.md)
 - [ ] Complete codebase walkthrough with mentor
 - [ ] Fix a "good first issue" bug
-- [ ] Set up grit actor: `grit actor init --label "alice-laptop"`
+- [ ] Set up grite actor: `grite actor init --label "alice-laptop"`
 
 ## Week 2
 - [ ] Pair on a medium complexity feature
@@ -299,7 +299,7 @@ EOF
 Record architectural decisions with rationale that persists with the codebase.
 
 ```bash
-grit issue create --title "ADR-001: Use PostgreSQL for primary database" \
+grite issue create --title "ADR-001: Use PostgreSQL for primary database" \
   --body "$(cat <<'EOF'
 ## Status
 Accepted
@@ -333,7 +333,7 @@ Track progress on refactoring efforts that span multiple files and team members.
 
 ```bash
 # Create tracking issue for refactoring
-grit issue create --title "Refactor: Migrate from callbacks to async/await" \
+grite issue create --title "Refactor: Migrate from callbacks to async/await" \
   --body "$(cat <<'EOF'
 ## Scope
 Convert all callback-based async code to async/await syntax.
@@ -349,7 +349,7 @@ Convert all callback-based async code to async/await syntax.
 ## Guidelines
 - One module at a time to minimize merge conflicts
 - Update tests alongside implementation
-- Use `grit lock acquire --resource "path:src/<module>"` before starting
+- Use `grite lock acquire --resource "path:src/<module>"` before starting
 EOF
 )" --label "refactor" --label "epic"
 ```
@@ -359,7 +359,7 @@ EOF
 Track who owns/maintains which areas of the codebase.
 
 ```bash
-grit issue create --title "[Ownership] Code ownership map" \
+grite issue create --title "[Ownership] Code ownership map" \
   --body "$(cat <<'EOF'
 ## Module Owners
 
@@ -382,7 +382,7 @@ EOF
 
 ## Security & Compliance
 
-Grit's git-backed storage keeps sensitive data within repository access controls.
+Grite's git-backed storage keeps sensitive data within repository access controls.
 
 ### Private Vulnerability Tracking
 
@@ -390,7 +390,7 @@ Track security issues privately before public disclosure.
 
 ```bash
 # Security researcher finds vulnerability
-grit issue create --title "[SECURITY] SQL injection in search endpoint" \
+grite issue create --title "[SECURITY] SQL injection in search endpoint" \
   --body "$(cat <<'EOF'
 ## Severity
 HIGH
@@ -422,7 +422,7 @@ EOF
 Document incident response with timestamps for post-mortems.
 
 ```bash
-grit issue create --title "Incident: Database outage 2024-01-20" \
+grite issue create --title "Incident: Database outage 2024-01-20" \
   --body "$(cat <<'EOF'
 ## Summary
 Production database unavailable for 47 minutes.
@@ -455,7 +455,7 @@ EOF
 Track security review items for each component.
 
 ```bash
-grit issue create --title "Security audit: Authentication module" \
+grite issue create --title "Security audit: Authentication module" \
   --body "$(cat <<'EOF'
 ## OWASP Top 10 Checklist
 
@@ -488,20 +488,20 @@ The append-only event log creates an immutable audit trail.
 
 ```bash
 # Verify audit trail integrity
-grit db check --verify-parents --json
+grite db check --verify-parents --json
 
 # Export audit log for compliance
-grit export --format json > audit-$(date +%Y%m%d).json
+grite export --format json > audit-$(date +%Y%m%d).json
 
 # Verify signatures if enabled
-grit db verify --verbose --json
+grite db verify --verbose --json
 ```
 
 ---
 
 ## DevOps & Release Engineering
 
-Grit integrates with CI/CD workflows and release processes.
+Grite integrates with CI/CD workflows and release processes.
 
 ### CI Failure Tracking
 
@@ -509,7 +509,7 @@ Track CI failures and their resolution status.
 
 ```bash
 # CI system creates issue on failure
-grit issue create --title "CI Failure: test_integration_auth [build #1234]" \
+grite issue create --title "CI Failure: test_integration_auth [build #1234]" \
   --body "$(cat <<'EOF'
 ## Build Info
 - Build: #1234
@@ -528,8 +528,8 @@ EOF
 )" --label "ci-failure" --label "test"
 
 # Developer investigates and resolves
-grit issue comment <ISSUE_ID> --body "Flaky test - added retry logic"
-grit issue close <ISSUE_ID>
+grite issue comment <ISSUE_ID> --body "Flaky test - added retry logic"
+grite issue close <ISSUE_ID>
 ```
 
 ### Release Checklist Management
@@ -537,7 +537,7 @@ grit issue close <ISSUE_ID>
 Track release checklist items that sync across the team.
 
 ```bash
-grit issue create --title "Release v2.0.0 checklist" \
+grite issue create --title "Release v2.0.0 checklist" \
   --body "$(cat <<'EOF'
 ## Pre-release
 - [ ] All PRs merged
@@ -566,7 +566,7 @@ EOF
 Track deployment readiness across environments.
 
 ```bash
-grit issue create --title "Deploy v2.0.0 to production" \
+grite issue create --title "Deploy v2.0.0 to production" \
   --body "$(cat <<'EOF'
 ## Deployment Plan
 
@@ -600,7 +600,7 @@ EOF
 Track breaking changes and migration status across consumers.
 
 ```bash
-grit issue create --title "Breaking change: API v1 deprecation" \
+grite issue create --title "Breaking change: API v1 deprecation" \
   --body "$(cat <<'EOF'
 ## Change
 API v1 endpoints will be removed in v3.0.0.
@@ -629,7 +629,7 @@ EOF
 Track feature flag states and ownership.
 
 ```bash
-grit issue create --title "[Feature Flags] Active flags inventory" \
+grite issue create --title "[Feature Flags] Active flags inventory" \
   --body "$(cat <<'EOF'
 ## Active Feature Flags
 

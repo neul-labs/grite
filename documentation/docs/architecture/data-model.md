@@ -1,6 +1,6 @@
 # Data Model
 
-This document describes grit's data model, including event schema, ID types, and encoding.
+This document describes grite's data model, including event schema, ID types, and encoding.
 
 ## Event Schema
 
@@ -84,7 +84,7 @@ pub enum EventKind {
 !!! note
     `ContextUpdated` and `ProjectContextUpdated` events use derived IssueIds:
 
-    - File context: `IssueId = blake2b("grit:context:file:" + path)[..16]`
+    - File context: `IssueId = blake2b("grite:context:file:" + path)[..16]`
     - Project context: `IssueId = [0xFF; 16]` (sentinel)
 
     This allows context events to flow through the standard WAL and sync for free.
@@ -119,8 +119,8 @@ EventId:  a1b2c3d4...                        (64 hex chars)
 
 ### ActorId
 
-- Generated once per device/agent during `grit init`
-- Stored in `.git/grit/actors/<actor_id>/config.toml`
+- Generated once per device/agent during `grite init`
+- Stored in `.git/grite/actors/<actor_id>/config.toml`
 - Identifies the source of events
 - Multiple actors can exist per repository
 
@@ -208,12 +208,12 @@ Signatures are optional. If present, `sig` is a detached Ed25519 signature over 
 ### Key Generation
 
 ```bash
-grit actor init --generate-key
+grite actor init --generate-key
 ```
 
 Creates:
 
-- Private key: `.git/grit/actors/<actor_id>/keys/signing.key`
+- Private key: `.git/grite/actors/<actor_id>/keys/signing.key`
 - Public key: stored in actor `config.toml`
 
 ### Verification Flow

@@ -54,7 +54,7 @@ pub struct Event {
 `AttachmentAdded` carries only metadata and a content hash. Binary storage is out of scope for the WAL.
 
 `ContextUpdated` and `ProjectContextUpdated` events use derived IssueIds rather than random ones:
-- File context: `IssueId = blake2b("grit:context:file:" + path)[..16]`
+- File context: `IssueId = blake2b("grite:context:file:" + path)[..16]`
 - Project context: `IssueId = [0xFF; 16]` (sentinel)
 
 This allows context events to flow through the standard WAL and sync for free.
@@ -104,8 +104,8 @@ pub fn parse_event_id(hex: &str) -> Result<EventId, IdParseError>;
 
 ### ActorId
 
-- Generated once per device/agent during `grit init`
-- Stored in `.git/grit/actors/<actor_id>/config.toml`
+- Generated once per device/agent during `grite init`
+- Stored in `.git/grite/actors/<actor_id>/config.toml`
 - Used to identify the source of events
 - Multiple actors can exist per repository (one per agent)
 
@@ -187,11 +187,11 @@ Signatures are optional. If present, `sig` is a detached Ed25519 signature over 
 ### Key Generation
 
 ```bash
-grit actor init --generate-key
+grite actor init --generate-key
 ```
 
 Creates an Ed25519 keypair:
-- Private key: `.git/grit/actors/<actor_id>/keys/signing.key`
+- Private key: `.git/grite/actors/<actor_id>/keys/signing.key`
 - Public key: stored in `config.toml`
 
 ### Verification Flow
@@ -258,5 +258,5 @@ Key layout in `sled`:
 The materialized view is a cache. It can be deleted and rebuilt from snapshots and the WAL at any time:
 
 ```bash
-grit rebuild
+grite rebuild
 ```

@@ -1,10 +1,10 @@
 # CRDT Merging
 
-Grit uses CRDT (Conflict-free Replicated Data Type) semantics for deterministic merging. This ensures no manual conflict resolution is ever needed.
+Grite uses CRDT (Conflict-free Replicated Data Type) semantics for deterministic merging. This ensures no manual conflict resolution is ever needed.
 
 ## Overview
 
-CRDTs allow distributed systems to merge concurrent changes without conflicts. Grit uses two CRDT strategies:
+CRDTs allow distributed systems to merge concurrent changes without conflicts. Grite uses two CRDT strategies:
 
 1. **Last-Writer-Wins (LWW)**: For scalar fields like title and body
 2. **Add/Remove Sets**: For collection fields like labels and assignees
@@ -58,7 +58,7 @@ Result: title = "Fix login bug" (bbb > aaa lexicographically)
 
 ## Add/Remove Sets
 
-For collection fields like labels and assignees, grit uses add/remove sets.
+For collection fields like labels and assignees, grite uses add/remove sets.
 
 ### Semantics
 
@@ -259,7 +259,7 @@ Cycle detection for `blocks` and `depends_on` types is a **local validation** at
 
 - Concurrent edges from different actors cannot be validated against each other without coordination
 - The CRDT accepts all well-formed events
-- `grit doctor` detects cycles that formed due to concurrent operations
+- `grite doctor` detects cycles that formed due to concurrent operations
 - The `related_to` type has no acyclicity constraint
 
 ### Concurrent Conflict Example
@@ -270,7 +270,7 @@ Actor B: DependencyAdded { source: issue-2, target: issue-1, dep_type: Blocks }
 
 # Both are accepted by the CRDT (no coordination needed)
 # Result: A cycle exists in the Blocks graph
-# grit doctor will flag this for manual resolution
+# grite doctor will flag this for manual resolution
 ```
 
 ## Context Store

@@ -1,10 +1,10 @@
 # Distributed Locks
 
-This guide explains how to use grit's distributed lock system to coordinate work across agents and team members.
+This guide explains how to use grite's distributed lock system to coordinate work across agents and team members.
 
 ## Overview
 
-Grit provides lease-based distributed locks stored as git refs. Locks help coordinate:
+Grite provides lease-based distributed locks stored as git refs. Locks help coordinate:
 
 - Which agent is working on an issue
 - Exclusive access to a file or directory
@@ -22,7 +22,7 @@ Locks have a time-to-live (TTL):
 
 ### Git-Backed
 
-Locks are stored in `refs/grit/locks/<hash>`:
+Locks are stored in `refs/grite/locks/<hash>`:
 
 - Synced via `git fetch/push`
 - Visible to all agents
@@ -43,7 +43,7 @@ Resources are prefixed with a namespace:
 ### Basic Acquisition
 
 ```bash
-grit lock acquire --resource "issue:8057324b" --ttl 30m
+grite lock acquire --resource "issue:8057324b" --ttl 30m
 ```
 
 Output:
@@ -63,7 +63,7 @@ Lock acquired
 ### JSON Output
 
 ```bash
-grit lock acquire --resource "path:src/api.rs" --ttl 1h --json
+grite lock acquire --resource "path:src/api.rs" --ttl 1h --json
 ```
 
 ```json
@@ -86,7 +86,7 @@ grit lock acquire --resource "path:src/api.rs" --ttl 1h --json
 If the resource is already locked:
 
 ```bash
-grit lock acquire --resource "issue:8057324b" --ttl 30m
+grite lock acquire --resource "issue:8057324b" --ttl 30m
 ```
 
 ```
@@ -101,7 +101,7 @@ Error: Lock conflict
 Extend a lock before it expires:
 
 ```bash
-grit lock renew --resource "issue:8057324b" --ttl 30m
+grite lock renew --resource "issue:8057324b" --ttl 30m
 ```
 
 !!! warning
@@ -112,7 +112,7 @@ grit lock renew --resource "issue:8057324b" --ttl 30m
 Explicitly release when done:
 
 ```bash
-grit lock release --resource "issue:8057324b"
+grite lock release --resource "issue:8057324b"
 ```
 
 This is important for good coordination. Don't rely solely on TTL expiration.
@@ -122,7 +122,7 @@ This is important for good coordination. Don't rely solely on TTL expiration.
 ### All Locks
 
 ```bash
-grit lock status
+grite lock status
 ```
 
 Output:
@@ -136,7 +136,7 @@ Active Locks:
 ### JSON Output
 
 ```bash
-grit lock status --json
+grite lock status --json
 ```
 
 ```json
@@ -161,14 +161,14 @@ grit lock status --json
 Remove expired locks:
 
 ```bash
-grit lock gc
+grite lock gc
 ```
 
-This cleans up `refs/grit/locks/` refs that have expired.
+This cleans up `refs/grite/locks/` refs that have expired.
 
 ## Lock Policy
 
-Configure lock behavior in `.git/grit/config.toml`:
+Configure lock behavior in `.git/grite/config.toml`:
 
 ```toml
 lock_policy = "warn"  # off, warn, require
@@ -186,15 +186,15 @@ lock_policy = "warn"  # off, warn, require
 
 ```bash
 # Check for existing lock
-if grit lock acquire --resource "issue:$ID" --ttl 30m --json | jq -e '.ok'; then
+if grite lock acquire --resource "issue:$ID" --ttl 30m --json | jq -e '.ok'; then
   echo "Claimed issue $ID"
 
   # Do work...
-  grit issue comment $ID --body "Working on this"
+  grite issue comment $ID --body "Working on this"
 
   # Release when done
-  grit issue close $ID
-  grit lock release --resource "issue:$ID"
+  grite issue close $ID
+  grite lock release --resource "issue:$ID"
 else
   echo "Issue already claimed"
 fi
@@ -204,29 +204,29 @@ fi
 
 ```bash
 # Lock file before editing
-grit lock acquire --resource "path:config/settings.json" --ttl 15m
+grite lock acquire --resource "path:config/settings.json" --ttl 15m
 
 # Edit file...
 
 # Release after commit
 git add config/settings.json
 git commit -m "Update settings"
-grit lock release --resource "path:config/settings.json"
+grite lock release --resource "path:config/settings.json"
 ```
 
 ### Long-Running Task
 
 ```bash
 # Acquire with longer TTL
-grit lock acquire --resource "repo:migration" --ttl 2h
+grite lock acquire --resource "repo:migration" --ttl 2h
 
 # Periodically renew during long task
 while migration_in_progress; do
   sleep 300  # 5 minutes
-  grit lock renew --resource "repo:migration" --ttl 2h
+  grite lock renew --resource "repo:migration" --ttl 2h
 done
 
-grit lock release --resource "repo:migration"
+grite lock release --resource "repo:migration"
 ```
 
 ## Multi-Agent Coordination
@@ -237,15 +237,15 @@ A coordinator agent assigns work:
 
 ```bash
 # Coordinator creates task and assigns
-grit issue create --title "Process batch" --label "todo" --json
-grit lock acquire --resource "issue:$ID" --ttl 30m
+grite issue create --title "Process batch" --label "todo" --json
+grite lock acquire --resource "issue:$ID" --ttl 30m
 
 # Worker agent checks for available work
-for id in $(grit issue list --label todo --json | jq -r '.data.issues[].issue_id'); do
-  if grit lock acquire --resource "issue:$id" --ttl 30m 2>/dev/null; then
+for id in $(grite issue list --label todo --json | jq -r '.data.issues[].issue_id'); do
+  if grite lock acquire --resource "issue:$id" --ttl 30m 2>/dev/null; then
     # Got the lock, do the work
     process_issue "$id"
-    grit lock release --resource "issue:$id"
+    grite lock release --resource "issue:$id"
     break
   fi
 done
@@ -257,8 +257,8 @@ Agents can steal expired locks:
 
 ```bash
 # Lock expired? Acquire it
-if ! grit lock status --json | jq -e ".data.locks[] | select(.resource == \"$RESOURCE\")"; then
-  grit lock acquire --resource "$RESOURCE" --ttl 30m
+if ! grite lock status --json | jq -e ".data.locks[] | select(.resource == \"$RESOURCE\")"; then
+  grite lock acquire --resource "$RESOURCE" --ttl 30m
 fi
 ```
 
@@ -268,9 +268,9 @@ fi
 
 ```bash
 # Use trap to ensure release on exit
-trap 'grit lock release --resource "issue:$ID"' EXIT
+trap 'grite lock release --resource "issue:$ID"' EXIT
 
-grit lock acquire --resource "issue:$ID" --ttl 30m
+grite lock acquire --resource "issue:$ID" --ttl 30m
 # Do work...
 ```
 
@@ -288,18 +288,18 @@ Set up renewal at 50% of TTL:
 
 ```bash
 # 30 minute lock, renew every 15 minutes
-grit lock acquire --resource "..." --ttl 30m
+grite lock acquire --resource "..." --ttl 30m
 
 while working; do
   sleep 900  # 15 minutes
-  grit lock renew --resource "..." --ttl 30m
+  grite lock renew --resource "..." --ttl 30m
 done
 ```
 
 ### Handle Lock Failures Gracefully
 
 ```bash
-if ! grit lock acquire --resource "..." --ttl 30m; then
+if ! grite lock acquire --resource "..." --ttl 30m; then
   echo "Could not acquire lock, trying later"
   exit 0  # Don't fail, just skip
 fi

@@ -2,7 +2,7 @@
 
 Teams benefit from distributed coordination that syncs via git without requiring external services.
 
-## Why Grit for Teams?
+## Why Grite for Teams?
 
 - **Decentralized**: No central server needed
 - **Git-native**: Syncs with existing git workflows
@@ -15,20 +15,20 @@ Multiple team members sync issues through standard git operations:
 
 ```bash
 # Developer A creates an issue
-grit issue create --title "API response time degradation" \
+grite issue create --title "API response time degradation" \
   --body "P95 latency increased 40% after last deploy" \
   --label "bug" --label "priority:P1"
-grit sync --push
+grite sync --push
 
 # Developer B pulls and claims
-grit sync --pull
-grit issue list --label "priority:P1"
-grit issue comment $ISSUE_ID --body "I'll investigate this"
-grit sync --push
+grite sync --pull
+grite issue list --label "priority:P1"
+grite issue comment $ISSUE_ID --body "I'll investigate this"
+grite sync --push
 
 # Developer A sees the update
-grit sync --pull
-grit issue show $ISSUE_ID
+grite sync --pull
+grite issue show $ISSUE_ID
 ```
 
 ## Code Review Workflows
@@ -37,7 +37,7 @@ Track code review feedback offline, sync when ready:
 
 ```bash
 # Reviewer creates review issues
-grit issue create --title "Review: PR #87 - Add caching layer" \
+grite issue create --title "Review: PR #87 - Add caching layer" \
   --body "$(cat <<'EOF'
 ## Overall
 Good approach, some concerns about cache invalidation.
@@ -53,8 +53,8 @@ EOF
 )" --label "review" --label "pr:87"
 
 # Author addresses feedback
-grit issue comment $ISSUE_ID --body "Addressed TTL and cache miss handling. Will look into dashmap."
-grit sync --push
+grite issue comment $ISSUE_ID --body "Addressed TTL and cache miss handling. Will look into dashmap."
+grite sync --push
 ```
 
 ### Review Workflow
@@ -70,13 +70,13 @@ Create templated onboarding checklists for new team members:
 
 ```bash
 # Team lead creates onboarding issue for new developer
-grit issue create --title "Onboarding: Alice" \
+grite issue create --title "Onboarding: Alice" \
   --body "$(cat <<'EOF'
 ## Week 1
 - [ ] Set up development environment (see docs/setup.md)
 - [ ] Complete codebase walkthrough with mentor
 - [ ] Fix a "good first issue" bug
-- [ ] Set up grit actor: `grit actor init --label "alice-laptop"`
+- [ ] Set up grite actor: `grite actor init --label "alice-laptop"`
 
 ## Week 2
 - [ ] Pair on a medium complexity feature
@@ -96,7 +96,7 @@ EOF
 Record architectural decisions with rationale:
 
 ```bash
-grit issue create --title "ADR-001: Use PostgreSQL for primary database" \
+grite issue create --title "ADR-001: Use PostgreSQL for primary database" \
   --body "$(cat <<'EOF'
 ## Status
 Accepted
@@ -128,7 +128,7 @@ EOF
 
 ```bash
 # List all ADRs
-grit issue list --label "adr"
+grite issue list --label "adr"
 
 # ADR naming
 "ADR-001: Short title"
@@ -147,7 +147,7 @@ Track progress on refactoring efforts spanning multiple team members:
 
 ```bash
 # Create tracking issue for refactoring
-grit issue create --title "Refactor: Migrate from callbacks to async/await" \
+grite issue create --title "Refactor: Migrate from callbacks to async/await" \
   --body "$(cat <<'EOF'
 ## Scope
 Convert all callback-based async code to async/await syntax.
@@ -163,12 +163,12 @@ Convert all callback-based async code to async/await syntax.
 ## Guidelines
 - One module at a time to minimize merge conflicts
 - Update tests alongside implementation
-- Use `grit lock acquire --resource "path:src/<module>"` before starting
+- Use `grite lock acquire --resource "path:src/<module>"` before starting
 EOF
 )" --label "refactor" --label "epic"
 
 # Team members update progress
-grit issue comment $ISSUE_ID --body "src/db/ complete, moving to src/api/"
+grite issue comment $ISSUE_ID --body "src/db/ complete, moving to src/api/"
 ```
 
 ## Code Ownership Documentation
@@ -176,7 +176,7 @@ grit issue comment $ISSUE_ID --body "src/db/ complete, moving to src/api/"
 Track who owns/maintains which areas:
 
 ```bash
-grit issue create --title "[Ownership] Code ownership map" \
+grite issue create --title "[Ownership] Code ownership map" \
   --body "$(cat <<'EOF'
 ## Module Owners
 
@@ -201,7 +201,7 @@ Track sprint tasks:
 
 ```bash
 # Create sprint issue
-grit issue create --title "Sprint 2024-W03" \
+grite issue create --title "Sprint 2024-W03" \
   --body "$(cat <<'EOF'
 ## Goals
 - Complete authentication refactor
@@ -218,7 +218,7 @@ EOF
 )" --label "sprint" --label "sprint:2024-W03"
 
 # Close at sprint end
-grit issue close $SPRINT_ID
+grite issue close $SPRINT_ID
 ```
 
 ## Standup Notes
@@ -226,7 +226,7 @@ grit issue close $SPRINT_ID
 Quick daily standup documentation:
 
 ```bash
-grit issue create --title "Standup: 2024-01-15" \
+grite issue create --title "Standup: 2024-01-15" \
   --body "$(cat <<'EOF'
 ## Alice
 - Yesterday: Completed MFA backend
@@ -274,9 +274,9 @@ sprint:2024-W01, sprint:2024-W02
 Each team member uses consistent actor labels:
 
 ```bash
-grit actor init --label "alice-work-laptop"
-grit actor init --label "bob-desktop"
-grit actor init --label "ci-main"
+grite actor init --label "alice-work-laptop"
+grite actor init --label "bob-desktop"
+grite actor init --label "ci-main"
 ```
 
 ### Sync Frequency
@@ -295,25 +295,25 @@ When working on shared resources:
 
 ```bash
 # Before editing shared config
-grit lock acquire --resource "path:config/settings.json" --ttl 30m
+grite lock acquire --resource "path:config/settings.json" --ttl 30m
 # Make changes
-grit lock release --resource "path:config/settings.json"
+grite lock release --resource "path:config/settings.json"
 ```
 
 ### Keep Issues Updated
 
 ```bash
 # Regular progress updates
-grit issue comment $ID --body "50% complete, tests passing"
-grit sync --push
+grite issue comment $ID --body "50% complete, tests passing"
+grite sync --push
 ```
 
 ### Archive Completed Work
 
 ```bash
 # Close and label for archiving
-grit issue close $ID
-grit issue label add $ID --label "archived"
+grite issue close $ID
+grite issue label add $ID --label "archived"
 ```
 
 ## Next Steps

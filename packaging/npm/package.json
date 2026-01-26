@@ -1,6 +1,6 @@
 {
-  "name": "@neul-labs/grit",
-  "version": "0.1.0",
+  "name": "@neul-labs/grite",
+  "version": "0.3.0",
   "description": "Git-backed issue tracking for coding agents and humans",
   "keywords": [
     "git",
@@ -9,20 +9,20 @@
     "cli",
     "coding-agents"
   ],
-  "homepage": "https://github.com/neul-labs/grit",
+  "homepage": "https://github.com/neul-labs/grite",
   "bugs": {
-    "url": "https://github.com/neul-labs/grit/issues"
+    "url": "https://github.com/neul-labs/grite/issues"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/neul-labs/grit.git"
+    "url": "git+https://github.com/neul-labs/grite.git"
   },
   "license": "MIT",
   "author": "Neul Labs",
   "main": "index.js",
   "bin": {
-    "grit": "bin/grit",
-    "grit-daemon": "bin/grit-daemon"
+    "grite": "bin/grite",
+    "grite-daemon": "bin/grite-daemon"
   },
   "scripts": {
     "postinstall": "node install.js"

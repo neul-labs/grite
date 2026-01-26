@@ -1,10 +1,10 @@
 # Syncing with Remotes
 
-This guide explains how to synchronize your grit issues with remote repositories.
+This guide explains how to synchronize your grite issues with remote repositories.
 
 ## Overview
 
-Grit stores all data in git refs (`refs/grit/*`), which sync via standard `git fetch/push`. This means:
+Grite stores all data in git refs (`refs/grite/*`), which sync via standard `git fetch/push`. This means:
 
 - Issues travel with your repository
 - Works with any git remote (GitHub, GitLab, etc.)
@@ -15,12 +15,12 @@ Grit stores all data in git refs (`refs/grit/*`), which sync via standard `git f
 The simplest way to sync is a full sync:
 
 ```bash
-grit sync
+grite sync
 ```
 
 This performs:
 
-1. **Pull**: Fetch `refs/grit/*` from the remote
+1. **Pull**: Fetch `refs/grite/*` from the remote
 2. **Merge**: Apply new events to local database
 3. **Push**: Push local changes to the remote
 
@@ -29,7 +29,7 @@ This performs:
 To only fetch changes from the remote:
 
 ```bash
-grit sync --pull
+grite sync --pull
 ```
 
 Use this when you want to see what others have done without pushing your changes.
@@ -39,24 +39,24 @@ Use this when you want to see what others have done without pushing your changes
 To only push your changes:
 
 ```bash
-grit sync --push
+grite sync --push
 ```
 
 Use this when you're confident your changes won't conflict and want a quick push.
 
 ## Specifying a Remote
 
-By default, grit syncs with `origin`. To use a different remote:
+By default, grite syncs with `origin`. To use a different remote:
 
 ```bash
-grit sync --remote upstream
+grite sync --remote upstream
 ```
 
 ## Handling Conflicts
 
 ### Auto-Rebase
 
-When a push fails because the remote has newer commits, grit automatically resolves the conflict:
+When a push fails because the remote has newer commits, grite automatically resolves the conflict:
 
 1. Records your local head
 2. Attempts push
@@ -74,7 +74,7 @@ Pushed to origin
 
 ### Why This Works
 
-Grit uses CRDT semantics, so all events are commutative:
+Grite uses CRDT semantics, so all events are commutative:
 
 - **Last-writer-wins** for title, body, state
 - **Add/remove sets** for labels, assignees
@@ -92,10 +92,10 @@ Each agent should use its own actor:
 
 ```bash
 # Agent 1
-grit actor init --label "agent-1"
+grite actor init --label "agent-1"
 
 # Agent 2 (different terminal/process)
-grit actor init --label "agent-2"
+grite actor init --label "agent-2"
 ```
 
 ### Different Machines
@@ -104,16 +104,16 @@ Just sync regularly:
 
 ```bash
 # Machine A makes changes
-grit issue create --title "Task from A"
-grit sync --push
+grite issue create --title "Task from A"
+grite sync --push
 
 # Machine B pulls and makes changes
-grit sync --pull
-grit issue create --title "Task from B"
-grit sync --push
+grite sync --pull
+grite issue create --title "Task from B"
+grite sync --push
 
 # Machine A pulls the combined state
-grit sync --pull
+grite sync --pull
 ```
 
 ## JSON Output
@@ -121,7 +121,7 @@ grit sync --pull
 Get structured sync results:
 
 ```bash
-grit sync --json
+grite sync --json
 ```
 
 ```json
@@ -141,7 +141,7 @@ grit sync --json
 
 When the remote rejects a push:
 
-1. Grit automatically retries with exponential backoff
+1. Grite automatically retries with exponential backoff
 2. Maximum retries: 3
 3. Backoff: 100ms, 200ms, 400ms
 
@@ -149,16 +149,16 @@ If all retries fail, an error is returned with suggestions.
 
 ## Offline Workflow
 
-Grit works fully offline:
+Grite works fully offline:
 
 ```bash
 # Work offline
-grit issue create --title "Offline task 1"
-grit issue create --title "Offline task 2"
-grit issue close <id>
+grite issue create --title "Offline task 1"
+grite issue create --title "Offline task 2"
+grite issue close <id>
 
 # Later, when connected
-grit sync
+grite sync
 ```
 
 All your changes sync when you're back online.
@@ -168,30 +168,30 @@ All your changes sync when you're back online.
 ### Sync Before Starting Work
 
 ```bash
-grit sync --pull
+grite sync --pull
 # Now work with latest state
 ```
 
 ### Sync After Completing Tasks
 
 ```bash
-grit issue close <id>
-grit sync --push
+grite issue close <id>
+grite sync --push
 ```
 
 ### Use Full Sync for Safety
 
 ```bash
 # Most reliable approach
-grit sync  # pull + push
+grite sync  # pull + push
 ```
 
 ### Handle Errors Gracefully
 
 ```bash
-if ! grit sync --push; then
+if ! grite sync --push; then
   echo "Sync failed, trying full sync..."
-  grit sync
+  grite sync
 fi
 ```
 
@@ -201,7 +201,7 @@ fi
 
 **Cause**: Someone else pushed while you were working.
 
-**Solution**: Run `grit sync` (full sync) to pull and auto-rebase.
+**Solution**: Run `grite sync` (full sync) to pull and auto-rebase.
 
 ### "Network unreachable"
 
@@ -211,12 +211,12 @@ fi
 
 ### "Remote ref not found"
 
-**Cause**: First sync or remote doesn't have grit refs yet.
+**Cause**: First sync or remote doesn't have grite refs yet.
 
 **Solution**: This is normal for new repositories. Push will create the refs:
 
 ```bash
-grit sync --push
+grite sync --push
 ```
 
 ## Next Steps

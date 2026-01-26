@@ -1,6 +1,6 @@
 # Working with Issues
 
-This guide covers everything you need to know about creating and managing issues in grit.
+This guide covers everything you need to know about creating and managing issues in grite.
 
 ## Creating Issues
 
@@ -9,7 +9,7 @@ This guide covers everything you need to know about creating and managing issues
 Create an issue with a title and body:
 
 ```bash
-grit issue create --title "Fix login bug" --body "Users can't login with email addresses"
+grite issue create --title "Fix login bug" --body "Users can't login with email addresses"
 ```
 
 Output:
@@ -23,7 +23,7 @@ Created issue 8057324b1e03afd613d4b428fdee657a
 Add labels when creating:
 
 ```bash
-grit issue create \
+grite issue create \
   --title "Add dark mode" \
   --body "Implement dark theme toggle in settings" \
   --label "feature" \
@@ -35,7 +35,7 @@ grit issue create \
 Get structured output for scripting:
 
 ```bash
-grit issue create --title "..." --body "..." --json
+grite issue create --title "..." --body "..." --json
 ```
 
 ```json
@@ -55,7 +55,7 @@ grit issue create --title "..." --body "..." --json
 ### All Issues
 
 ```bash
-grit issue list
+grite issue list
 ```
 
 Output:
@@ -70,32 +70,32 @@ c5d6e7f8  closed Refactor auth  [tech-debt]
 
 ```bash
 # Open issues only
-grit issue list --state open
+grite issue list --state open
 
 # Closed issues only
-grit issue list --state closed
+grite issue list --state closed
 ```
 
 ### Filter by Label
 
 ```bash
 # Issues with a specific label
-grit issue list --label bug
+grite issue list --label bug
 
 # Multiple labels (AND logic)
-grit issue list --label bug --label priority:P1
+grite issue list --label bug --label priority:P1
 ```
 
 ### Combined Filters
 
 ```bash
-grit issue list --state open --label feature
+grite issue list --state open --label feature
 ```
 
 ### JSON Output
 
 ```bash
-grit issue list --json
+grite issue list --json
 ```
 
 ```json
@@ -124,7 +124,7 @@ grit issue list --json
 ### Show Details
 
 ```bash
-grit issue show 8057324b
+grite issue show 8057324b
 ```
 
 You can use a short ID prefix as long as it's unique.
@@ -132,7 +132,7 @@ You can use a short ID prefix as long as it's unique.
 ### With Full Events
 
 ```bash
-grit issue show 8057324b --json
+grite issue show 8057324b --json
 ```
 
 Returns the issue summary plus the complete event history.
@@ -142,19 +142,19 @@ Returns the issue summary plus the complete event history.
 ### Change Title
 
 ```bash
-grit issue update 8057324b --title "Fix login session timeout bug"
+grite issue update 8057324b --title "Fix login session timeout bug"
 ```
 
 ### Change Body
 
 ```bash
-grit issue update 8057324b --body "Updated description with more details"
+grite issue update 8057324b --body "Updated description with more details"
 ```
 
 ### Change Both
 
 ```bash
-grit issue update 8057324b \
+grite issue update 8057324b \
   --title "New title" \
   --body "New description"
 ```
@@ -164,7 +164,7 @@ grit issue update 8057324b \
 ### Basic Comment
 
 ```bash
-grit issue comment 8057324b --body "Started investigating this issue"
+grite issue comment 8057324b --body "Started investigating this issue"
 ```
 
 ### Multi-line Comments
@@ -172,7 +172,7 @@ grit issue comment 8057324b --body "Started investigating this issue"
 Use heredocs for longer comments:
 
 ```bash
-grit issue comment 8057324b --body "$(cat <<'EOF'
+grite issue comment 8057324b --body "$(cat <<'EOF'
 ## Investigation Notes
 
 Found the root cause:
@@ -191,14 +191,14 @@ EOF
 ### Add Labels
 
 ```bash
-grit issue label add 8057324b --label "bug"
-grit issue label add 8057324b --label "priority:P1"
+grite issue label add 8057324b --label "bug"
+grite issue label add 8057324b --label "priority:P1"
 ```
 
 ### Remove Labels
 
 ```bash
-grit issue label remove 8057324b --label "bug"
+grite issue label remove 8057324b --label "bug"
 ```
 
 ### Label Conventions
@@ -217,13 +217,13 @@ Common label patterns:
 ### Add Assignee
 
 ```bash
-grit issue assignee add 8057324b --user "alice"
+grite issue assignee add 8057324b --user "alice"
 ```
 
 ### Remove Assignee
 
 ```bash
-grit issue assignee remove 8057324b --user "alice"
+grite issue assignee remove 8057324b --user "alice"
 ```
 
 ## Adding Links
@@ -231,7 +231,7 @@ grit issue assignee remove 8057324b --user "alice"
 Attach URLs to issues:
 
 ```bash
-grit issue link add 8057324b \
+grite issue link add 8057324b \
   --url "https://github.com/org/repo/pull/123" \
   --note "Related PR"
 ```
@@ -241,27 +241,27 @@ grit issue link add 8057324b \
 Track file attachments by their content hash:
 
 ```bash
-grit issue attachment add 8057324b \
+grite issue attachment add 8057324b \
   --name "screenshot.png" \
   --sha256 "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855" \
   --mime "image/png"
 ```
 
 !!! note
-    Grit stores only metadata and the content hash. The actual file should be stored elsewhere (e.g., git LFS, cloud storage).
+    Grite stores only metadata and the content hash. The actual file should be stored elsewhere (e.g., git LFS, cloud storage).
 
 ## Closing and Reopening
 
 ### Close Issue
 
 ```bash
-grit issue close 8057324b
+grite issue close 8057324b
 ```
 
 ### Reopen Issue
 
 ```bash
-grit issue reopen 8057324b
+grite issue reopen 8057324b
 ```
 
 ## Best Practices
@@ -284,14 +284,14 @@ Establish a labeling convention for your project:
 
 ```bash
 # Types
-grit issue create --label "bug" ...
-grit issue create --label "feature" ...
-grit issue create --label "tech-debt" ...
+grite issue create --label "bug" ...
+grite issue create --label "feature" ...
+grite issue create --label "tech-debt" ...
 
 # Priorities
-grit issue create --label "priority:P0" ...  # Critical
-grit issue create --label "priority:P1" ...  # High
-grit issue create --label "priority:P2" ...  # Medium
+grite issue create --label "priority:P0" ...  # Critical
+grite issue create --label "priority:P1" ...  # High
+grite issue create --label "priority:P2" ...  # Medium
 ```
 
 ### Document Progress in Comments
@@ -299,9 +299,9 @@ grit issue create --label "priority:P2" ...  # Medium
 Keep a record of your investigation and progress:
 
 ```bash
-grit issue comment <id> --body "Investigated - root cause is X"
-grit issue comment <id> --body "Fix implemented in commit abc123"
-grit issue comment <id> --body "Deployed to staging, testing now"
+grite issue comment <id> --body "Investigated - root cause is X"
+grite issue comment <id> --body "Fix implemented in commit abc123"
+grite issue comment <id> --body "Deployed to staging, testing now"
 ```
 
 ### Use JSON for Automation
@@ -310,10 +310,10 @@ Scripts should use `--json` for reliable parsing:
 
 ```bash
 # Get issue ID from creation
-ISSUE_ID=$(grit issue create --title "..." --body "..." --json | jq -r '.data.issue_id')
+ISSUE_ID=$(grite issue create --title "..." --body "..." --json | jq -r '.data.issue_id')
 
 # Process issue list
-grit issue list --json | jq '.data.issues[] | select(.state == "open")'
+grite issue list --json | jq '.data.issues[] | select(.state == "open")'
 ```
 
 ## Next Steps

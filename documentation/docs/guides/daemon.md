@@ -1,10 +1,10 @@
 # Using the Daemon
 
-This guide explains the grit daemon and how to use it effectively.
+This guide explains the grite daemon and how to use it effectively.
 
 ## Overview
 
-The daemon (`grit-daemon`) is an optional background process that:
+The daemon (`grite-daemon`) is an optional background process that:
 
 - Keeps the materialized view warm for fast queries
 - Handles concurrent CLI requests efficiently
@@ -18,13 +18,13 @@ The daemon (`grit-daemon`) is an optional background process that:
 By default, the daemon auto-spawns when you run CLI commands:
 
 ```bash
-grit issue list  # Daemon spawns automatically
+grite issue list  # Daemon spawns automatically
 ```
 
 The process:
 
 1. CLI checks for running daemon
-2. If none, spawns `grit-daemon` in background
+2. If none, spawns `grite-daemon` in background
 3. Waits for daemon to be ready (up to 5 seconds)
 4. Routes command through IPC
 5. Daemon runs until idle timeout (default: 5 minutes)
@@ -34,19 +34,19 @@ The process:
 ### Start Daemon
 
 ```bash
-grit daemon start
+grite daemon start
 ```
 
 With custom idle timeout:
 
 ```bash
-grit daemon start --idle-timeout 600  # 10 minutes
+grite daemon start --idle-timeout 600  # 10 minutes
 ```
 
 ### Check Status
 
 ```bash
-grit daemon status
+grite daemon status
 ```
 
 Output:
@@ -55,7 +55,7 @@ Output:
 Daemon is running
   PID:            12345
   Host ID:        my-laptop
-  IPC Endpoint:   ipc:///tmp/grit-daemon.sock
+  IPC Endpoint:   ipc:///tmp/grite-daemon.sock
   Started:        2024-01-15 10:30:00 UTC
   Expires in:     4m 30s
 ```
@@ -63,7 +63,7 @@ Daemon is running
 ### Stop Daemon
 
 ```bash
-grit daemon stop
+grite daemon stop
 ```
 
 ## Idle Timeout
@@ -80,10 +80,10 @@ The daemon shuts down automatically after a period of inactivity.
 
 ```bash
 # Start with 10-minute timeout
-grit daemon start --idle-timeout 600
+grite daemon start --idle-timeout 600
 
 # No timeout (runs until stopped)
-grit daemon start --idle-timeout 0
+grite daemon start --idle-timeout 0
 ```
 
 ## Skipping the Daemon
@@ -91,7 +91,7 @@ grit daemon start --idle-timeout 0
 Force local execution without the daemon:
 
 ```bash
-grit --no-daemon issue list
+grite --no-daemon issue list
 ```
 
 Use this when:
@@ -122,7 +122,7 @@ The daemon is most beneficial when:
 ```
 +----------------+     +----------------+     +----------------+
 |    CLI         | --> |   Supervisor   | --> |    Worker      |
-|  (grit)        |     |  (manages IPC) |     | (per repo/actor)|
+|  (grite)        |     |  (manages IPC) |     | (per repo/actor)|
 +----------------+     +----------------+     +----------------+
         |                      |                      |
         v                      v                      v
@@ -177,7 +177,7 @@ Commands execute concurrently within the daemon.
 ## Status JSON Output
 
 ```bash
-grit daemon status --json
+grite daemon status --json
 ```
 
 ```json
@@ -188,12 +188,12 @@ grit daemon status --json
     "daemon": {
       "running": true,
       "pid": 12345,
-      "endpoint": "ipc:///tmp/grit-daemon.sock",
+      "endpoint": "ipc:///tmp/grite-daemon.sock",
       "workers": [
         {
           "repo_root": "/path/to/repo",
           "actor_id": "64d15a2c383e2161772f9cea23e87222",
-          "data_dir": ".git/grit/actors/64d15a2c.../"
+          "data_dir": ".git/grite/actors/64d15a2c.../"
         }
       ]
     }
@@ -215,7 +215,7 @@ grit daemon status --json
 Control daemon log level:
 
 ```bash
-grit-daemon --log-level debug
+grite-daemon --log-level debug
 ```
 
 Log levels: `trace`, `debug`, `info`, `warn`, `error`
@@ -230,13 +230,13 @@ The database is locked by another process.
 
 ```bash
 # Check daemon status
-grit daemon status
+grite daemon status
 
 # If daemon is stuck, stop it
-grit daemon stop
+grite daemon stop
 
 # Or use --no-daemon
-grit --no-daemon issue list
+grite --no-daemon issue list
 ```
 
 ### "IPC Error"
@@ -245,8 +245,8 @@ Can't connect to daemon.
 
 ```bash
 # Restart daemon
-grit daemon stop
-grit daemon start
+grite daemon stop
+grite daemon start
 ```
 
 ### Daemon Not Starting
@@ -254,10 +254,10 @@ grit daemon start
 Check for stale lock files:
 
 ```bash
-ls -la .git/grit/actors/*/daemon.lock
+ls -la .git/grite/actors/*/daemon.lock
 
 # Remove stale locks
-rm .git/grit/actors/*/daemon.lock
+rm .git/grite/actors/*/daemon.lock
 ```
 
 ### High Memory Usage
@@ -265,13 +265,13 @@ rm .git/grit/actors/*/daemon.lock
 Daemon keeps database in memory. Stop it when not needed:
 
 ```bash
-grit daemon stop
+grite daemon stop
 ```
 
 Or use shorter idle timeout:
 
 ```bash
-grit daemon start --idle-timeout 60  # 1 minute
+grite daemon start --idle-timeout 60  # 1 minute
 ```
 
 ## Best Practices
@@ -293,7 +293,7 @@ For most use cases, auto-spawn is fine. Don't manually manage the daemon unless 
 
 ```bash
 # End of work session
-grit daemon stop
+grite daemon stop
 ```
 
 ### Use --no-daemon for Scripts
@@ -302,7 +302,7 @@ In scripts that run once and exit:
 
 ```bash
 #!/bin/bash
-grit --no-daemon issue list --json | process_issues.py
+grite --no-daemon issue list --json | process_issues.py
 ```
 
 ## Next Steps

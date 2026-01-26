@@ -2,12 +2,12 @@
 
 Solo developers benefit from git-native issue tracking that works offline and stays with the repository.
 
-## Why Grit for Developers?
+## Why Grite for Developers?
 
 - **Offline-first**: Works without network connectivity
 - **Portable**: Issues travel with the repo
 - **Private**: Personal tracking without polluting team trackers
-- **Lightweight**: No accounts, no services, just `grit init`
+- **Lightweight**: No accounts, no services, just `grite init`
 
 ## Offline Issue Tracking
 
@@ -15,14 +15,14 @@ Work on issues without network connectivity, sync when connected:
 
 ```bash
 # On a plane, create and work on issues
-grit issue create --title "Refactor database connection pool" \
+grite issue create --title "Refactor database connection pool" \
   --body "Current implementation doesn't handle reconnection properly"
 
-grit issue comment $ISSUE_ID --body "Fixed in commit abc123"
-grit issue close $ISSUE_ID
+grite issue comment $ISSUE_ID --body "Fixed in commit abc123"
+grite issue close $ISSUE_ID
 
 # Later, when back online
-grit sync --push
+grite sync --push
 ```
 
 ## Private Technical Debt Tracking
@@ -31,16 +31,16 @@ Maintain a personal list of cleanup tasks:
 
 ```bash
 # Track tech debt locally
-grit issue create --title "Replace deprecated DateTime API" \
+grite issue create --title "Replace deprecated DateTime API" \
   --body "chrono 0.4 deprecated some methods we use in src/utils/time.rs" \
   --label "tech-debt" --label "low-priority"
 
-grit issue create --title "Add error context to database errors" \
+grite issue create --title "Add error context to database errors" \
   --body "Raw sqlx errors leak to API responses" \
   --label "tech-debt" --label "error-handling"
 
 # Review tech debt periodically
-grit issue list --label "tech-debt"
+grite issue list --label "tech-debt"
 ```
 
 ### Tech Debt Labels
@@ -61,7 +61,7 @@ Track checklist items before submitting a pull request:
 
 ```bash
 # Create PR prep checklist
-grit issue create --title "PR Prep: Add rate limiting" \
+grite issue create --title "PR Prep: Add rate limiting" \
   --body "$(cat <<'EOF'
 ## Checklist
 - [ ] Implementation complete
@@ -75,7 +75,7 @@ EOF
 )"
 
 # Update as you complete items
-grit issue update $ISSUE_ID --body "$(cat <<'EOF'
+grite issue update $ISSUE_ID --body "$(cat <<'EOF'
 ## Checklist
 - [x] Implementation complete
 - [x] Unit tests added
@@ -93,7 +93,7 @@ EOF
 Document bug investigation steps for complex issues:
 
 ```bash
-grit issue create --title "Investigation: Intermittent test failures in CI" \
+grite issue create --title "Investigation: Intermittent test failures in CI" \
   --body "$(cat <<'EOF'
 ## Symptoms
 - test_concurrent_writes fails ~10% of CI runs
@@ -117,7 +117,7 @@ EOF
 
 ```bash
 # Create a standard investigation issue
-grit issue create --title "Investigation: $PROBLEM" \
+grite issue create --title "Investigation: $PROBLEM" \
   --body "$(cat <<'EOF'
 ## Symptoms
 -
@@ -143,30 +143,30 @@ Keep a personal task list that travels with the repo:
 
 ```bash
 # Morning: plan the day
-grit issue create --title "Today: Review PR #42" --label "today"
-grit issue create --title "Today: Fix login redirect bug" --label "today"
-grit issue create --title "Today: Update API docs" --label "today"
+grite issue create --title "Today: Review PR #42" --label "today"
+grite issue create --title "Today: Fix login redirect bug" --label "today"
+grite issue create --title "Today: Update API docs" --label "today"
 
 # Track progress
-grit issue list --label "today" --state open
+grite issue list --label "today" --state open
 
 # End of day: close completed
-grit issue close $COMPLETED_ID
+grite issue close $COMPLETED_ID
 
 # Tomorrow: relabel remaining
-grit issue label remove $REMAINING_ID --label "today"
-grit issue label add $REMAINING_ID --label "backlog"
+grite issue label remove $REMAINING_ID --label "today"
+grite issue label add $REMAINING_ID --label "backlog"
 ```
 
 ### Daily Workflow
 
 ```bash
 # Start of day
-alias today='grit issue list --label "today" --state open'
-alias done='grit issue close'
+alias today='grite issue list --label "today" --state open'
+alias done='grite issue close'
 
 # Quick task creation
-alias task='grit issue create --label "today" --title'
+alias task='grite issue create --label "today" --title'
 
 # Usage
 task "Review PR #42"
@@ -179,7 +179,7 @@ done abc123
 Track learnings and discoveries:
 
 ```bash
-grit issue create --title "[Learning] Rust async patterns" \
+grite issue create --title "[Learning] Rust async patterns" \
   --body "$(cat <<'EOF'
 ## Key Insights
 - Use tokio::spawn for CPU-bound work
@@ -201,7 +201,7 @@ EOF
 Track ideas for future work:
 
 ```bash
-grit issue create --title "[Idea] Add GraphQL API" \
+grite issue create --title "[Idea] Add GraphQL API" \
   --body "$(cat <<'EOF'
 ## Motivation
 Current REST API requires multiple round-trips for related data.
@@ -220,7 +220,7 @@ EOF
 )" --label "idea" --label "api"
 
 # Review ideas later
-grit issue list --label "idea"
+grite issue list --label "idea"
 ```
 
 ## Reading Notes
@@ -228,7 +228,7 @@ grit issue list --label "idea"
 Track notes from documentation or articles:
 
 ```bash
-grit issue create --title "[Notes] Kubernetes networking" \
+grite issue create --title "[Notes] Kubernetes networking" \
   --body "$(cat <<'EOF'
 ## Source
 https://kubernetes.io/docs/concepts/services-networking/
@@ -253,28 +253,28 @@ EOF
 ### Morning Startup
 
 ```bash
-grit sync --pull
-grit issue list --label "today" --state open
+grite sync --pull
+grite issue list --label "today" --state open
 ```
 
 ### Throughout Day
 
 ```bash
 # Quick task
-grit issue create --title "Fix typo in README" --label "quick"
+grite issue create --title "Fix typo in README" --label "quick"
 
 # Start working
-grit issue comment $ID --body "Started"
+grite issue comment $ID --body "Started"
 
 # Complete
-grit issue close $ID
+grite issue close $ID
 ```
 
 ### End of Day
 
 ```bash
-grit issue list --state open --label "today"  # See remaining
-grit sync --push  # Save progress
+grite issue list --state open --label "today"  # See remaining
+grite sync --push  # Save progress
 ```
 
 ## Best Practices
@@ -301,12 +301,12 @@ One issue = one task. Split large tasks:
 
 ```bash
 # Instead of one big issue
-grit issue create --title "Refactor entire API" ...
+grite issue create --title "Refactor entire API" ...
 
 # Create multiple focused issues
-grit issue create --title "Refactor auth endpoints" --label "refactor"
-grit issue create --title "Refactor user endpoints" --label "refactor"
-grit issue create --title "Refactor product endpoints" --label "refactor"
+grite issue create --title "Refactor auth endpoints" --label "refactor"
+grite issue create --title "Refactor user endpoints" --label "refactor"
+grite issue create --title "Refactor product endpoints" --label "refactor"
 ```
 
 ### Archive Don't Delete
@@ -314,8 +314,8 @@ grit issue create --title "Refactor product endpoints" --label "refactor"
 Close issues rather than trying to delete:
 
 ```bash
-grit issue close $ID
-grit issue label add $ID --label "archived"
+grite issue close $ID
+grite issue label add $ID --label "archived"
 ```
 
 ## Next Steps

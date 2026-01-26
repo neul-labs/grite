@@ -1,11 +1,11 @@
 # Configuration
 
-This document defines the on-disk configuration files used by Grit. These
+This document defines the on-disk configuration files used by Grite. These
 files live under `.git/` and are local to a clone; they are not canonical state.
 
 ## Repo config
 
-Path: `.git/grit/config.toml`
+Path: `.git/grite/config.toml`
 
 Purpose: repo-scoped defaults (for example, the default actor and lock policy).
 
@@ -33,7 +33,7 @@ max_age_days = 7
 
 ## Actor config
 
-Path: `.git/grit/actors/<actor_id>/config.toml`
+Path: `.git/grite/actors/<actor_id>/config.toml`
 
 Purpose: actor identity and optional metadata.
 

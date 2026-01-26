@@ -1,13 +1,13 @@
 # Contributing
 
-Thank you for your interest in contributing to Grit! This document provides guidelines and information for contributors.
+Thank you for your interest in contributing to Grite! This document provides guidelines and information for contributors.
 
 ## Getting Started
 
 1. Fork the repository
 2. Clone your fork:
    ```bash
-   git clone https://github.com/YOUR_USERNAME/grit.git
+   git clone https://github.com/YOUR_USERNAME/grite.git
    ```
 3. Create a branch:
    ```bash
@@ -56,7 +56,7 @@ cargo test
 ### Debug Logging
 
 ```bash
-RUST_LOG=debug cargo run --bin grit -- issue list
+RUST_LOG=debug cargo run --bin grite -- issue list
 ```
 
 ## Code Style
@@ -90,13 +90,13 @@ When reporting issues, please include:
 
 | Crate | Purpose |
 |-------|---------|
-| `libgrit-core` | Event types, hashing, projections, sled store, signing |
-| `libgrit-git` | WAL commits, ref sync, snapshots, distributed locks |
-| `libgrit-ipc` | IPC message schemas (rkyv), daemon lock, client/server |
-| `grit` | CLI frontend |
-| `grit-daemon` | Optional background daemon |
+| `libgrite-core` | Event types, hashing, projections, sled store, signing |
+| `libgrite-git` | WAL commits, ref sync, snapshots, distributed locks |
+| `libgrite-ipc` | IPC message schemas (rkyv), daemon lock, client/server |
+| `grite` | CLI frontend |
+| `grite-daemon` | Optional background daemon |
 
-### libgrit-core
+### libgrite-core
 
 Core types and logic with no external dependencies on git or IPC:
 
@@ -109,7 +109,7 @@ Core types and logic with no external dependencies on git or IPC:
 | `store` | Sled database operations |
 | `signing` | Ed25519 key generation and verification |
 
-### libgrit-git
+### libgrite-git
 
 Git operations using libgit2:
 
@@ -120,7 +120,7 @@ Git operations using libgit2:
 | `sync` | Push/pull of refs |
 | `lock_manager` | Distributed lease locks |
 
-### libgrit-ipc
+### libgrite-ipc
 
 IPC communication using nng:
 
@@ -134,7 +134,7 @@ IPC communication using nng:
 
 When contributing, keep these principles in mind:
 
-1. **Git is the source of truth** - All state derivable from `refs/grit/*`
+1. **Git is the source of truth** - All state derivable from `refs/grite/*`
 2. **No working tree pollution** - Never write tracked files
 3. **Daemon optional** - CLI works standalone
 4. **Deterministic merges** - CRDT semantics, no manual conflict resolution
@@ -176,7 +176,7 @@ fn test_full_workflow() {
 cargo test test_name
 
 # Run tests for specific crate
-cargo test -p libgrit-core
+cargo test -p libgrite-core
 
 # Run with output
 cargo test -- --nocapture
@@ -194,4 +194,4 @@ Feel free to open an issue for questions or discussion about potential contribut
 
 ## License
 
-By contributing to Grit, you agree that your contributions will be licensed under the MIT License.
+By contributing to Grite, you agree that your contributions will be licensed under the MIT License.

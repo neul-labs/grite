@@ -1,6 +1,6 @@
 # CLI JSON Output
 
-This document defines the JSON output schemas returned by `grit` when `--json`
+This document defines the JSON output schemas returned by `grite` when `--json`
 is provided. Schemas are versioned independently of the WAL schema.
 
 ## Envelope
@@ -101,105 +101,105 @@ For event objects:
 
 The JSON blocks below describe the `data` payload inside the envelope.
 
-### `grit init`
+### `grite init`
 
 ```json
 {
   "actor_id": "...",
-  "data_dir": ".git/grit/actors/<actor_id>",
-  "repo_config": ".git/grit/config.toml"
+  "data_dir": ".git/grite/actors/<actor_id>",
+  "repo_config": ".git/grite/config.toml"
 }
 ```
 
-### `grit actor init`
+### `grite actor init`
 
 ```json
 {
   "actor_id": "...",
   "label": "work-laptop",
-  "data_dir": ".git/grit/actors/<actor_id>"
+  "data_dir": ".git/grite/actors/<actor_id>"
 }
 ```
 
-### `grit actor list`
+### `grite actor list`
 
 ```json
 { "actors": [ { "actor_id": "...", "label": "...", "data_dir": "..." } ] }
 ```
 
-### `grit actor show`
+### `grite actor show`
 
 ```json
 { "actor": { "actor_id": "...", "label": "...", "created_ts": 1700000000000 } }
 ```
 
-### `grit actor current`
+### `grite actor current`
 
 ```json
 { "actor_id": "...", "data_dir": "...", "source": "repo_default|env|flag|auto" }
 ```
 
-### `grit actor use`
+### `grite actor use`
 
 ```json
-{ "default_actor": "...", "repo_config": ".git/grit/config.toml" }
+{ "default_actor": "...", "repo_config": ".git/grite/config.toml" }
 ```
 
-### `grit issue create`
-
-```json
-{ "issue_id": "...", "event_id": "...", "wal_head": "<git-commit-hash>" }
-```
-
-### `grit issue update`
+### `grite issue create`
 
 ```json
 { "issue_id": "...", "event_id": "...", "wal_head": "<git-commit-hash>" }
 ```
 
-### `grit issue comment`
+### `grite issue update`
 
 ```json
 { "issue_id": "...", "event_id": "...", "wal_head": "<git-commit-hash>" }
 ```
 
-### `grit issue close`
+### `grite issue comment`
+
+```json
+{ "issue_id": "...", "event_id": "...", "wal_head": "<git-commit-hash>" }
+```
+
+### `grite issue close`
 
 ```json
 { "issue_id": "...", "event_id": "...", "state": "closed", "wal_head": "<git-commit-hash>" }
 ```
 
-### `grit issue reopen`
+### `grite issue reopen`
 
 ```json
 { "issue_id": "...", "event_id": "...", "state": "open", "wal_head": "<git-commit-hash>" }
 ```
 
-### `grit issue label add|remove`
+### `grite issue label add|remove`
 
 ```json
 { "issue_id": "...", "event_id": "...", "wal_head": "<git-commit-hash>" }
 ```
 
-### `grit issue assignee add|remove`
+### `grite issue assignee add|remove`
 
 ```json
 { "issue_id": "...", "event_id": "...", "wal_head": "<git-commit-hash>" }
 ```
 
-### `grit issue link add`
+### `grite issue link add`
 
 ```json
 { "issue_id": "...", "event_id": "...", "wal_head": "<git-commit-hash>" }
 ```
 
-### `grit issue attachment add`
+### `grite issue attachment add`
 
 ```json
 { "issue_id": "...", "event_id": "...", "wal_head": "<git-commit-hash>" }
 ```
 
-### `grit issue dep add`
+### `grite issue dep add`
 
 ```json
 {
@@ -211,7 +211,7 @@ The JSON blocks below describe the `data` payload inside the envelope.
 }
 ```
 
-### `grit issue dep remove`
+### `grite issue dep remove`
 
 ```json
 {
@@ -223,7 +223,7 @@ The JSON blocks below describe the `data` payload inside the envelope.
 }
 ```
 
-### `grit issue dep list`
+### `grite issue dep list`
 
 ```json
 {
@@ -235,7 +235,7 @@ The JSON blocks below describe the `data` payload inside the envelope.
 }
 ```
 
-### `grit issue dep topo`
+### `grite issue dep topo`
 
 ```json
 {
@@ -246,13 +246,13 @@ The JSON blocks below describe the `data` payload inside the envelope.
 }
 ```
 
-### `grit issue list`
+### `grite issue list`
 
 ```json
 { "issues": [ { "...": "IssueSummary" } ], "total": 12 }
 ```
 
-### `grit issue show`
+### `grite issue show`
 
 ```json
 {
@@ -261,7 +261,7 @@ The JSON blocks below describe the `data` payload inside the envelope.
 }
 ```
 
-### `grit sync`
+### `grite sync`
 
 ```json
 {
@@ -272,7 +272,7 @@ The JSON blocks below describe the `data` payload inside the envelope.
 }
 ```
 
-### `grit doctor`
+### `grite doctor`
 
 ```json
 {
@@ -283,21 +283,21 @@ The JSON blocks below describe the `data` payload inside the envelope.
 }
 ```
 
-### `grit rebuild`
+### `grite rebuild`
 
 ```json
 {
   "wal_head": "<git-commit-hash>",
   "event_count": 1234,
-  "from_snapshot": "refs/grit/snapshots/1700000000000"
+  "from_snapshot": "refs/grite/snapshots/1700000000000"
 }
 ```
 
-### `grit db stats`
+### `grite db stats`
 
 ```json
 {
-  "path": ".git/grit/actors/<actor_id>/sled",
+  "path": ".git/grite/actors/<actor_id>/sled",
   "size_bytes": 1234567,
   "event_count": 1234,
   "issue_count": 12,
@@ -308,7 +308,7 @@ The JSON blocks below describe the `data` payload inside the envelope.
 }
 ```
 
-### `grit db check`
+### `grite db check`
 
 ```json
 {
@@ -319,7 +319,7 @@ The JSON blocks below describe the `data` payload inside the envelope.
 }
 ```
 
-### `grit db verify`
+### `grite db verify`
 
 ```json
 {
@@ -331,34 +331,34 @@ The JSON blocks below describe the `data` payload inside the envelope.
 }
 ```
 
-### `grit export`
+### `grite export`
 
 ```json
 {
   "format": "json|md",
-  "output_path": ".grit/export.json",
+  "output_path": ".grite/export.json",
   "wal_head": "<git-commit-hash>",
   "event_count": 1234
 }
 ```
 
-### `grit snapshot`
+### `grite snapshot`
 
 ```json
 {
-  "snapshot_ref": "refs/grit/snapshots/1700000000000",
+  "snapshot_ref": "refs/grite/snapshots/1700000000000",
   "wal_head": "<git-commit-hash>",
   "event_count": 1234
 }
 ```
 
-### `grit snapshot gc`
+### `grite snapshot gc`
 
 ```json
-{ "deleted": ["refs/grit/snapshots/1690000000000"] }
+{ "deleted": ["refs/grite/snapshots/1690000000000"] }
 ```
 
-### `grit lock acquire|renew|release`
+### `grite lock acquire|renew|release`
 
 ```json
 {
@@ -371,7 +371,7 @@ The JSON blocks below describe the `data` payload inside the envelope.
 }
 ```
 
-### `grit lock status`
+### `grite lock status`
 
 ```json
 {
@@ -380,20 +380,20 @@ The JSON blocks below describe the `data` payload inside the envelope.
 }
 ```
 
-### `grit lock gc`
+### `grite lock gc`
 
 ```json
 { "expired_pruned": 3 }
 ```
 
-### `grit daemon status`
+### `grite daemon status`
 
 ```json
 {
   "daemon": {
     "running": true,
     "pid": 12345,
-    "endpoint": "ipc://.../grit-daemon.sock",
+    "endpoint": "ipc://.../grite-daemon.sock",
     "workers": [
       { "repo_root": "/path/to/repo", "actor_id": "...", "data_dir": "..." }
     ]
@@ -401,13 +401,13 @@ The JSON blocks below describe the `data` payload inside the envelope.
 }
 ```
 
-### `grit daemon stop`
+### `grite daemon stop`
 
 ```json
 { "stopped": true }
 ```
 
-### `grit context index`
+### `grite context index`
 
 ```json
 {
@@ -417,7 +417,7 @@ The JSON blocks below describe the `data` payload inside the envelope.
 }
 ```
 
-### `grit context query`
+### `grite context query`
 
 ```json
 {
@@ -429,7 +429,7 @@ The JSON blocks below describe the `data` payload inside the envelope.
 }
 ```
 
-### `grit context show`
+### `grite context show`
 
 ```json
 {
@@ -444,7 +444,7 @@ The JSON blocks below describe the `data` payload inside the envelope.
 }
 ```
 
-### `grit context project`
+### `grite context project`
 
 ```json
 {
@@ -455,7 +455,7 @@ The JSON blocks below describe the `data` payload inside the envelope.
 }
 ```
 
-### `grit context project <key>`
+### `grite context project <key>`
 
 ```json
 {
@@ -464,7 +464,7 @@ The JSON blocks below describe the `data` payload inside the envelope.
 }
 ```
 
-### `grit context set`
+### `grite context set`
 
 ```json
 {

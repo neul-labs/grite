@@ -1,8 +1,8 @@
 # DevOps & Release Engineering
 
-Grit integrates with CI/CD workflows and release processes.
+Grite integrates with CI/CD workflows and release processes.
 
-## Why Grit for DevOps?
+## Why Grite for DevOps?
 
 - **CI-friendly**: Non-interactive CLI with JSON output
 - **Git-native**: Fits existing git workflows
@@ -15,7 +15,7 @@ Track CI failures and their resolution:
 
 ```bash
 # CI system creates issue on failure
-grit issue create --title "CI Failure: test_integration_auth [build #1234]" \
+grite issue create --title "CI Failure: test_integration_auth [build #1234]" \
   --body "$(cat <<'EOF'
 ## Build Info
 - Build: #1234
@@ -34,8 +34,8 @@ EOF
 )" --label "ci-failure" --label "test"
 
 # Developer investigates and resolves
-grit issue comment $ISSUE_ID --body "Flaky test - added retry logic"
-grit issue close $ISSUE_ID
+grite issue comment $ISSUE_ID --body "Flaky test - added retry logic"
+grite issue close $ISSUE_ID
 ```
 
 ### CI Integration Script
@@ -45,7 +45,7 @@ grit issue close $ISSUE_ID
 # ci-failure-reporter.sh
 
 if [ "$CI_STATUS" = "failed" ]; then
-  grit issue create \
+  grite issue create \
     --title "CI Failure: $CI_JOB_NAME [build #$CI_BUILD_NUMBER]" \
     --body "Build: #$CI_BUILD_NUMBER
 Branch: $CI_BRANCH
@@ -55,7 +55,7 @@ Error: $CI_ERROR_MESSAGE" \
     --label "ci-failure" \
     --json
 
-  grit sync --push
+  grite sync --push
 fi
 ```
 
@@ -64,7 +64,7 @@ fi
 Track release checklist items that sync across the team:
 
 ```bash
-grit issue create --title "Release v2.0.0 checklist" \
+grite issue create --title "Release v2.0.0 checklist" \
   --body "$(cat <<'EOF'
 ## Pre-release
 - [ ] All PRs merged
@@ -92,17 +92,17 @@ EOF
 
 ```bash
 # Start release
-grit issue create --title "Release v2.0.0" --label "release"
-grit lock acquire --resource "repo:release" --ttl 2h
+grite issue create --title "Release v2.0.0" --label "release"
+grite lock acquire --resource "repo:release" --ttl 2h
 
 # Update as you go
-grit issue comment $RELEASE_ID --body "Tag created"
-grit issue comment $RELEASE_ID --body "Binaries uploaded"
+grite issue comment $RELEASE_ID --body "Tag created"
+grite issue comment $RELEASE_ID --body "Binaries uploaded"
 
 # Complete release
-grit issue close $RELEASE_ID
-grit lock release --resource "repo:release"
-grit sync --push
+grite issue close $RELEASE_ID
+grite lock release --resource "repo:release"
+grite sync --push
 ```
 
 ## Deployment Coordination
@@ -110,7 +110,7 @@ grit sync --push
 Track deployment readiness across environments:
 
 ```bash
-grit issue create --title "Deploy v2.0.0 to production" \
+grite issue create --title "Deploy v2.0.0 to production" \
   --body "$(cat <<'EOF'
 ## Deployment Plan
 
@@ -145,7 +145,7 @@ Prevent concurrent deployments:
 
 ```bash
 # Acquire deployment lock
-if ! grit lock acquire --resource "deploy:production" --ttl 1h; then
+if ! grite lock acquire --resource "deploy:production" --ttl 1h; then
   echo "Deployment already in progress"
   exit 1
 fi
@@ -154,7 +154,7 @@ fi
 ./deploy.sh
 
 # Release lock
-grit lock release --resource "deploy:production"
+grite lock release --resource "deploy:production"
 ```
 
 ## Breaking Change Tracking
@@ -162,7 +162,7 @@ grit lock release --resource "deploy:production"
 Track breaking changes and migration status:
 
 ```bash
-grit issue create --title "Breaking change: API v1 deprecation" \
+grite issue create --title "Breaking change: API v1 deprecation" \
   --body "$(cat <<'EOF'
 ## Change
 API v1 endpoints will be removed in v3.0.0.
@@ -191,7 +191,7 @@ EOF
 Track feature flag states and ownership:
 
 ```bash
-grit issue create --title "[Feature Flags] Active flags inventory" \
+grite issue create --title "[Feature Flags] Active flags inventory" \
   --body "$(cat <<'EOF'
 ## Active Feature Flags
 
@@ -215,7 +215,7 @@ EOF
 Track infrastructure changes:
 
 ```bash
-grit issue create --title "Infra: Upgrade Kubernetes to 1.28" \
+grite issue create --title "Infra: Upgrade Kubernetes to 1.28" \
   --body "$(cat <<'EOF'
 ## Reason
 Security patches and new features needed.
@@ -241,7 +241,7 @@ EOF
 Document on-call status:
 
 ```bash
-grit issue create --title "On-call handoff: Week of 2024-01-15" \
+grite issue create --title "On-call handoff: Week of 2024-01-15" \
   --body "$(cat <<'EOF'
 ## Outgoing: @alice
 ## Incoming: @bob
@@ -268,7 +268,7 @@ EOF
 Track alert status:
 
 ```bash
-grit issue create --title "Alert: High CPU on prod-api-3" \
+grite issue create --title "Alert: High CPU on prod-api-3" \
   --body "$(cat <<'EOF'
 ## Alert Details
 - Host: prod-api-3
@@ -298,7 +298,7 @@ EOF
 - name: Report CI Failure
   if: failure()
   run: |
-    grit issue create \
+    grite issue create \
       --title "CI Failure: ${{ github.job }} [#${{ github.run_number }}]" \
       --body "Workflow: ${{ github.workflow }}
     Branch: ${{ github.ref_name }}
@@ -306,7 +306,7 @@ EOF
     Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
       --label "ci-failure" \
       --json
-    grit sync --push
+    grite sync --push
 ```
 
 ### GitLab CI Example
@@ -316,8 +316,8 @@ report_failure:
   stage: .post
   when: on_failure
   script:
-    - grit issue create --title "CI Failure: $CI_JOB_NAME" --label "ci-failure"
-    - grit sync --push
+    - grite issue create --title "CI Failure: $CI_JOB_NAME" --label "ci-failure"
+    - grite sync --push
 ```
 
 ## Best Practices
@@ -326,13 +326,13 @@ report_failure:
 
 ```bash
 # Deployment
-grit lock acquire --resource "deploy:$ENV" --ttl 1h
+grite lock acquire --resource "deploy:$ENV" --ttl 1h
 
 # Database migrations
-grit lock acquire --resource "migration:$DB" --ttl 30m
+grite lock acquire --resource "migration:$DB" --ttl 30m
 
 # Release creation
-grit lock acquire --resource "repo:release" --ttl 2h
+grite lock acquire --resource "repo:release" --ttl 2h
 ```
 
 ### Automate Issue Creation
@@ -347,18 +347,18 @@ Integrate with your CI/CD to create issues automatically:
 
 ```bash
 # Deployment progress
-grit issue comment $DEPLOY_ID --body "Canary at 5%"
-grit issue comment $DEPLOY_ID --body "Canary healthy, proceeding to 100%"
-grit issue comment $DEPLOY_ID --body "Deployment complete"
-grit issue close $DEPLOY_ID
+grite issue comment $DEPLOY_ID --body "Canary at 5%"
+grite issue comment $DEPLOY_ID --body "Canary healthy, proceeding to 100%"
+grite issue comment $DEPLOY_ID --body "Deployment complete"
+grite issue close $DEPLOY_ID
 ```
 
 ### Archive Old Issues
 
 ```bash
 # Monthly cleanup
-grit issue list --state closed --label "ci-failure" | \
-  xargs -I {} grit issue label add {} --label "archived"
+grite issue list --state closed --label "ci-failure" | \
+  xargs -I {} grite issue label add {} --label "archived"
 ```
 
 ## Next Steps

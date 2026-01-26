@@ -1,13 +1,13 @@
 # Installation
 
-This guide covers all methods to install grit on your system.
+This guide covers all methods to install grite on your system.
 
 ## Quick Install (Recommended)
 
-The fastest way to install grit:
+The fastest way to install grite:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/neul-labs/grit/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/neul-labs/grite/main/install.sh | bash
 ```
 
 This downloads the pre-built binary for your platform and installs to `~/.local/bin/`.
@@ -17,13 +17,13 @@ This downloads the pre-built binary for your platform and installs to `~/.local/
 === "Homebrew (macOS/Linux)"
 
     ```bash
-    brew install neul-labs/tap/grit
+    brew install neul-labs/tap/grite
     ```
 
 === "Cargo (Rust)"
 
     ```bash
-    cargo install grit grit-daemon
+    cargo install grite grite-daemon
     ```
 
     Requires Rust 1.75+.
@@ -31,25 +31,25 @@ This downloads the pre-built binary for your platform and installs to `~/.local/
 === "npm"
 
     ```bash
-    npm install -g @neul-labs/grit
+    npm install -g @neul-labs/grite
     ```
 
 === "pip"
 
     ```bash
-    pip install grit-cli
+    pip install grite-cli
     ```
 
 === "gem"
 
     ```bash
-    gem install grit-cli
+    gem install grite-cli
     ```
 
 === "Chocolatey (Windows)"
 
     ```powershell
-    choco install grit
+    choco install grite
     ```
 
 ## From Source
@@ -57,8 +57,8 @@ This downloads the pre-built binary for your platform and installs to `~/.local/
 Build from source for the latest development version:
 
 ```bash
-git clone https://github.com/neul-labs/grit.git
-cd grit
+git clone https://github.com/neul-labs/grite.git
+cd grite
 ./install.sh --source
 ```
 
@@ -71,7 +71,7 @@ This requires:
 
 ### Git
 
-Grit requires Git 2.38 or later. Check your version:
+Grite requires Git 2.38 or later. Check your version:
 
 ```bash
 git --version
@@ -110,45 +110,45 @@ The nng (nanomsg-next-gen) library is required for inter-process communication b
 
 ## Verifying Installation
 
-After installation, verify grit is working:
+After installation, verify grite is working:
 
 ```bash
-grit --version
+grite --version
 ```
 
 You should see output like:
 
 ```
-grit 0.1.0
+grite 0.1.0
 ```
 
 ## Updating
 
-To update grit to the latest version:
+To update grite to the latest version:
 
 === "Quick Install"
 
     Run the install script again:
     ```bash
-    curl -fsSL https://raw.githubusercontent.com/neul-labs/grit/main/install.sh | bash
+    curl -fsSL https://raw.githubusercontent.com/neul-labs/grite/main/install.sh | bash
     ```
 
 === "Homebrew"
 
     ```bash
-    brew upgrade grit
+    brew upgrade grite
     ```
 
 === "Cargo"
 
     ```bash
-    cargo install grit grit-daemon --force
+    cargo install grite grite-daemon --force
     ```
 
 === "npm"
 
     ```bash
-    npm update -g @neul-labs/grit
+    npm update -g @neul-labs/grite
     ```
 
 ## Uninstalling
@@ -157,27 +157,27 @@ To update grit to the latest version:
 
     Remove the binaries:
     ```bash
-    rm ~/.local/bin/grit ~/.local/bin/grit-daemon
+    rm ~/.local/bin/grite ~/.local/bin/grite-daemon
     ```
 
 === "Homebrew"
 
     ```bash
-    brew uninstall grit
+    brew uninstall grite
     ```
 
 === "Cargo"
 
     ```bash
-    cargo uninstall grit grit-daemon
+    cargo uninstall grite grite-daemon
     ```
 
 === "npm"
 
     ```bash
-    npm uninstall -g @neul-labs/grit
+    npm uninstall -g @neul-labs/grite
     ```
 
 ## Next Steps
 
-Now that grit is installed, head to [Quick Start](quickstart.md) to create your first issue.
+Now that grite is installed, head to [Quick Start](quickstart.md) to create your first issue.

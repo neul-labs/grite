@@ -1,30 +1,30 @@
-# @neul-labs/grit
+# @neul-labs/gritee
 
 Git-backed issue tracking for coding agents and humans.
 
 ## Installation
 
 ```bash
-npm install -g @neul-labs/grit
+npm install -g @neul-labs/gritee
 ```
 
 ## Usage
 
 ```bash
 # Initialize in a git repository
-grit init
+grite init
 
 # Create an issue
-grit issue new --title "My first issue"
+grite issue new --title "My first issue"
 
 # List issues
-grit issue list
+grite issue list
 
 # Add a comment
-grit issue comment <issue-id> --body "Working on this"
+grite issue comment <issue-id> --body "Working on this"
 
 # Close an issue
-grit issue close <issue-id>
+grite issue close <issue-id>
 ```
 
 ## Requirements
@@ -46,7 +46,7 @@ sudo apt-get install libnng-dev
 
 ## Documentation
 
-See the full documentation at [github.com/neul-labs/grit](https://github.com/neul-labs/grit).
+See the full documentation at [github.com/neul-labs/grite](https://github.com/neul-labs/grite).
 
 ## License
 

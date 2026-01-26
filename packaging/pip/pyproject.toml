@@ -3,8 +3,8 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "grit-cli"
-version = "0.1.0"
+name = "grite-cli"
+version = "0.3.0"
 description = "Git-backed issue tracking for coding agents and humans"
 readme = "README.md"
 license = {text = "MIT"}
@@ -30,13 +30,13 @@ requires-python = ">=3.8"
 dependencies = []
 
 [project.urls]
-Homepage = "https://github.com/neul-labs/grit"
-Repository = "https://github.com/neul-labs/grit"
-Issues = "https://github.com/neul-labs/grit/issues"
+Homepage = "https://github.com/neul-labs/grite"
+Repository = "https://github.com/neul-labs/grite"
+Issues = "https://github.com/neul-labs/grite/issues"
 
 [project.scripts]
-grit = "grit_cli:main"
-grit-daemon = "grit_cli:main_daemon"
+grite = "grite_cli:main"
+grite-daemon = "grite_cli:main_daemon"
 
 [tool.setuptools.packages.find]
 where = ["."]

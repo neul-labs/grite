@@ -1,31 +1,31 @@
 # Quick Start
 
-This guide walks you through using grit for the first time. In about 5 minutes, you'll create issues, add comments, and sync with a remote.
+This guide walks you through using grite for the first time. In about 5 minutes, you'll create issues, add comments, and sync with a remote.
 
-## Initialize Grit
+## Initialize Grite
 
-Navigate to any git repository and initialize grit:
+Navigate to any git repository and initialize grite:
 
 ```bash
 cd your-repo
-grit init
+grite init
 ```
 
 This creates:
 
-- `.git/grit/` directory for local state
+- `.git/grite/` directory for local state
 - An actor identity for your device
 - `AGENTS.md` file with instructions for AI coding agents
 
 !!! note "AGENTS.md"
-    The `AGENTS.md` file helps AI coding agents discover and use grit as the canonical task system. Use `--no-agents-md` to skip creating this file.
+    The `AGENTS.md` file helps AI coding agents discover and use grite as the canonical task system. Use `--no-agents-md` to skip creating this file.
 
 ## Create an Issue
 
 Create your first issue:
 
 ```bash
-grit issue create --title "Fix login bug" --body "Users can't login with email"
+grite issue create --title "Fix login bug" --body "Users can't login with email"
 ```
 
 You'll see output like:
@@ -39,7 +39,7 @@ Created issue 8057324b1e03afd613d4b428fdee657a
 Add labels when creating:
 
 ```bash
-grit issue create --title "Add dark mode" \
+grite issue create --title "Add dark mode" \
   --body "Implement dark theme toggle" \
   --label "feature" --label "ui"
 ```
@@ -49,7 +49,7 @@ grit issue create --title "Add dark mode" \
 View all open issues:
 
 ```bash
-grit issue list
+grite issue list
 ```
 
 Output:
@@ -65,13 +65,13 @@ Filter by state or label:
 
 ```bash
 # Only open issues
-grit issue list --state open
+grite issue list --state open
 
 # Issues with a specific label
-grit issue list --label bug
+grite issue list --label bug
 
 # Combine filters
-grit issue list --state open --label feature
+grite issue list --state open --label feature
 ```
 
 ## View Issue Details
@@ -79,7 +79,7 @@ grit issue list --state open --label feature
 Show full details for an issue:
 
 ```bash
-grit issue show 8057324b
+grite issue show 8057324b
 ```
 
 You can use the short ID prefix as long as it's unique.
@@ -89,7 +89,7 @@ You can use the short ID prefix as long as it's unique.
 Add a comment to track progress:
 
 ```bash
-grit issue comment 8057324b --body "Investigating - looks like a session timeout issue"
+grite issue comment 8057324b --body "Investigating - looks like a session timeout issue"
 ```
 
 ## Update an Issue
@@ -97,7 +97,7 @@ grit issue comment 8057324b --body "Investigating - looks like a session timeout
 Change the title or body:
 
 ```bash
-grit issue update 8057324b --title "Fix login session timeout bug"
+grite issue update 8057324b --title "Fix login session timeout bug"
 ```
 
 ## Manage Labels
@@ -106,10 +106,10 @@ Add or remove labels:
 
 ```bash
 # Add a label
-grit issue label add 8057324b --label "bug"
+grite issue label add 8057324b --label "bug"
 
 # Remove a label
-grit issue label remove 8057324b --label "bug"
+grite issue label remove 8057324b --label "bug"
 ```
 
 ## Close an Issue
@@ -117,13 +117,13 @@ grit issue label remove 8057324b --label "bug"
 Mark an issue as closed:
 
 ```bash
-grit issue close 8057324b
+grite issue close 8057324b
 ```
 
 Reopen if needed:
 
 ```bash
-grit issue reopen 8057324b
+grite issue reopen 8057324b
 ```
 
 ## Sync with Remote
@@ -131,7 +131,7 @@ grit issue reopen 8057324b
 Push your issues to the remote repository:
 
 ```bash
-grit sync
+grite sync
 ```
 
 This:
@@ -144,24 +144,24 @@ This:
 
 ```bash
 # Only pull from remote
-grit sync --pull
+grite sync --pull
 
 # Only push to remote
-grit sync --push
+grite sync --push
 ```
 
 ## Run Health Checks
 
-Verify your grit installation is healthy:
+Verify your grite installation is healthy:
 
 ```bash
-grit doctor
+grite doctor
 ```
 
 If issues are found, auto-fix them:
 
 ```bash
-grit doctor --fix
+grite doctor --fix
 ```
 
 ## JSON Output
@@ -169,7 +169,7 @@ grit doctor --fix
 All commands support `--json` for scripting:
 
 ```bash
-grit issue list --json
+grite issue list --json
 ```
 
 ```json
@@ -197,17 +197,17 @@ grit issue list --json
 
 | Task | Command |
 |------|---------|
-| Initialize | `grit init` |
-| Create issue | `grit issue create --title "..." --body "..."` |
-| List issues | `grit issue list` |
-| Show issue | `grit issue show <id>` |
-| Add comment | `grit issue comment <id> --body "..."` |
-| Close issue | `grit issue close <id>` |
-| Sync | `grit sync` |
-| Health check | `grit doctor` |
+| Initialize | `grite init` |
+| Create issue | `grite issue create --title "..." --body "..."` |
+| List issues | `grite issue list` |
+| Show issue | `grite issue show <id>` |
+| Add comment | `grite issue comment <id> --body "..."` |
+| Close issue | `grite issue close <id>` |
+| Sync | `grite sync` |
+| Health check | `grite doctor` |
 
 ## Next Steps
 
-- [Core Concepts](concepts.md) - Understand how grit works under the hood
+- [Core Concepts](concepts.md) - Understand how grite works under the hood
 - [Working with Issues](../guides/issues.md) - Complete guide to issue management
 - [CLI Reference](../reference/cli.md) - Full command documentation

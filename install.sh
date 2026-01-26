@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Install grit - git-backed issue tracking for coding agents and humans
-# Usage: curl -fsSL https://raw.githubusercontent.com/neul-labs/grit/main/install.sh | bash
+# Install grite - git-backed issue tracking for coding agents and humans
+# Usage: curl -fsSL https://raw.githubusercontent.com/neul-labs/grite/main/install.sh | bash
 #    or: ./install.sh [OPTIONS]
 
-REPO="neul-labs/grit"
+REPO="neul-labs/grite"
 PREFIX="${HOME}/.local"
 FORCE_SOURCE=false
 
@@ -13,7 +13,7 @@ print_help() {
     cat << EOF
 Usage: ./install.sh [OPTIONS]
 
-Install grit - git-backed issue tracking for coding agents and humans
+Install grite - git-backed issue tracking for coding agents and humans
 
 Options:
   --prefix PATH   Install prefix (default: ~/.local)
@@ -23,7 +23,7 @@ Options:
 
 Examples:
   # Quick install (downloads pre-built binary)
-  curl -fsSL https://raw.githubusercontent.com/neul-labs/grit/main/install.sh | bash
+  curl -fsSL https://raw.githubusercontent.com/neul-labs/grite/main/install.sh | bash
 
   # Install to custom location
   ./install.sh --prefix /usr/local
@@ -115,7 +115,7 @@ install_binary() {
         return 1
     fi
 
-    echo "Installing grit v${version} for ${platform}..."
+    echo "Installing grite v${version} for ${platform}..."
 
     # Determine archive extension
     local ext="tar.gz"
@@ -123,7 +123,7 @@ install_binary() {
         ext="zip"
     fi
 
-    archive_name="grit-${version}-${platform}.${ext}"
+    archive_name="grite-${version}-${platform}.${ext}"
     url="https://github.com/${REPO}/releases/download/v${version}/${archive_name}"
 
     # Create temp directory
@@ -155,7 +155,7 @@ install_binary() {
 
     # Find extracted directory
     local extracted_dir
-    extracted_dir=$(find . -maxdepth 1 -type d -name "grit-*" | head -1)
+    extracted_dir=$(find . -maxdepth 1 -type d -name "grite-*" | head -1)
 
     if [ -z "$extracted_dir" ]; then
         echo "Error: Could not find extracted files"
@@ -167,15 +167,15 @@ install_binary() {
     mkdir -p "${BIN_DIR}"
 
     if [[ "$platform" == *"windows"* ]]; then
-        cp "${extracted_dir}/grit.exe" "${BIN_DIR}/"
-        cp "${extracted_dir}/grit-daemon.exe" "${BIN_DIR}/"
+        cp "${extracted_dir}/grite.exe" "${BIN_DIR}/"
+        cp "${extracted_dir}/grite-daemon.exe" "${BIN_DIR}/"
     else
-        cp "${extracted_dir}/grit" "${BIN_DIR}/"
-        cp "${extracted_dir}/grit-daemon" "${BIN_DIR}/"
-        chmod +x "${BIN_DIR}/grit" "${BIN_DIR}/grit-daemon"
+        cp "${extracted_dir}/grite" "${BIN_DIR}/"
+        cp "${extracted_dir}/grite-daemon" "${BIN_DIR}/"
+        chmod +x "${BIN_DIR}/grite" "${BIN_DIR}/grite-daemon"
     fi
 
-    echo "Successfully installed grit v${version}"
+    echo "Successfully installed grite v${version}"
     return 0
 }
 
@@ -190,27 +190,27 @@ build_from_source() {
         exit 1
     fi
 
-    # Check if we're in the grit repo
-    if [ -f "Cargo.toml" ] && grep -q 'name = "grit"' crates/grit/Cargo.toml 2>/dev/null; then
-        echo "Building grit and grit-daemon (release)..."
-        cargo build --release --package grit --package grit-daemon
+    # Check if we're in the grite repo
+    if [ -f "Cargo.toml" ] && grep -q 'name = "grite"' crates/grite/Cargo.toml 2>/dev/null; then
+        echo "Building grite and grite-daemon (release)..."
+        cargo build --release --package grite --package grite-daemon
 
         echo "Installing to ${BIN_DIR}..."
         mkdir -p "${BIN_DIR}"
-        cp target/release/grit "${BIN_DIR}/grit"
-        cp target/release/grit-daemon "${BIN_DIR}/grit-daemon"
+        cp target/release/grite "${BIN_DIR}/grite"
+        cp target/release/grite-daemon "${BIN_DIR}/grite-daemon"
     else
         # Install from crates.io or git
         echo "Installing from crates.io..."
-        cargo install grit grit-daemon --root "${PREFIX}"
+        cargo install grite grite-daemon --root "${PREFIX}"
     fi
 
-    echo "Successfully built and installed grit"
+    echo "Successfully built and installed grite"
 }
 
 # Main installation logic
 main() {
-    echo "=== Grit Installer ==="
+    echo "=== Grite Installer ==="
     echo ""
 
     if [ "$FORCE_SOURCE" = true ]; then
@@ -226,12 +226,12 @@ main() {
     fi
 
     echo ""
-    echo "Done. Installed: grit, grit-daemon"
+    echo "Done. Installed: grite, grite-daemon"
     echo ""
 
     # Verify installation
-    if [ -x "${BIN_DIR}/grit" ]; then
-        echo "Version: $(${BIN_DIR}/grit --version 2>/dev/null || echo 'unknown')"
+    if [ -x "${BIN_DIR}/grite" ]; then
+        echo "Version: $(${BIN_DIR}/grite --version 2>/dev/null || echo 'unknown')"
     fi
 
     # Check PATH

@@ -1,6 +1,6 @@
 # CLI Reference
 
-Complete command-line interface reference for grit.
+Complete command-line interface reference for grite.
 
 ## Principles
 
@@ -22,12 +22,12 @@ Complete command-line interface reference for grit.
 
 ## Commands
 
-### grit init
+### grite init
 
-Initialize grit in a git repository.
+Initialize grite in a git repository.
 
 ```bash
-grit init [--no-agents-md]
+grite init [--no-agents-md]
 ```
 
 | Flag | Description |
@@ -35,22 +35,22 @@ grit init [--no-agents-md]
 | `--no-agents-md` | Skip creating/updating AGENTS.md |
 
 Creates:
-- `.git/grit/` directory structure
+- `.git/grite/` directory structure
 - Default actor
 - `AGENTS.md` file (unless `--no-agents-md`)
 
 ---
 
-### grit actor
+### grite actor
 
 Manage actor identities.
 
-#### grit actor init
+#### grite actor init
 
 Create a new actor.
 
 ```bash
-grit actor init [--label <name>] [--generate-key]
+grite actor init [--label <name>] [--generate-key]
 ```
 
 | Flag | Description |
@@ -58,52 +58,52 @@ grit actor init [--label <name>] [--generate-key]
 | `--label <name>` | Human-friendly label |
 | `--generate-key` | Generate Ed25519 signing key |
 
-#### grit actor list
+#### grite actor list
 
 List all actors.
 
 ```bash
-grit actor list [--json]
+grite actor list [--json]
 ```
 
-#### grit actor show
+#### grite actor show
 
 Show actor details.
 
 ```bash
-grit actor show [<id>] [--json]
+grite actor show [<id>] [--json]
 ```
 
 If `<id>` is omitted, shows current actor.
 
-#### grit actor current
+#### grite actor current
 
 Show current actor context.
 
 ```bash
-grit actor current [--json]
+grite actor current [--json]
 ```
 
-#### grit actor use
+#### grite actor use
 
 Set default actor for repository.
 
 ```bash
-grit actor use <id>
+grite actor use <id>
 ```
 
 ---
 
-### grit issue
+### grite issue
 
 Manage issues.
 
-#### grit issue create
+#### grite issue create
 
 Create a new issue.
 
 ```bash
-grit issue create --title <title> [--body <body>] [--label <label>]...
+grite issue create --title <title> [--body <body>] [--label <label>]...
 ```
 
 | Flag | Description |
@@ -112,12 +112,12 @@ grit issue create --title <title> [--body <body>] [--label <label>]...
 | `--body <body>` | Issue body |
 | `--label <label>` | Add label (can repeat) |
 
-#### grit issue list
+#### grite issue list
 
 List issues.
 
 ```bash
-grit issue list [--state <state>] [--label <label>]... [--json]
+grite issue list [--state <state>] [--label <label>]... [--json]
 ```
 
 | Flag | Description |
@@ -125,92 +125,92 @@ grit issue list [--state <state>] [--label <label>]... [--json]
 | `--state <state>` | Filter by state: `open`, `closed` |
 | `--label <label>` | Filter by label (can repeat) |
 
-#### grit issue show
+#### grite issue show
 
 Show issue details.
 
 ```bash
-grit issue show <id> [--json]
+grite issue show <id> [--json]
 ```
 
 Short ID prefixes work if unique.
 
-#### grit issue update
+#### grite issue update
 
 Update issue title or body.
 
 ```bash
-grit issue update <id> [--title <title>] [--body <body>]
+grite issue update <id> [--title <title>] [--body <body>]
 ```
 
-#### grit issue comment
+#### grite issue comment
 
 Add a comment.
 
 ```bash
-grit issue comment <id> --body <body>
+grite issue comment <id> --body <body>
 ```
 
-#### grit issue close
+#### grite issue close
 
 Close an issue.
 
 ```bash
-grit issue close <id>
+grite issue close <id>
 ```
 
-#### grit issue reopen
+#### grite issue reopen
 
 Reopen an issue.
 
 ```bash
-grit issue reopen <id>
+grite issue reopen <id>
 ```
 
-#### grit issue label
+#### grite issue label
 
 Manage issue labels.
 
 ```bash
-grit issue label add <id> --label <label>
-grit issue label remove <id> --label <label>
+grite issue label add <id> --label <label>
+grite issue label remove <id> --label <label>
 ```
 
-#### grit issue assignee
+#### grite issue assignee
 
 Manage issue assignees.
 
 ```bash
-grit issue assignee add <id> --user <name>
-grit issue assignee remove <id> --user <name>
+grite issue assignee add <id> --user <name>
+grite issue assignee remove <id> --user <name>
 ```
 
-#### grit issue link
+#### grite issue link
 
 Add links to issues.
 
 ```bash
-grit issue link add <id> --url <url> [--note <note>]
+grite issue link add <id> --url <url> [--note <note>]
 ```
 
-#### grit issue attachment
+#### grite issue attachment
 
 Add attachment metadata.
 
 ```bash
-grit issue attachment add <id> --name <name> --sha256 <hash> --mime <type>
+grite issue attachment add <id> --name <name> --sha256 <hash> --mime <type>
 ```
 
-#### grit issue dep
+#### grite issue dep
 
 Manage typed dependencies between issues.
 
-##### grit issue dep add
+##### grite issue dep add
 
 Add a dependency.
 
 ```bash
-grit issue dep add <id> --target <target_id> --type <type>
+grite issue dep add <id> --target <target_id> --type <type>
 ```
 
 | Flag | Description |
@@ -220,32 +220,32 @@ grit issue dep add <id> --target <target_id> --type <type>
 
 Cycle detection is enforced for `blocks` and `depends_on` types.
 
-##### grit issue dep remove
+##### grite issue dep remove
 
 Remove a dependency.
 
 ```bash
-grit issue dep remove <id> --target <target_id> --type <type>
+grite issue dep remove <id> --target <target_id> --type <type>
 ```
 
-##### grit issue dep list
+##### grite issue dep list
 
 List dependencies for an issue.
 
 ```bash
-grit issue dep list <id> [--reverse]
+grite issue dep list <id> [--reverse]
 ```
 
 | Flag | Description |
 |------|-------------|
 | `--reverse` | Show issues that depend on this one |
 
-##### grit issue dep topo
+##### grite issue dep topo
 
 Show topological ordering of issues based on dependency DAG.
 
 ```bash
-grit issue dep topo [--state <state>] [--label <label>]
+grite issue dep topo [--state <state>] [--label <label>]
 ```
 
 | Flag | Description |
@@ -255,16 +255,16 @@ grit issue dep topo [--state <state>] [--label <label>]
 
 ---
 
-### grit context
+### grite context
 
 Context store management for file/symbol indexing.
 
-#### grit context index
+#### grite context index
 
 Index files in the repository.
 
 ```bash
-grit context index [--path <path>]... [--pattern <glob>] [--force]
+grite context index [--path <path>]... [--pattern <glob>] [--force]
 ```
 
 | Flag | Description |
@@ -275,52 +275,52 @@ grit context index [--path <path>]... [--pattern <glob>] [--force]
 
 Uses `git ls-files` for file discovery (respects .gitignore). Tree-sitter-powered symbol extraction supports Rust, Python, TypeScript/TSX, JavaScript, Go, Java, C, C++, Ruby, and Elixir with AST-accurate line ranges.
 
-#### grit context query
+#### grite context query
 
 Query the symbol index.
 
 ```bash
-grit context query <query>
+grite context query <query>
 ```
 
 Searches for symbols matching the query string.
 
-#### grit context show
+#### grite context show
 
 Show context for a specific file.
 
 ```bash
-grit context show <path>
+grite context show <path>
 ```
 
 Displays language, symbols, summary, and content hash.
 
-#### grit context project
+#### grite context project
 
 Show project-level context entries.
 
 ```bash
-grit context project [<key>]
+grite context project [<key>]
 ```
 
 Without a key, lists all project context entries. With a key, shows that specific entry.
 
-#### grit context set
+#### grite context set
 
 Set a project-level context entry.
 
 ```bash
-grit context set <key> <value>
+grite context set <key> <value>
 ```
 
 ---
 
-### grit sync
+### grite sync
 
 Synchronize with remote.
 
 ```bash
-grit sync [--pull] [--push] [--remote <name>]
+grite sync [--pull] [--push] [--remote <name>]
 ```
 
 | Flag | Description |
@@ -333,12 +333,12 @@ No flags: full sync (pull then push).
 
 ---
 
-### grit doctor
+### grite doctor
 
 Health checks and repair.
 
 ```bash
-grit doctor [--fix] [--json]
+grite doctor [--fix] [--json]
 ```
 
 | Flag | Description |
@@ -354,12 +354,12 @@ Checks:
 
 ---
 
-### grit rebuild
+### grite rebuild
 
 Rebuild materialized view.
 
 ```bash
-grit rebuild [--from-snapshot]
+grite rebuild [--from-snapshot]
 ```
 
 | Flag | Description |
@@ -368,42 +368,42 @@ grit rebuild [--from-snapshot]
 
 ---
 
-### grit db
+### grite db
 
 Database operations.
 
-#### grit db stats
+#### grite db stats
 
 Show database statistics.
 
 ```bash
-grit db stats [--json]
+grite db stats [--json]
 ```
 
-#### grit db check
+#### grite db check
 
 Verify event hashes.
 
 ```bash
-grit db check [--verify-parents] [--json]
+grite db check [--verify-parents] [--json]
 ```
 
-#### grit db verify
+#### grite db verify
 
 Verify event signatures.
 
 ```bash
-grit db verify [--verbose] [--json]
+grite db verify [--verbose] [--json]
 ```
 
 ---
 
-### grit export
+### grite export
 
 Export issues.
 
 ```bash
-grit export --format <format> [--since <ts|event_id>]
+grite export --format <format> [--since <ts|event_id>]
 ```
 
 | Flag | Description |
@@ -413,38 +413,38 @@ grit export --format <format> [--since <ts|event_id>]
 
 ---
 
-### grit snapshot
+### grite snapshot
 
 Manage snapshots.
 
-#### grit snapshot
+#### grite snapshot
 
 Create a snapshot.
 
 ```bash
-grit snapshot
+grite snapshot
 ```
 
-#### grit snapshot gc
+#### grite snapshot gc
 
 Garbage collect old snapshots.
 
 ```bash
-grit snapshot gc
+grite snapshot gc
 ```
 
 ---
 
-### grit lock
+### grite lock
 
 Distributed lock management.
 
-#### grit lock acquire
+#### grite lock acquire
 
 Acquire a lock.
 
 ```bash
-grit lock acquire --resource <resource> --ttl <duration>
+grite lock acquire --resource <resource> --ttl <duration>
 ```
 
 | Flag | Description |
@@ -452,70 +452,70 @@ grit lock acquire --resource <resource> --ttl <duration>
 | `--resource <resource>` | Resource to lock (e.g., `issue:abc123`) |
 | `--ttl <duration>` | Time-to-live (e.g., `15m`, `1h`) |
 
-#### grit lock renew
+#### grite lock renew
 
 Renew a lock.
 
 ```bash
-grit lock renew --resource <resource> --ttl <duration>
+grite lock renew --resource <resource> --ttl <duration>
 ```
 
-#### grit lock release
+#### grite lock release
 
 Release a lock.
 
 ```bash
-grit lock release --resource <resource>
+grite lock release --resource <resource>
 ```
 
-#### grit lock status
+#### grite lock status
 
 Show lock status.
 
 ```bash
-grit lock status [--json]
+grite lock status [--json]
 ```
 
-#### grit lock gc
+#### grite lock gc
 
 Garbage collect expired locks.
 
 ```bash
-grit lock gc
+grite lock gc
 ```
 
 ---
 
-### grit daemon
+### grite daemon
 
 Daemon control.
 
-#### grit daemon start
+#### grite daemon start
 
 Start the daemon.
 
 ```bash
-grit daemon start [--idle-timeout <seconds>]
+grite daemon start [--idle-timeout <seconds>]
 ```
 
 | Flag | Description |
 |------|-------------|
 | `--idle-timeout <seconds>` | Auto-shutdown timeout (0 = no timeout) |
 
-#### grit daemon status
+#### grite daemon status
 
 Check daemon status.
 
 ```bash
-grit daemon status [--json]
+grite daemon status [--json]
 ```
 
-#### grit daemon stop
+#### grite daemon stop
 
 Stop the daemon.
 
 ```bash
-grit daemon stop
+grite daemon stop
 ```
 
 ---
@@ -526,7 +526,7 @@ Actor context is resolved in this order:
 
 1. `--data-dir` or `GRIT_HOME`
 2. `--actor <id>`
-3. `default_actor` in `.git/grit/config.toml`
+3. `default_actor` in `.git/grite/config.toml`
 4. Auto-create new actor if none exists
 
 ---
@@ -552,14 +552,14 @@ Errors include actionable suggestions:
 error: Issue 'abc123' not found
 
 Suggestions:
-  - Run 'grit issue list' to see available issues
+  - Run 'grite issue list' to see available issues
 ```
 
 Common suggestions:
 
 | Error | Suggestion |
 |-------|------------|
-| Issue not found | Run `grit issue list` |
-| DbBusy | Try `grit --no-daemon <command>` or stop daemon |
-| Sled errors | Run `grit doctor --fix` |
-| IPC errors | Run `grit daemon stop` and retry |
+| Issue not found | Run `grite issue list` |
+| DbBusy | Try `grite --no-daemon <command>` or stop daemon |
+| Sled errors | Run `grite doctor --fix` |
+| IPC errors | Run `grite daemon stop` and retry |

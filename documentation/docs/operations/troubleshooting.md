@@ -1,19 +1,19 @@
 # Troubleshooting
 
-This guide helps diagnose and fix common grit issues.
+This guide helps diagnose and fix common grite issues.
 
 ## Quick Diagnostics
 
 Start with a health check:
 
 ```bash
-grit doctor --json
+grite doctor --json
 ```
 
 Check for errors:
 
 ```bash
-grit doctor --json | jq '.data.checks[] | select(.status != "ok")'
+grite doctor --json | jq '.data.checks[] | select(.status != "ok")'
 ```
 
 ## Common Issues
@@ -29,30 +29,30 @@ error: Database busy - another process or daemon owns the data directory
 **Causes:**
 
 - Daemon is running
-- Another grit process has the lock
+- Another grite process has the lock
 - Stale lock file
 
 **Solutions:**
 
 1. Route through daemon:
    ```bash
-   grit issue list  # Will use daemon if running
+   grite issue list  # Will use daemon if running
    ```
 
 2. Stop the daemon:
    ```bash
-   grit daemon stop
-   grit issue list
+   grite daemon stop
+   grite issue list
    ```
 
 3. Skip daemon:
    ```bash
-   grit --no-daemon issue list
+   grite --no-daemon issue list
    ```
 
 4. Remove stale lock (if process crashed):
    ```bash
-   rm .git/grit/actors/<actor_id>/sled.lock
+   rm .git/grite/actors/<actor_id>/sled.lock
    ```
 
 ### Issue Not Found
@@ -73,17 +73,17 @@ error: Issue 'abc123' not found
 
 1. Check available issues:
    ```bash
-   grit issue list
+   grite issue list
    ```
 
 2. Sync from remote:
    ```bash
-   grit sync --pull
+   grite sync --pull
    ```
 
 3. Rebuild database:
    ```bash
-   grit rebuild
+   grite rebuild
    ```
 
 ### Sync Conflicts
@@ -104,7 +104,7 @@ error: Push rejected (non-fast-forward)
 Use full sync (auto-rebases):
 
 ```bash
-grit sync  # Pulls, then pushes with auto-rebase
+grite sync  # Pulls, then pushes with auto-rebase
 ```
 
 ### WAL Corruption
@@ -125,8 +125,8 @@ error: WAL data malformed or hash mismatch
 
 1. Try syncing from remote:
    ```bash
-   grit sync --pull
-   grit rebuild
+   grite sync --pull
+   grite rebuild
    ```
 
 2. Verify git integrity:
@@ -138,7 +138,7 @@ error: WAL data malformed or hash mismatch
    ```bash
    git clone <remote> fresh-copy
    cd fresh-copy
-   grit rebuild
+   grite rebuild
    ```
 
 ### IPC Errors
@@ -159,23 +159,23 @@ error: Failed to connect to daemon (IPC error)
 
 1. Restart daemon:
    ```bash
-   grit daemon stop
-   grit daemon start
+   grite daemon stop
+   grite daemon start
    ```
 
 2. Check daemon status:
    ```bash
-   grit daemon status
+   grite daemon status
    ```
 
 3. Use local execution:
    ```bash
-   grit --no-daemon issue list
+   grite --no-daemon issue list
    ```
 
 4. Remove stale daemon lock:
    ```bash
-   rm .git/grit/actors/<actor_id>/daemon.lock
+   rm .git/grite/actors/<actor_id>/daemon.lock
    ```
 
 ### Signature Verification Failed
@@ -196,7 +196,7 @@ warning: Invalid signature on event abc123...
 
 1. Check verification policy:
    ```bash
-   cat .git/grit/config.toml
+   cat .git/grite/config.toml
    ```
 
 2. Set policy to `warn` to continue:
@@ -206,7 +206,7 @@ warning: Invalid signature on event abc123...
 
 3. Verify specific events:
    ```bash
-   grit db verify --verbose --json
+   grite db verify --verbose --json
    ```
 
 ### Slow Performance
@@ -226,22 +226,22 @@ warning: Invalid signature on event abc123...
 
 1. Check database stats:
    ```bash
-   grit db stats --json
+   grite db stats --json
    ```
 
 2. Rebuild if recommended:
    ```bash
-   grit rebuild --from-snapshot
+   grite rebuild --from-snapshot
    ```
 
 3. Create snapshots:
    ```bash
-   grit snapshot
+   grite snapshot
    ```
 
 4. Use daemon for repeated commands:
    ```bash
-   grit daemon start
+   grite daemon start
    ```
 
 ### Out of Disk Space
@@ -256,17 +256,17 @@ error: No space left on device
 
 1. Clean up snapshots:
    ```bash
-   grit snapshot gc
+   grite snapshot gc
    ```
 
 2. Clean expired locks:
    ```bash
-   grit lock gc
+   grite lock gc
    ```
 
 3. Rebuild to compact:
    ```bash
-   grit rebuild
+   grite rebuild
    ```
 
 ### Actor Configuration Missing
@@ -281,17 +281,17 @@ error: Actor configuration not found
 
 1. Create a new actor:
    ```bash
-   grit actor init --label "my-actor"
+   grite actor init --label "my-actor"
    ```
 
 2. Check existing actors:
    ```bash
-   grit actor list
+   grite actor list
    ```
 
-3. Re-initialize grit:
+3. Re-initialize grite:
    ```bash
-   grit init
+   grite init
    ```
 
 ## Diagnostic Commands
@@ -299,37 +299,37 @@ error: Actor configuration not found
 ### Check Health
 
 ```bash
-grit doctor --json
+grite doctor --json
 ```
 
 ### Database Statistics
 
 ```bash
-grit db stats --json
+grite db stats --json
 ```
 
 ### Verify Integrity
 
 ```bash
-grit db check --json
+grite db check --json
 ```
 
 ### Daemon Status
 
 ```bash
-grit daemon status --json
+grite daemon status --json
 ```
 
 ### Lock Status
 
 ```bash
-grit lock status --json
+grite lock status --json
 ```
 
 ### Current Actor
 
 ```bash
-grit actor current --json
+grite actor current --json
 ```
 
 ## Debug Logging
@@ -337,13 +337,13 @@ grit actor current --json
 Enable verbose logging:
 
 ```bash
-RUST_LOG=debug grit issue list
+RUST_LOG=debug grite issue list
 ```
 
 More specific:
 
 ```bash
-RUST_LOG=debug,libgrit_core=trace grit issue list
+RUST_LOG=debug,libgrit_core=trace grite issue list
 ```
 
 ## Recovery Procedures
@@ -354,19 +354,19 @@ If all else fails:
 
 ```bash
 # Stop daemon
-grit daemon stop
+grite daemon stop
 
 # Backup current state
-grit export --format json
-cp .grit/export.json ~/backup-$(date +%Y%m%d).json
+grite export --format json
+cp .grite/export.json ~/backup-$(date +%Y%m%d).json
 
 # Remove local state
-rm -rf .git/grit/actors/<actor_id>/sled
-rm -f .git/grit/actors/<actor_id>/*.lock
+rm -rf .git/grite/actors/<actor_id>/sled
+rm -f .git/grite/actors/<actor_id>/*.lock
 
 # Sync and rebuild
-grit sync --pull
-grit rebuild
+grite sync --pull
+grite rebuild
 ```
 
 ### Re-clone Repository
@@ -377,9 +377,9 @@ For severe corruption:
 # In a different directory
 git clone <remote> fresh-repo
 cd fresh-repo
-grit init
-grit sync --pull
-grit rebuild
+grite init
+grite sync --pull
+grite rebuild
 ```
 
 ### Restore from Export
@@ -395,10 +395,10 @@ If you have a JSON export:
 
 If these steps don't resolve your issue:
 
-1. Check the [GitHub Issues](https://github.com/neul-labs/grit/issues)
+1. Check the [GitHub Issues](https://github.com/neul-labs/grite/issues)
 2. Enable debug logging and capture output
 3. Report the issue with:
-   - grit version (`grit --version`)
+   - grite version (`grite --version`)
    - Error message
    - Debug log output
    - Steps to reproduce

@@ -2,15 +2,15 @@
 
 ## Overview
 
-Grit is split into three layers:
+Grite is split into three layers:
 
 1. **Git-backed WAL** (source of truth)
-   - Append-only events in `refs/grit/wal`
+   - Append-only events in `refs/grite/wal`
    - No tracked files in the working tree
    - Synced via standard `git fetch/push`
 
 2. **Materialized view** (fast local query)
-   - `sled` embedded database in `.git/grit/actors/<actor_id>/sled/`
+   - `sled` embedded database in `.git/grite/actors/<actor_id>/sled/`
    - Deterministic projections from the WAL
    - Can be deleted and rebuilt at any time
 
@@ -24,16 +24,16 @@ Correctness never depends on the daemon; the CLI can always rebuild state from t
 ## Crate Structure
 
 ```
-grit/
+grite/
   crates/
-    libgrit-core/     # Core library
-    libgrit-git/      # Git integration
-    libgrit-ipc/      # IPC protocol
-    grit/             # CLI binary
-    grit-daemon/            # Daemon binary
+    libgrite-core/     # Core library
+    libgrite-git/      # Git integration
+    libgrite-ipc/      # IPC protocol
+    grite/             # CLI binary
+    grite-daemon/            # Daemon binary
 ```
 
-### libgrit-core
+### libgrite-core
 
 Core types and logic, no git or IPC dependencies.
 
@@ -52,7 +52,7 @@ Core types and logic, no git or IPC dependencies.
 | `config` | Configuration file handling |
 | `lock` | Lock policy and conflict detection |
 
-### libgrit-git
+### libgrite-git
 
 Git operations using libgit2.
 
@@ -60,11 +60,11 @@ Git operations using libgit2.
 |--------|---------|
 | `wal` | WAL append/read, chunk encoding (CBOR) |
 | `snapshot` | Snapshot creation and garbage collection |
-| `sync` | Push/pull of `refs/grit/*` |
+| `sync` | Push/pull of `refs/grite/*` |
 | `lock_manager` | Distributed lease locks via git refs |
 | `chunk` | Binary chunk format for WAL entries |
 
-### libgrit-ipc
+### libgrite-ipc
 
 Inter-process communication using nng (nanomsg-next-gen).
 
@@ -76,7 +76,7 @@ Inter-process communication using nng (nanomsg-next-gen).
 | `notifications` | Pub/sub notification types |
 | `discovery` | Daemon discovery protocol |
 
-### grit (CLI)
+### grite (CLI)
 
 Command-line interface.
 
@@ -88,7 +88,7 @@ Command-line interface.
 | `commands/*` | Individual command implementations |
 | `output` | JSON/human output formatting |
 
-### grit-daemon (Daemon)
+### grite-daemon (Daemon)
 
 Background daemon process.
 
@@ -120,11 +120,11 @@ Background daemon process.
 ### Sync Path
 
 ```
-1. git fetch refs/grit/*
+1. git fetch refs/grite/*
 2. New WAL entries read
 3. Events inserted into sled
 4. Projections rebuilt
-5. git push refs/grit/* (if pushing)
+5. git push refs/grite/* (if pushing)
 ```
 
 ## Concurrency Model
@@ -158,7 +158,7 @@ When CLI runs without daemon:
 
 ```
 1. Check for daemon.lock
-2. If no lock, try to spawn grit-daemon
+2. If no lock, try to spawn grite-daemon
 3. Wait for daemon to be ready
 4. Route command through IPC
 5. Daemon auto-shuts down after idle timeout
@@ -169,14 +169,14 @@ When CLI runs without daemon:
 ### Per-Repository
 
 ```
-.git/grit/
+.git/grite/
   config.toml                      # Repo config (default_actor, lock_policy)
 ```
 
 ### Per-Actor
 
 ```
-.git/grit/actors/<actor_id>/
+.git/grite/actors/<actor_id>/
   config.toml                      # Actor config (actor_id, label, public_key)
   sled/                            # Materialized view
   sled.lock                        # flock for exclusive access
@@ -188,7 +188,7 @@ When CLI runs without daemon:
 ### Git Refs
 
 ```
-refs/grit/
+refs/grite/
   wal                              # Append-only event log
   snapshots/<timestamp>            # Periodic full snapshots
   locks/<resource_hash>            # Distributed lease locks

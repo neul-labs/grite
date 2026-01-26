@@ -16,13 +16,13 @@ Snapshots:
 Create a snapshot of the current state:
 
 ```bash
-grit snapshot
+grite snapshot
 ```
 
 Output:
 
 ```
-Created snapshot refs/grit/snapshots/1700000000000
+Created snapshot refs/grite/snapshots/1700000000000
   Events: 5432
   WAL head: abc123...
 ```
@@ -30,7 +30,7 @@ Created snapshot refs/grit/snapshots/1700000000000
 ## JSON Output
 
 ```bash
-grit snapshot --json
+grite snapshot --json
 ```
 
 ```json
@@ -38,7 +38,7 @@ grit snapshot --json
   "schema_version": 1,
   "ok": true,
   "data": {
-    "snapshot_ref": "refs/grit/snapshots/1700000000000",
+    "snapshot_ref": "refs/grite/snapshots/1700000000000",
     "wal_head": "abc123...",
     "event_count": 5432
   }
@@ -50,7 +50,7 @@ grit snapshot --json
 Remove old snapshots:
 
 ```bash
-grit snapshot gc
+grite snapshot gc
 ```
 
 This removes snapshots according to the retention policy:
@@ -61,7 +61,7 @@ This removes snapshots according to the retention policy:
 ### JSON Output
 
 ```bash
-grit snapshot gc --json
+grite snapshot gc --json
 ```
 
 ```json
@@ -70,8 +70,8 @@ grit snapshot gc --json
   "ok": true,
   "data": {
     "deleted": [
-      "refs/grit/snapshots/1690000000000",
-      "refs/grit/snapshots/1695000000000"
+      "refs/grite/snapshots/1690000000000",
+      "refs/grite/snapshots/1695000000000"
     ]
   }
 }
@@ -82,7 +82,7 @@ grit snapshot gc --json
 Snapshots are stored as git refs:
 
 ```
-refs/grit/snapshots/<timestamp>
+refs/grite/snapshots/<timestamp>
 ```
 
 Where `<timestamp>` is Unix milliseconds.
@@ -90,7 +90,7 @@ Where `<timestamp>` is Unix milliseconds.
 List snapshots:
 
 ```bash
-git for-each-ref refs/grit/snapshots/
+git for-each-ref refs/grite/snapshots/
 ```
 
 ## Using Snapshots
@@ -100,12 +100,12 @@ git for-each-ref refs/grit/snapshots/
 Use the latest snapshot for fast rebuilds:
 
 ```bash
-grit rebuild --from-snapshot
+grite rebuild --from-snapshot
 ```
 
 ### Automatic Selection
 
-Grit automatically selects the most recent snapshot.
+Grite automatically selects the most recent snapshot.
 
 ### Manual Inspection
 
@@ -113,12 +113,12 @@ View snapshot contents:
 
 ```bash
 # Get snapshot ref
-git show refs/grit/snapshots/1700000000000
+git show refs/grite/snapshots/1700000000000
 ```
 
 ## Configuration
 
-Snapshot creation thresholds are configured in `.git/grit/config.toml`:
+Snapshot creation thresholds are configured in `.git/grite/config.toml`:
 
 ```toml
 [snapshot]
@@ -146,29 +146,29 @@ Create a snapshot when the last snapshot is older than this many days.
 
 ```bash
 # Weekly snapshot
-grit snapshot
+grite snapshot
 
 # Monthly cleanup
-grit snapshot gc
+grite snapshot gc
 ```
 
 ### CI/CD
 
 ```bash
 # After significant changes
-grit snapshot
+grite snapshot
 
 # Before deployment
-grit rebuild --from-snapshot
+grite rebuild --from-snapshot
 ```
 
 ### Large Teams
 
 ```bash
 # Coordinator creates snapshot after sync
-grit sync --pull
-grit snapshot
-grit sync --push
+grite sync --pull
+grite snapshot
+grite sync --push
 ```
 
 ## Snapshot vs WAL
@@ -193,10 +193,10 @@ Snapshots contain all events up to a point:
 
 ```bash
 # Check snapshot refs
-git for-each-ref --format='%(refname) %(objectsize:disk)' refs/grit/snapshots/
+git for-each-ref --format='%(refname) %(objectsize:disk)' refs/grite/snapshots/
 
 # Clean up
-grit snapshot gc
+grite snapshot gc
 ```
 
 ## Syncing Snapshots
@@ -205,13 +205,13 @@ Snapshots sync with the repository:
 
 ```bash
 # Push snapshots
-git push origin refs/grit/snapshots/*:refs/grit/snapshots/*
+git push origin refs/grite/snapshots/*:refs/grite/snapshots/*
 
 # Fetch snapshots
-git fetch origin refs/grit/snapshots/*:refs/grit/snapshots/*
+git fetch origin refs/grite/snapshots/*:refs/grite/snapshots/*
 ```
 
-By default, `grit sync` handles snapshot refs.
+By default, `grite sync` handles snapshot refs.
 
 ## Automation
 
@@ -219,10 +219,10 @@ By default, `grit sync` handles snapshot refs.
 
 ```bash
 # Create weekly snapshots
-0 0 * * 0 cd /path/to/repo && grit snapshot
+0 0 * * 0 cd /path/to/repo && grite snapshot
 
 # Monthly cleanup
-0 0 1 * * cd /path/to/repo && grit snapshot gc
+0 0 1 * * cd /path/to/repo && grite snapshot gc
 ```
 
 ### CI Pipeline
@@ -230,8 +230,8 @@ By default, `grit sync` handles snapshot refs.
 ```yaml
 - name: Create snapshot
   run: |
-    grit snapshot
-    grit sync --push
+    grite snapshot
+    grite sync --push
 ```
 
 ### Script
@@ -240,13 +240,13 @@ By default, `grit sync` handles snapshot refs.
 #!/bin/bash
 # snapshot-if-needed.sh
 
-stats=$(grit db stats --json)
+stats=$(grite db stats --json)
 events=$(echo "$stats" | jq '.data.events_since_rebuild')
 days=$(echo "$stats" | jq '.data.days_since_rebuild')
 
 if [ "$events" -gt 5000 ] || [ "$days" -gt 3 ]; then
   echo "Creating snapshot..."
-  grit snapshot
+  grite snapshot
 fi
 ```
 
@@ -265,7 +265,7 @@ Create snapshots regularly for fast rebuilds:
 Don't accumulate unnecessary snapshots:
 
 ```bash
-grit snapshot gc
+grite snapshot gc
 ```
 
 ### Verify Snapshots Work
@@ -273,8 +273,8 @@ grit snapshot gc
 Test that snapshot-based rebuild works:
 
 ```bash
-grit rebuild --from-snapshot
-grit doctor
+grite rebuild --from-snapshot
+grite doctor
 ```
 
 ## Troubleshooting
@@ -284,7 +284,7 @@ grit doctor
 No snapshots exist yet:
 
 ```bash
-grit snapshot  # Create one
+grite snapshot  # Create one
 ```
 
 ### "Snapshot corrupt"
@@ -292,8 +292,8 @@ grit snapshot  # Create one
 Rebuild without snapshot, then create new one:
 
 ```bash
-grit rebuild          # Standard rebuild
-grit snapshot         # Create fresh snapshot
+grite rebuild          # Standard rebuild
+grite snapshot         # Create fresh snapshot
 ```
 
 ### "Too many snapshots"
@@ -301,7 +301,7 @@ grit snapshot         # Create fresh snapshot
 Run garbage collection:
 
 ```bash
-grit snapshot gc
+grite snapshot gc
 ```
 
 ## Next Steps

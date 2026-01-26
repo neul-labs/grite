@@ -1,15 +1,15 @@
 # Core Concepts
 
-This page explains the fundamental concepts behind grit's design. Understanding these concepts will help you use grit effectively and troubleshoot issues.
+This page explains the fundamental concepts behind grite's design. Understanding these concepts will help you use grite effectively and troubleshoot issues.
 
 ## Three-Layer Architecture
 
-Grit uses a three-layer architecture:
+Grite uses a three-layer architecture:
 
 ```
 +------------------+     +-------------------+     +------------------+
 |   Git WAL        | --> | Materialized View | <-- | CLI / Daemon     |
-| refs/grit/wal    |     | sled database     |     | grit / grit-daemon     |
+| refs/grite/wal    |     | sled database     |     | grite / grite-daemon     |
 | (source of truth)|     | (fast queries)    |     | (user interface) |
 +------------------+     +-------------------+     +------------------+
 ```
@@ -18,7 +18,7 @@ Grit uses a three-layer architecture:
 
 All state is stored in an append-only event log within git refs:
 
-- **Location**: `refs/grit/wal`
+- **Location**: `refs/grite/wal`
 - **Format**: Append-only event log
 - **Sync**: Standard `git fetch/push`
 
@@ -28,20 +28,20 @@ The WAL (Write-Ahead Log) is the authoritative source. Everything else can be re
 
 A local database caches the current state of all issues:
 
-- **Location**: `.git/grit/actors/<actor_id>/sled/`
+- **Location**: `.git/grite/actors/<actor_id>/sled/`
 - **Purpose**: Fast queries without replaying all events
-- **Rebuild**: Can be deleted and rebuilt anytime with `grit rebuild`
+- **Rebuild**: Can be deleted and rebuilt anytime with `grite rebuild`
 
 ### Layer 3: CLI / Daemon (User Interface)
 
 The command-line interface and optional daemon:
 
-- **CLI**: `grit` command for all operations
-- **Daemon**: `grit-daemon` for improved performance (optional)
+- **CLI**: `grite` command for all operations
+- **Daemon**: `grite-daemon` for improved performance (optional)
 
 ## Events
 
-All changes in grit are recorded as events. Issues are projections of the event stream.
+All changes in grite are recorded as events. Issues are projections of the event stream.
 
 ### Event Types
 
@@ -87,18 +87,18 @@ An actor represents a device or agent. Each actor has:
 
 ```bash
 # Create a new actor
-grit actor init --label "ci-agent"
+grite actor init --label "ci-agent"
 
 # List all actors
-grit actor list
+grite actor list
 
 # Switch default actor
-grit actor use <actor_id>
+grite actor use <actor_id>
 ```
 
 ## IDs
 
-Grit uses three types of identifiers:
+Grite uses three types of identifiers:
 
 | Type | Size | Format | Purpose |
 |------|------|--------|---------|
@@ -116,7 +116,7 @@ EventId:  a1b2c3d4...  (64 hex chars)
 
 ## CRDT Merging
 
-Grit uses CRDT (Conflict-free Replicated Data Type) semantics for deterministic merging. This means:
+Grite uses CRDT (Conflict-free Replicated Data Type) semantics for deterministic merging. This means:
 
 - **No manual conflict resolution**: Merges are automatic
 - **Eventual consistency**: All actors converge to the same state
@@ -145,7 +145,7 @@ This ensures deterministic ordering even with clock skew.
 
 ## The Daemon
 
-The daemon (`grit-daemon`) is optional and provides:
+The daemon (`grite-daemon`) is optional and provides:
 
 - **Warm cache**: Keeps materialized view ready
 - **Concurrent access**: Handles multiple CLI calls efficiently
@@ -159,7 +159,7 @@ The daemon (`grit-daemon`) is optional and provides:
 
 ```
 .git/
-  grit/
+  grite/
     config.toml                    # Repo config (default_actor, lock_policy)
     actors/
       <actor_id>/
@@ -168,7 +168,7 @@ The daemon (`grit-daemon`) is optional and provides:
         sled.lock                  # flock for exclusive access
         daemon.lock                # Daemon ownership marker
 
-refs/grit/
+refs/grite/
   wal                              # Append-only event log
   snapshots/<ts>                   # Periodic snapshots
   locks/<resource_hash>            # Distributed lease locks
@@ -176,7 +176,7 @@ refs/grit/
 
 ## Key Principles
 
-1. **Git is the source of truth**: All state derivable from `refs/grit/*`
+1. **Git is the source of truth**: All state derivable from `refs/grite/*`
 2. **No working tree pollution**: Never writes tracked files
 3. **Daemon optional**: CLI works standalone
 4. **Deterministic merges**: CRDT semantics, no manual conflicts

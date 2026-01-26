@@ -1,10 +1,10 @@
 # Operations
 
-This section covers operational tasks for maintaining grit installations.
+This section covers operational tasks for maintaining grite installations.
 
 ## Overview
 
-Grit is designed to be low-maintenance, but occasionally you may need to:
+Grite is designed to be low-maintenance, but occasionally you may need to:
 
 - Run health checks
 - Rebuild the database
@@ -18,8 +18,8 @@ Grit is designed to be low-maintenance, but occasionally you may need to:
 Run diagnostics and auto-repair:
 
 ```bash
-grit doctor        # Check health
-grit doctor --fix  # Auto-repair
+grite doctor        # Check health
+grite doctor --fix  # Auto-repair
 ```
 
 ### [Rebuilding](rebuild.md)
@@ -27,8 +27,8 @@ grit doctor --fix  # Auto-repair
 Rebuild the materialized view:
 
 ```bash
-grit rebuild                 # Standard rebuild
-grit rebuild --from-snapshot # Fast rebuild
+grite rebuild                 # Standard rebuild
+grite rebuild --from-snapshot # Fast rebuild
 ```
 
 ### [Snapshots](snapshots.md)
@@ -36,8 +36,8 @@ grit rebuild --from-snapshot # Fast rebuild
 Manage snapshots for faster rebuilds:
 
 ```bash
-grit snapshot     # Create snapshot
-grit snapshot gc  # Clean old snapshots
+grite snapshot     # Create snapshot
+grite snapshot gc  # Clean old snapshots
 ```
 
 ### [Troubleshooting](troubleshooting.md)
@@ -52,14 +52,14 @@ Diagnose and fix common problems:
 
 | Task | Command |
 |------|---------|
-| Health check | `grit doctor` |
-| Auto-repair | `grit doctor --fix` |
-| Database stats | `grit db stats` |
-| Rebuild | `grit rebuild` |
-| Fast rebuild | `grit rebuild --from-snapshot` |
-| Create snapshot | `grit snapshot` |
-| Clean snapshots | `grit snapshot gc` |
-| Stop daemon | `grit daemon stop` |
+| Health check | `grite doctor` |
+| Auto-repair | `grite doctor --fix` |
+| Database stats | `grite db stats` |
+| Rebuild | `grite rebuild` |
+| Fast rebuild | `grite rebuild --from-snapshot` |
+| Create snapshot | `grite snapshot` |
+| Clean snapshots | `grite snapshot gc` |
+| Stop daemon | `grite daemon stop` |
 
 ## Maintenance Schedule
 
@@ -67,16 +67,16 @@ Diagnose and fix common problems:
 
 | Task | Frequency | Command |
 |------|-----------|---------|
-| Health check | Weekly | `grit doctor` |
-| Snapshot GC | Monthly | `grit snapshot gc` |
-| Lock cleanup | As needed | `grit lock gc` |
+| Health check | Weekly | `grite doctor` |
+| Snapshot GC | Monthly | `grite snapshot gc` |
+| Lock cleanup | As needed | `grite lock gc` |
 
 ### Triggered Tasks
 
 | Condition | Action |
 |-----------|--------|
-| Doctor warns about rebuild | `grit rebuild` |
-| Database corruption | `grit doctor --fix` |
+| Doctor warns about rebuild | `grite rebuild` |
+| Database corruption | `grite doctor --fix` |
 | Sync failures | Check [Troubleshooting](troubleshooting.md) |
 
 ## Database Management
@@ -85,19 +85,19 @@ The sled database is a cache that can be safely deleted and rebuilt:
 
 ```bash
 # Check database stats
-grit db stats --json
+grite db stats --json
 
 # Verify integrity
-grit db check --json
+grite db check --json
 
 # Full rebuild if needed
-grit rebuild
+grite rebuild
 ```
 
 ## Limits to Consider
 
 - Very large WALs slow rebuilds without snapshots
-- High push frequency can cause contention on `refs/grit/wal`
+- High push frequency can cause contention on `refs/grite/wal`
 - Each actor's sled database should not be shared between processes
 
 ## Automation
@@ -105,9 +105,9 @@ grit rebuild
 ### CI/CD Health Check
 
 ```yaml
-- name: Grit Health Check
+- name: Grite Health Check
   run: |
-    grit doctor --json | jq '.data.checks[] | select(.status != "ok")'
+    grite doctor --json | jq '.data.checks[] | select(.status != "ok")'
 ```
 
 ### Scheduled Maintenance
@@ -115,9 +115,9 @@ grit rebuild
 ```bash
 #!/bin/bash
 # weekly-maintenance.sh
-grit doctor --fix
-grit snapshot gc
-grit lock gc
+grite doctor --fix
+grite snapshot gc
+grite lock gc
 ```
 
 ## Next Steps

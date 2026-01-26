@@ -1,12 +1,12 @@
 # Rebuilding
 
-The `grit rebuild` command discards local projections and replays events to rebuild the materialized view.
+The `grite rebuild` command discards local projections and replays events to rebuild the materialized view.
 
 ## When to Rebuild
 
 Rebuild when:
 
-- `grit doctor` recommends it
+- `grite doctor` recommends it
 - Database appears corrupted
 - Query performance degrades
 - After database crashes
@@ -16,7 +16,7 @@ Rebuild when:
 Standard rebuild from local store events:
 
 ```bash
-grit rebuild
+grite rebuild
 ```
 
 This:
@@ -31,7 +31,7 @@ This:
 Faster rebuild using the latest snapshot:
 
 ```bash
-grit rebuild --from-snapshot
+grite rebuild --from-snapshot
 ```
 
 This:
@@ -61,7 +61,7 @@ Use `--from-snapshot` when:
 ## JSON Output
 
 ```bash
-grit rebuild --json
+grite rebuild --json
 ```
 
 ```json
@@ -85,7 +85,7 @@ With snapshot:
   "data": {
     "wal_head": "abc123...",
     "event_count": 1234,
-    "from_snapshot": "refs/grit/snapshots/1700000000000"
+    "from_snapshot": "refs/grite/snapshots/1700000000000"
   }
 }
 ```
@@ -104,9 +104,9 @@ Actual times depend on hardware and event complexity.
 
 ### Optimizing Rebuild Time
 
-1. **Create snapshots regularly**: `grit snapshot`
-2. **Use snapshot rebuild**: `grit rebuild --from-snapshot`
-3. **Clean old snapshots**: `grit snapshot gc`
+1. **Create snapshots regularly**: `grite snapshot`
+2. **Use snapshot rebuild**: `grite rebuild --from-snapshot`
+3. **Clean old snapshots**: `grite snapshot gc`
 
 ## Database Compaction
 
@@ -121,7 +121,7 @@ Rebuild automatically compacts the database because it rewrites all data from sc
 Before rebuild:
 
 ```bash
-grit db stats --json
+grite db stats --json
 ```
 
 ```json
@@ -129,7 +129,7 @@ grit db stats --json
   "schema_version": 1,
   "ok": true,
   "data": {
-    "path": ".git/grit/actors/.../sled",
+    "path": ".git/grite/actors/.../sled",
     "size_bytes": 5242880,
     "event_count": 1234,
     "issue_count": 42,
@@ -147,21 +147,21 @@ For a complete reset (not usually needed):
 
 ```bash
 # Stop daemon first
-grit daemon stop
+grite daemon stop
 
 # Delete sled database
-rm -rf .git/grit/actors/<actor_id>/sled
+rm -rf .git/grite/actors/<actor_id>/sled
 
 # Rebuild from scratch
-grit rebuild
+grite rebuild
 ```
 
 Or with snapshot:
 
 ```bash
-grit daemon stop
-rm -rf .git/grit/actors/<actor_id>/sled
-grit rebuild --from-snapshot
+grite daemon stop
+rm -rf .git/grite/actors/<actor_id>/sled
+grite rebuild --from-snapshot
 ```
 
 ## Rebuild After Sync Issues
@@ -170,14 +170,14 @@ If sync brought in corrupted data:
 
 ```bash
 # Verify WAL integrity first
-grit db check --json
+grite db check --json
 
 # If WAL is good, rebuild
-grit rebuild
+grite rebuild
 
 # If WAL is bad, resync from remote
-grit sync --pull
-grit rebuild
+grite sync --pull
+grite rebuild
 ```
 
 ## Automation
@@ -189,12 +189,12 @@ grit rebuild
 # weekly-rebuild.sh
 
 # Check if rebuild needed
-stats=$(grit db stats --json)
+stats=$(grite db stats --json)
 recommended=$(echo "$stats" | jq -r '.data.rebuild_recommended')
 
 if [ "$recommended" = "true" ]; then
   echo "Rebuild recommended, running..."
-  grit rebuild --from-snapshot
+  grite rebuild --from-snapshot
 else
   echo "Rebuild not needed"
 fi
@@ -205,8 +205,8 @@ fi
 ```yaml
 - name: Rebuild if needed
   run: |
-    if grit db stats --json | jq -e '.data.rebuild_recommended'; then
-      grit rebuild --from-snapshot
+    if grite db stats --json | jq -e '.data.rebuild_recommended'; then
+      grite rebuild --from-snapshot
     fi
 ```
 
@@ -218,10 +218,10 @@ For large repositories, always use snapshots:
 
 ```bash
 # Create regular snapshots
-grit snapshot
+grite snapshot
 
 # Use them for rebuilds
-grit rebuild --from-snapshot
+grite rebuild --from-snapshot
 ```
 
 ### Stop Daemon First
@@ -229,15 +229,15 @@ grit rebuild --from-snapshot
 For cleanest rebuild:
 
 ```bash
-grit daemon stop
-grit rebuild
+grite daemon stop
+grite rebuild
 ```
 
 ### Verify After Rebuild
 
 ```bash
-grit rebuild
-grit doctor  # Should show all OK
+grite rebuild
+grite doctor  # Should show all OK
 ```
 
 ## Troubleshooting
@@ -251,7 +251,7 @@ Check for:
 - File permissions
 
 ```bash
-grit db check --json  # Check for corruption
+grite db check --json  # Check for corruption
 df -h                 # Check disk space
 ```
 
@@ -260,8 +260,8 @@ df -h                 # Check disk space
 No snapshots available:
 
 ```bash
-grit rebuild  # Use standard rebuild instead
-grit snapshot # Create a snapshot for next time
+grite rebuild  # Use standard rebuild instead
+grite snapshot # Create a snapshot for next time
 ```
 
 ### "Rebuild takes too long"
@@ -269,8 +269,8 @@ grit snapshot # Create a snapshot for next time
 Create a snapshot first:
 
 ```bash
-grit snapshot
-grit rebuild --from-snapshot
+grite snapshot
+grite rebuild --from-snapshot
 ```
 
 ## Next Steps

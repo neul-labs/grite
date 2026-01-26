@@ -118,13 +118,13 @@ jobs:
 
       - name: Build with cross
         if: matrix.cross
-        run: cross build --release --target ${{ matrix.target }} --package grit --package grit-daemon
+        run: cross build --release --target ${{ matrix.target }} --package grite --package grite-daemon
         env:
           CROSS_CONTAINER_OPTS: "--platform linux/amd64"
 
       - name: Build native
         if: "!matrix.cross"
-        run: cargo build --release --target ${{ matrix.target }} --package grit --package grit-daemon
+        run: cargo build --release --target ${{ matrix.target }} --package grite --package grite-daemon
         env:
           NNG_LIB_DIR: ${{ matrix.os == 'windows-latest' && 'C:/vcpkg/installed/x64-windows/lib' || '' }}
 
@@ -132,10 +132,10 @@ jobs:
         if: matrix.os != 'windows-latest'
         run: |
           VERSION="${{ needs.check-version.outputs.version }}"
-          ARCHIVE_NAME="grit-${VERSION}-${{ matrix.target }}"
+          ARCHIVE_NAME="grite-${VERSION}-${{ matrix.target }}"
           mkdir -p "${ARCHIVE_NAME}"
-          cp target/${{ matrix.target }}/release/grit "${ARCHIVE_NAME}/"
-          cp target/${{ matrix.target }}/release/grit-daemon "${ARCHIVE_NAME}/"
+          cp target/${{ matrix.target }}/release/grite "${ARCHIVE_NAME}/"
+          cp target/${{ matrix.target }}/release/grite-daemon "${ARCHIVE_NAME}/"
           cp README.md "${ARCHIVE_NAME}/"
           tar -czvf "${ARCHIVE_NAME}.tar.gz" "${ARCHIVE_NAME}"
           echo "ASSET=${ARCHIVE_NAME}.tar.gz" >> $GITHUB_ENV
@@ -145,10 +145,10 @@ jobs:
         shell: pwsh
         run: |
           $VERSION = "${{ needs.check-version.outputs.version }}"
-          $ARCHIVE_NAME = "grit-${VERSION}-${{ matrix.target }}"
+          $ARCHIVE_NAME = "grite-${VERSION}-${{ matrix.target }}"
           New-Item -ItemType Directory -Path $ARCHIVE_NAME -Force
-          Copy-Item "target/${{ matrix.target }}/release/grit.exe" "$ARCHIVE_NAME/"
-          Copy-Item "target/${{ matrix.target }}/release/grit-daemon.exe" "$ARCHIVE_NAME/"
+          Copy-Item "target/${{ matrix.target }}/release/grite.exe" "$ARCHIVE_NAME/"
+          Copy-Item "target/${{ matrix.target }}/release/grite-daemon.exe" "$ARCHIVE_NAME/"
           Copy-Item "README.md" "$ARCHIVE_NAME/"
           Compress-Archive -Path $ARCHIVE_NAME -DestinationPath "${ARCHIVE_NAME}.zip"
           echo "ASSET=${ARCHIVE_NAME}.zip" >> $env:GITHUB_ENV
@@ -157,7 +157,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.target }}
-          path: grit-*-${{ matrix.target }}.*
+          path: grite-*-${{ matrix.target }}.*
 
   # Create macOS universal binary
   build-macos-universal:
@@ -185,22 +185,22 @@ jobs:
           VERSION="${{ needs.check-version.outputs.version }}"
 
           # Extract both architectures
-          cd x86_64 && tar -xzf grit-${VERSION}-x86_64-apple-darwin.tar.gz && cd ..
-          cd aarch64 && tar -xzf grit-${VERSION}-aarch64-apple-darwin.tar.gz && cd ..
+          cd x86_64 && tar -xzf grite-${VERSION}-x86_64-apple-darwin.tar.gz && cd ..
+          cd aarch64 && tar -xzf grite-${VERSION}-aarch64-apple-darwin.tar.gz && cd ..
 
           # Create universal binaries
-          ARCHIVE_NAME="grit-${VERSION}-universal-apple-darwin"
+          ARCHIVE_NAME="grite-${VERSION}-universal-apple-darwin"
           mkdir -p "${ARCHIVE_NAME}"
 
           lipo -create \
-            "x86_64/grit-${VERSION}-x86_64-apple-darwin/grit" \
-            "aarch64/grit-${VERSION}-aarch64-apple-darwin/grit" \
-            -output "${ARCHIVE_NAME}/grit"
+            "x86_64/grite-${VERSION}-x86_64-apple-darwin/grite" \
+            "aarch64/grite-${VERSION}-aarch64-apple-darwin/grite" \
+            -output "${ARCHIVE_NAME}/grite"
 
           lipo -create \
-            "x86_64/grit-${VERSION}-x86_64-apple-darwin/grit-daemon" \
-            "aarch64/grit-${VERSION}-aarch64-apple-darwin/grit-daemon" \
-            -output "${ARCHIVE_NAME}/grit-daemon"
+            "x86_64/grite-${VERSION}-x86_64-apple-darwin/grite-daemon" \
+            "aarch64/grite-${VERSION}-aarch64-apple-darwin/grite-daemon" \
+            -output "${ARCHIVE_NAME}/grite-daemon"
 
           cp README.md "${ARCHIVE_NAME}/"
           tar -czvf "${ARCHIVE_NAME}.tar.gz" "${ARCHIVE_NAME}"
@@ -209,7 +209,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: universal-apple-darwin
-          path: grit-*-universal-apple-darwin.tar.gz
+          path: grite-*-universal-apple-darwin.tar.gz
 
   release:
     name: Create Release
@@ -261,15 +261,15 @@ jobs:
       - name: Publish crates
         run: |
           # Publish in dependency order with delay between each
-          cargo publish --package libgrit-core --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
+          cargo publish --package libgrite-core --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
           sleep 30
-          cargo publish --package libgrit-git --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
+          cargo publish --package libgrite-git --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
           sleep 30
-          cargo publish --package libgrit-ipc --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
+          cargo publish --package libgrite-ipc --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
           sleep 30
-          cargo publish --package grit --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
+          cargo publish --package grite --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
           sleep 30
-          cargo publish --package grit-daemon --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
+          cargo publish --package grite-daemon --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
   publish-npm:
     name: Publish to npm
@@ -347,12 +347,12 @@ jobs:
       - name: Update version
         run: |
           cd packaging/gem
-          sed -i "s/spec.version = .*/spec.version = '${{ needs.check-version.outputs.version }}'/" grit-cli.gemspec
+          sed -i "s/spec.version = .*/spec.version = '${{ needs.check-version.outputs.version }}'/" grite-cli.gemspec
 
       - name: Build gem
         run: |
           cd packaging/gem
-          gem build grit-cli.gemspec
+          gem build grite-cli.gemspec
 
       - name: Publish gem
         run: |
@@ -360,7 +360,7 @@ jobs:
           mkdir -p ~/.gem
           echo ":rubygems_api_key: ${{ secrets.GEM_HOST_API_KEY }}" > ~/.gem/credentials
           chmod 600 ~/.gem/credentials
-          gem push grit-cli-*.gem
+          gem push grite-cli-*.gem
 
   publish-homebrew:
     name: Update Homebrew Tap
@@ -379,7 +379,7 @@ jobs:
       - name: Calculate SHA256
         id: sha
         run: |
-          SHA=$(shasum -a 256 artifacts/grit-*-universal-apple-darwin.tar.gz | awk '{print $1}')
+          SHA=$(shasum -a 256 artifacts/grite-*-universal-apple-darwin.tar.gz | awk '{print $1}')
           echo "sha256=$SHA" >> $GITHUB_OUTPUT
 
       - name: Update Homebrew formula
@@ -391,27 +391,27 @@ jobs:
           git clone https://x-access-token:${{ secrets.HOMEBREW_TAP_TOKEN }}@github.com/neul-labs/homebrew-tap.git tap
 
           # Update formula
-          cat > tap/Formula/grit.rb << EOF
-          class Grit < Formula
+          cat > tap/Formula/grite.rb << EOF
+          class Grite < Formula
             desc "Git-backed issue tracking for coding agents and humans"
-            homepage "https://github.com/neul-labs/grit"
+            homepage "https://github.com/neul-labs/grite"
             version "${VERSION}"
             license "MIT"
 
             on_macos do
-              url "https://github.com/neul-labs/grit/releases/download/v${VERSION}/grit-${VERSION}-universal-apple-darwin.tar.gz"
+              url "https://github.com/neul-labs/grite/releases/download/v${VERSION}/grite-${VERSION}-universal-apple-darwin.tar.gz"
               sha256 "${SHA256}"
             end
 
             depends_on "nng"
 
             def install
-              bin.install "grit"
-              bin.install "grit-daemon"
+              bin.install "grite"
+              bin.install "grite-daemon"
             end
 
             test do
-              system "#{bin}/grit", "--version"
+              system "#{bin}/grite", "--version"
             end
           end
           EOF
@@ -420,8 +420,8 @@ jobs:
           cd tap
           git config user.name "GitHub Actions"
           git config user.email "actions@github.com"
-          git add Formula/grit.rb
-          git commit -m "Update grit to ${VERSION}"
+          git add Formula/grite.rb
+          git commit -m "Update grite to ${VERSION}"
           git push
 
   publish-chocolatey:
@@ -442,16 +442,16 @@ jobs:
         id: checksum
         shell: pwsh
         run: |
-          $hash = (Get-FileHash -Algorithm SHA256 artifacts/grit-*-x86_64-pc-windows-msvc.zip).Hash
+          $hash = (Get-FileHash -Algorithm SHA256 artifacts/grite-*-x86_64-pc-windows-msvc.zip).Hash
           echo "sha256=$hash" >> $env:GITHUB_OUTPUT
 
       - name: Update nuspec version
         shell: pwsh
         run: |
           $version = "${{ needs.check-version.outputs.version }}"
-          $content = Get-Content packaging/chocolatey/grit.nuspec -Raw
+          $content = Get-Content packaging/chocolatey/grite.nuspec -Raw
           $content = $content -replace '<version>.*</version>', "<version>$version</version>"
-          Set-Content packaging/chocolatey/grit.nuspec $content
+          Set-Content packaging/chocolatey/grite.nuspec $content
 
       - name: Update install script
         shell: pwsh
@@ -468,4 +468,4 @@ jobs:
         run: |
           cd packaging/chocolatey
           choco pack
-          choco push grit.${{ needs.check-version.outputs.version }}.nupkg --source https://push.chocolatey.org/ --api-key ${{ secrets.CHOCO_API_KEY }}
+          choco push grite.${{ needs.check-version.outputs.version }}.nupkg --source https://push.chocolatey.org/ --api-key ${{ secrets.CHOCO_API_KEY }}

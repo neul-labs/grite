@@ -1,6 +1,6 @@
 # Environment Variables
 
-This document describes environment variables that affect grit behavior.
+This document describes environment variables that affect grite behavior.
 
 ## Variables
 
@@ -9,14 +9,14 @@ This document describes environment variables that affect grit behavior.
 Override the actor data directory.
 
 - **Type**: filesystem path
-- **Default**: `.git/grit/actors/<actor_id>/`
+- **Default**: `.git/grite/actors/<actor_id>/`
 - **Scope**: current process
 
-When set, grit uses this directory for all actor data instead of the default location.
+When set, grite uses this directory for all actor data instead of the default location.
 
 ```bash
-export GRIT_HOME=/custom/path/grit/actor1
-grit issue list  # Uses data from /custom/path/grit/actor1
+export GRIT_HOME=/custom/path/grite/actor1
+grite issue list  # Uses data from /custom/path/grite/actor1
 ```
 
 #### Use Cases
@@ -29,12 +29,12 @@ grit issue list  # Uses data from /custom/path/grit/actor1
 
 ```bash
 # Agent 1
-export GRIT_HOME=/tmp/grit/agent1
-grit issue list
+export GRIT_HOME=/tmp/grite/agent1
+grite issue list
 
 # Agent 2
-export GRIT_HOME=/tmp/grit/agent2
-grit issue list
+export GRIT_HOME=/tmp/grite/agent2
+grite issue list
 ```
 
 ### RUST_LOG
@@ -47,7 +47,7 @@ Control logging verbosity for debugging.
 
 ```bash
 export RUST_LOG=debug
-grit issue list
+grite issue list
 ```
 
 #### Log Levels
@@ -63,24 +63,24 @@ grit issue list
 #### Module-Specific Logging
 
 ```bash
-# Debug only for grit crate
-export RUST_LOG=grit=debug
+# Debug only for grite crate
+export RUST_LOG=grite=debug
 
-# Debug for grit, warn for others
-export RUST_LOG=warn,grit=debug,libgrit_core=debug
+# Debug for grite, warn for others
+export RUST_LOG=warn,grite=debug,libgrite_core=debug
 ```
 
 #### Common Debugging Scenarios
 
 ```bash
 # Debug IPC issues
-export RUST_LOG=debug,libgrit_ipc=trace
+export RUST_LOG=debug,libgrite_ipc=trace
 
 # Debug git operations
-export RUST_LOG=debug,libgrit_git=trace
+export RUST_LOG=debug,libgrite_git=trace
 
 # Debug database operations
-export RUST_LOG=debug,libgrit_core::store=trace
+export RUST_LOG=debug,libgrite_core::store=trace
 ```
 
 ## Precedence
@@ -99,17 +99,17 @@ Actor context is resolved in this order (highest precedence first):
 
 ```bash
 # Highest precedence: --data-dir
-grit --data-dir /custom/path issue list
+grite --data-dir /custom/path issue list
 
 # Environment variable
 export GRIT_HOME=/custom/path
-grit issue list
+grite issue list
 
 # Flag
-grit --actor abc123 issue list
+grite --actor abc123 issue list
 
 # Default from config
-grit issue list  # Uses default_actor from .git/grit/config.toml
+grite issue list  # Uses default_actor from .git/grite/config.toml
 ```
 
 ## CI/CD Environments
@@ -118,31 +118,31 @@ grit issue list  # Uses default_actor from .git/grit/config.toml
 
 ```yaml
 env:
-  GRIT_HOME: ${{ runner.temp }}/grit-${{ github.run_id }}
+  GRIT_HOME: ${{ runner.temp }}/grite-${{ github.run_id }}
 
 steps:
-  - name: Initialize grit
+  - name: Initialize grite
     run: |
-      grit actor init --label "ci-${{ github.run_number }}"
+      grite actor init --label "ci-${{ github.run_number }}"
 ```
 
 ### GitLab CI
 
 ```yaml
 variables:
-  GRIT_HOME: "${CI_PROJECT_DIR}/.grit-ci-${CI_JOB_ID}"
+  GRIT_HOME: "${CI_PROJECT_DIR}/.grite-ci-${CI_JOB_ID}"
 
 script:
-  - grit actor init --label "ci-${CI_JOB_ID}"
+  - grite actor init --label "ci-${CI_JOB_ID}"
 ```
 
 ### Docker
 
 ```dockerfile
-ENV GRIT_HOME=/app/.grit
+ENV GRIT_HOME=/app/.grite
 
 # Or at runtime
-docker run -e GRIT_HOME=/app/.grit myimage
+docker run -e GRIT_HOME=/app/.grite myimage
 ```
 
 ## Shell Configuration
@@ -152,11 +152,11 @@ docker run -e GRIT_HOME=/app/.grit myimage
 Add to `~/.bashrc` or `~/.zshrc`:
 
 ```bash
-# Custom grit home
-export GRIT_HOME="$HOME/.grit/default-actor"
+# Custom grite home
+export GRIT_HOME="$HOME/.grite/default-actor"
 
 # Debug logging
-alias grit-debug='RUST_LOG=debug grit'
+alias grite-debug='RUST_LOG=debug grite'
 ```
 
 ### Fish
@@ -164,7 +164,7 @@ alias grit-debug='RUST_LOG=debug grit'
 Add to `~/.config/fish/config.fish`:
 
 ```fish
-set -x GRIT_HOME "$HOME/.grit/default-actor"
+set -x GRIT_HOME "$HOME/.grite/default-actor"
 ```
 
 ## Troubleshooting
@@ -172,8 +172,8 @@ set -x GRIT_HOME "$HOME/.grit/default-actor"
 ### Check Current Environment
 
 ```bash
-# See what grit sees
-grit actor current --json | jq
+# See what grite sees
+grite actor current --json | jq
 
 # Check environment
 echo $GRIT_HOME
@@ -188,13 +188,13 @@ Check actor selection precedence:
 
 ```bash
 # What's the current actor?
-grit actor current --json
+grite actor current --json
 
 # Is GRIT_HOME set?
 echo $GRIT_HOME
 
 # What's the default in config?
-cat .git/grit/config.toml
+cat .git/grite/config.toml
 ```
 
 #### "Missing log output"
@@ -203,7 +203,7 @@ Enable logging:
 
 ```bash
 export RUST_LOG=debug
-grit issue list 2>&1 | head -50
+grite issue list 2>&1 | head -50
 ```
 
 #### "Daemon not using environment"
@@ -212,9 +212,9 @@ The daemon inherits environment from the spawning process. If auto-spawned, it u
 
 ```bash
 # Stop daemon and restart with new environment
-grit daemon stop
+grite daemon stop
 export RUST_LOG=debug
-grit daemon start
+grite daemon start
 ```
 
 ## Next Steps

@@ -1,11 +1,11 @@
-# Contributing to Grit
+# Contributing to Grite
 
-Thank you for your interest in contributing to Grit! This document provides guidelines and information for contributors.
+Thank you for your interest in contributing to Grite! This document provides guidelines and information for contributors.
 
 ## Getting Started
 
 1. Fork the repository
-2. Clone your fork: `git clone https://github.com/YOUR_USERNAME/grit.git`
+2. Clone your fork: `git clone https://github.com/YOUR_USERNAME/grite.git`
 3. Create a branch: `git checkout -b feature/your-feature-name`
 4. Make your changes
 5. Run tests: `cargo test`
@@ -45,7 +45,7 @@ cargo test
 ### Debug Logging
 
 ```bash
-RUST_LOG=debug cargo run --bin grit -- issue list
+RUST_LOG=debug cargo run --bin grite -- issue list
 ```
 
 ## Code Style
@@ -79,17 +79,17 @@ When reporting issues, please include:
 
 | Crate | Purpose |
 |-------|---------|
-| `libgrit-core` | Event types, hashing, projections, sled store, signing |
-| `libgrit-git` | WAL commits, ref sync, snapshots, distributed locks |
-| `libgrit-ipc` | IPC message schemas (rkyv), daemon lock, client/server |
-| `grit` | CLI frontend |
-| `grit-daemon` | Optional background daemon |
+| `libgrite-core` | Event types, hashing, projections, sled store, signing |
+| `libgrite-git` | WAL commits, ref sync, snapshots, distributed locks |
+| `libgrite-ipc` | IPC message schemas (rkyv), daemon lock, client/server |
+| `grite` | CLI frontend |
+| `grite-daemon` | Optional background daemon |
 
 ## Design Principles
 
 When contributing, keep these principles in mind:
 
-1. **Git is the source of truth** - All state derivable from `refs/grit/*`
+1. **Git is the source of truth** - All state derivable from `refs/grite/*`
 2. **No working tree pollution** - Never write tracked files
 3. **Daemon optional** - CLI works standalone
 4. **Deterministic merges** - CRDT semantics, no manual conflict resolution
@@ -101,4 +101,4 @@ Feel free to open an issue for questions or discussion about potential contribut
 
 ## License
 
-By contributing to Grit, you agree that your contributions will be licensed under the MIT License.
+By contributing to Grite, you agree that your contributions will be licensed under the MIT License.

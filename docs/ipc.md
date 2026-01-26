@@ -1,7 +1,7 @@
 # IPC Schema
 
-This document specifies the daemon IPC message schema used between `grit`
-and `grit-daemon`. The wire format is `rkyv`-serialized structs transported over
+This document specifies the daemon IPC message schema used between `grite`
+and `grite-daemon`. The wire format is `rkyv`-serialized structs transported over
 NNG sockets. JSON examples are provided for readability; actual bytes are
 `rkyv`.
 
@@ -20,7 +20,7 @@ NNG sockets. JSON examples are provided for readability; actual bytes are
   "request_id": "uuid",
   "repo_root": "/path/to/repo",
   "actor_id": "<hex-16-bytes>",
-  "data_dir": ".git/grit/actors/<actor_id>",
+  "data_dir": ".git/grite/actors/<actor_id>",
   "command": { "...": "payload" }
 }
 ```
@@ -84,17 +84,17 @@ in `docs/cli-json.md`.
 Discovery uses a `SURVEY` socket with a fixed message:
 
 ```json
-{ "Discover": { "protocol": "grit-ipc", "min_version": 1 } }
+{ "Discover": { "protocol": "grite-ipc", "min_version": 1 } }
 ```
 
 Response:
 
 ```json
 {
-  "protocol": "grit-ipc",
+  "protocol": "grite-ipc",
   "ipc_schema_version": 1,
   "daemon_id": "uuid",
-  "endpoint": "ipc://.../grit-daemon.sock",
+  "endpoint": "ipc://.../grite-daemon.sock",
   "workers": [
     { "repo_root": "/path/to/repo", "actor_id": "...", "data_dir": "..." }
   ]
@@ -109,7 +109,7 @@ The daemon emits asynchronous notifications:
 { "EventApplied": { "issue_id": "...", "event_id": "...", "ts_unix_ms": 0 } }
 { "WalSynced": { "wal_head": "<git-commit-hash>", "remote": "origin" } }
 { "LockChanged": { "resource": "path:docs/", "owner": "...", "expires_unix_ms": 0 } }
-{ "SnapshotCreated": { "snapshot_ref": "refs/grit/snapshots/1700000000000" } }
+{ "SnapshotCreated": { "snapshot_ref": "refs/grite/snapshots/1700000000000" } }
 ```
 
 Clients must treat unknown notification variants as ignorable.

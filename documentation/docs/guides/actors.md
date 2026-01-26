@@ -1,10 +1,10 @@
 # Actor Identity
 
-This guide explains actors in grit and how to manage them for multi-agent scenarios.
+This guide explains actors in grite and how to manage them for multi-agent scenarios.
 
 ## What Are Actors?
 
-An actor represents a device or agent using grit. Each actor has:
+An actor represents a device or agent using grite. Each actor has:
 
 - **actor_id**: 128-bit random identifier
 - **label**: Human-friendly name (e.g., "work-laptop", "ci-agent")
@@ -40,10 +40,10 @@ When two actors update the same field simultaneously, the actor ID is used for d
 
 ### First Actor
 
-When you run `grit init`, a default actor is created:
+When you run `grite init`, a default actor is created:
 
 ```bash
-grit init
+grite init
 # Creates actor and sets as default
 ```
 
@@ -52,7 +52,7 @@ grit init
 Create more actors for different purposes:
 
 ```bash
-grit actor init --label "ci-agent"
+grite actor init --label "ci-agent"
 ```
 
 Output:
@@ -60,7 +60,7 @@ Output:
 ```
 Created actor e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0
   Label: ci-agent
-  Data dir: .git/grit/actors/e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0/
+  Data dir: .git/grite/actors/e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0/
 ```
 
 ## Listing Actors
@@ -68,7 +68,7 @@ Created actor e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0
 See all actors in the repository:
 
 ```bash
-grit actor list
+grite actor list
 ```
 
 Output:
@@ -81,7 +81,7 @@ e5f6a7b8...  ci-agent
 ### JSON Output
 
 ```bash
-grit actor list --json
+grite actor list --json
 ```
 
 ```json
@@ -93,7 +93,7 @@ grit actor list --json
       {
         "actor_id": "64d15a2c383e2161772f9cea23e87222",
         "label": "work-laptop",
-        "data_dir": ".git/grit/actors/64d15a2c383e2161772f9cea23e87222/"
+        "data_dir": ".git/grite/actors/64d15a2c383e2161772f9cea23e87222/"
       }
     ]
   }
@@ -105,13 +105,13 @@ grit actor list --json
 Show details for a specific actor:
 
 ```bash
-grit actor show 64d15a2c
+grite actor show 64d15a2c
 ```
 
 Or for the current actor:
 
 ```bash
-grit actor show
+grite actor show
 ```
 
 ## Switching Actors
@@ -121,10 +121,10 @@ grit actor show
 Set the repository's default actor:
 
 ```bash
-grit actor use e5f6a7b8
+grite actor use e5f6a7b8
 ```
 
-This updates `.git/grit/config.toml`:
+This updates `.git/grite/config.toml`:
 
 ```toml
 default_actor = "e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0"
@@ -135,7 +135,7 @@ default_actor = "e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0"
 Use a specific actor for one command:
 
 ```bash
-grit --actor e5f6a7b8 issue create --title "..."
+grite --actor e5f6a7b8 issue create --title "..."
 ```
 
 ### Environment Variable
@@ -143,17 +143,17 @@ grit --actor e5f6a7b8 issue create --title "..."
 Set actor via environment:
 
 ```bash
-export GRIT_HOME=.git/grit/actors/e5f6a7b8/
-grit issue list
+export GRIT_HOME=.git/grite/actors/e5f6a7b8/
+grite issue list
 ```
 
 ## Actor Selection Order
 
-Grit resolves actor context in this order:
+Grite resolves actor context in this order:
 
 1. `--data-dir` or `GRIT_HOME` environment variable
 2. `--actor <id>` flag
-3. `default_actor` in `.git/grit/config.toml`
+3. `default_actor` in `.git/grite/config.toml`
 4. Auto-create new actor if none exists
 
 ## Current Actor
@@ -161,7 +161,7 @@ Grit resolves actor context in this order:
 Check which actor is currently active:
 
 ```bash
-grit actor current
+grite actor current
 ```
 
 Output:
@@ -175,7 +175,7 @@ Source: repo_default
 With JSON:
 
 ```bash
-grit actor current --json
+grite actor current --json
 ```
 
 ```json
@@ -184,7 +184,7 @@ grit actor current --json
   "ok": true,
   "data": {
     "actor_id": "64d15a2c383e2161772f9cea23e87222",
-    "data_dir": ".git/grit/actors/64d15a2c383e2161772f9cea23e87222/",
+    "data_dir": ".git/grite/actors/64d15a2c383e2161772f9cea23e87222/",
     "source": "repo_default"
   }
 }
@@ -198,7 +198,7 @@ Create a dedicated CI actor:
 
 ```bash
 # In CI setup
-grit actor init --label "ci-$(CI_JOB_ID)"
+grite actor init --label "ci-$(CI_JOB_ID)"
 ```
 
 ### Multiple AI Agents
@@ -207,12 +207,12 @@ Each agent should use its own actor:
 
 ```bash
 # Agent A
-grit actor init --label "agent-planner"
-PLANNER_ID=$(grit actor current --json | jq -r '.data.actor_id')
+grite actor init --label "agent-planner"
+PLANNER_ID=$(grite actor current --json | jq -r '.data.actor_id')
 
 # Agent B
-grit actor init --label "agent-implementer"
-IMPL_ID=$(grit actor current --json | jq -r '.data.actor_id')
+grite actor init --label "agent-implementer"
+IMPL_ID=$(grite actor current --json | jq -r '.data.actor_id')
 ```
 
 ### Team Members
@@ -220,13 +220,13 @@ IMPL_ID=$(grit actor current --json | jq -r '.data.actor_id')
 Each team member can use their own actor:
 
 ```bash
-grit actor init --label "alice-laptop"
-grit actor init --label "bob-desktop"
+grite actor init --label "alice-laptop"
+grite actor init --label "bob-desktop"
 ```
 
 ## Actor Configuration
 
-Actor config is stored in `.git/grit/actors/<id>/config.toml`:
+Actor config is stored in `.git/grite/actors/<id>/config.toml`:
 
 ```toml
 actor_id = "64d15a2c383e2161772f9cea23e87222"
@@ -241,12 +241,12 @@ key_scheme = "ed25519"  # Optional
 Actors can have Ed25519 signing keys for event authentication:
 
 ```bash
-grit actor init --label "signed-actor" --generate-key
+grite actor init --label "signed-actor" --generate-key
 ```
 
 This creates:
 
-- Private key: `.git/grit/actors/<id>/keys/signing.key`
+- Private key: `.git/grite/actors/<id>/keys/signing.key`
 - Public key: stored in `config.toml`
 
 Events from this actor will be signed automatically.
@@ -257,11 +257,11 @@ Events from this actor will be signed automatically.
 
 ```bash
 # Good
-grit actor init --label "ci-main-branch"
-grit actor init --label "alice-macbook"
+grite actor init --label "ci-main-branch"
+grite actor init --label "alice-macbook"
 
 # Avoid
-grit actor init --label "actor1"
+grite actor init --label "actor1"
 ```
 
 ### One Actor Per Purpose
@@ -279,7 +279,7 @@ Each process/agent should use its own actor to avoid database conflicts.
 Remove actors you no longer use:
 
 ```bash
-rm -rf .git/grit/actors/<old-actor-id>/
+rm -rf .git/grite/actors/<old-actor-id>/
 ```
 
 ## Next Steps

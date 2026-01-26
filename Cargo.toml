@@ -1,21 +1,21 @@
 [workspace]
 resolver = "2"
 members = [
-    "crates/libgrit-core",
-    "crates/libgrit-git",
-    "crates/libgrit-ipc",
-    "crates/grit",
-    "crates/grit-daemon",
+    "crates/libgrite-core",
+    "crates/libgrite-git",
+    "crates/libgrite-ipc",
+    "crates/grite",
+    "crates/grite-daemon",
 ]
 
 [workspace.package]
-version = "0.2.2"
+version = "0.3.0"
 edition = "2021"
 license = "MIT"
 rust-version = "1.75"
-repository = "https://github.com/neul-labs/grit"
-homepage = "https://github.com/neul-labs/grit"
-documentation = "https://docs.neullabs.com/grit"
+repository = "https://github.com/neul-labs/grite"
+homepage = "https://github.com/neul-labs/grite"
+documentation = "https://docs.neullabs.com/grite"
 readme = "README.md"
 keywords = ["git", "issue-tracker", "crdt", "agents", "distributed"]
 categories = ["command-line-utilities", "development-tools"]

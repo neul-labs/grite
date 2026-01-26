@@ -2,7 +2,7 @@
 
 ## WAL ref
 
-- Ref: `refs/grit/wal`
+- Ref: `refs/grite/wal`
 - Each append creates a new commit, parented to the current WAL head.
 - Trees contain only WAL data; no working tree files are touched.
 
@@ -47,14 +47,14 @@ Chunk integrity is verified by `chunk_hash`.
 
 ## Append algorithm
 
-1. Read current `refs/grit/wal` head (if present).
+1. Read current `refs/grite/wal` head (if present).
 2. Create a new commit with parent = head, adding a new chunk file.
-3. Update `refs/grit/wal` to the new commit.
+3. Update `refs/grite/wal` to the new commit.
 4. Push the ref (optional).
 
 If the push is rejected because the remote advanced:
 
-1. Fetch `refs/grit/wal`.
+1. Fetch `refs/grite/wal`.
 2. Create a new commit whose parent is the fetched head, containing the same chunk.
 3. Push again (fast-forward only).
 
@@ -62,14 +62,14 @@ History is never rewritten.
 
 ## Sync
 
-- Pull: `git fetch <remote> refs/grit/*:refs/grit/*`
-- Push: `git push <remote> refs/grit/*:refs/grit/*`
+- Pull: `git fetch <remote> refs/grite/*:refs/grite/*`
+- Push: `git push <remote> refs/grite/*:refs/grite/*`
 
 ## Snapshots (periodic, no daemon required)
 
 Snapshots are optional, monotonic optimization refs that speed rebuilds without changing the WAL.
 
-- Ref format: `refs/grit/snapshots/<unix_ms>`
+- Ref format: `refs/grite/snapshots/<unix_ms>`
 - A snapshot commit stores a compacted set of events plus a `snapshot.json` metadata file.
 - Rebuild uses the latest snapshot, then replays WAL commits after its `wal_head`.
 
@@ -110,9 +110,9 @@ superseded by later last-writer-wins updates), but they must preserve:
 
 Snapshots are created opportunistically, even without an always-on daemon:
 
-- During `grit sync --push` if WAL growth exceeds a threshold
-- During explicit `grit snapshot` command
-- During `grit doctor --apply` if snapshot staleness is detected
+- During `grite sync --push` if WAL growth exceeds a threshold
+- During explicit `grite snapshot` command
+- During `grite doctor --apply` if snapshot staleness is detected
 
 When a daemon is running, it may also create snapshots on the same thresholds.
 
@@ -121,4 +121,4 @@ Suggested thresholds (configurable):
 - WAL events since last snapshot > 10,000
 - OR last snapshot older than 7 days
 
-Snapshots are never rewritten; older snapshots can be pruned with `grit snapshot gc`.
+Snapshots are never rewritten; older snapshots can be pruned with `grite snapshot gc`.

@@ -1,23 +1,23 @@
 # Git Worktrees
 
-Grit fully supports git worktrees, enabling multi-agent workflows where each agent works on a different branch in its own worktree while sharing the same issue state.
+Grite fully supports git worktrees, enabling multi-agent workflows where each agent works on a different branch in its own worktree while sharing the same issue state.
 
 ## Overview
 
-Git worktrees allow you to have multiple working directories attached to the same repository, each checked out to a different branch. Grit's worktree support means:
+Git worktrees allow you to have multiple working directories attached to the same repository, each checked out to a different branch. Grite's worktree support means:
 
 - **Shared state**: All worktrees share the same issues, events, locks, and context
-- **No configuration needed**: Grit automatically detects worktrees and uses the correct shared storage
+- **No configuration needed**: Grite automatically detects worktrees and uses the correct shared storage
 - **Daemon compatible**: The daemon works correctly across worktrees
 
 ## How It Works
 
-When you run grit from within a worktree, it automatically discovers the main repository's `.git` directory (the "commondir") and stores all data there:
+When you run grite from within a worktree, it automatically discovers the main repository's `.git` directory (the "commondir") and stores all data there:
 
 ```
 /project/                    # Main repo
 ├── .git/
-│   ├── grit/               # Shared grit data
+│   ├── grite/               # Shared grite data
 │   │   ├── config.toml
 │   │   └── actors/
 │   └── worktrees/
@@ -28,9 +28,9 @@ When you run grit from within a worktree, it automatically discovers the main re
 ```
 
 This means:
-- `refs/grit/wal` — shared across all worktrees
-- `refs/grit/locks/*` — shared, preventing conflicts
-- `.git/grit/actors/` — shared actor configurations
+- `refs/grite/wal` — shared across all worktrees
+- `refs/grite/locks/*` — shared, preventing conflicts
+- `.git/grite/actors/` — shared actor configurations
 - Context store — shared, with LWW (last-writer-wins) semantics
 
 ## Basic Usage
@@ -38,17 +38,17 @@ This means:
 ### Setting Up
 
 ```bash
-# Initialize grit in main repo
+# Initialize grite in main repo
 cd /project
-grit init
-grit issue create --title "Implement feature X"
+grite init
+grite issue create --title "Implement feature X"
 
 # Create a worktree for feature development
 git worktree add ../project-feature -b feature-x
 
 # Work from the worktree
 cd ../project-feature
-grit issue list  # Shows issues from main repo
+grite issue list  # Shows issues from main repo
 ```
 
 ### Multi-Agent Workflow
@@ -58,12 +58,12 @@ This is ideal for running multiple AI agents in parallel:
 ```bash
 # Terminal 1: Agent A works on feature-x
 cd /project-feature-x
-grit issue list --label sprint-1 --json
+grite issue list --label sprint-1 --json
 # Agent picks issue, starts working...
 
 # Terminal 2: Agent B works on feature-y
 cd /project-feature-y
-grit issue list --label sprint-1 --json
+grite issue list --label sprint-1 --json
 # Agent picks different issue, starts working...
 
 # Both agents share the same issue state
@@ -77,13 +77,13 @@ When multiple agents work simultaneously, use locks to prevent conflicts:
 ```bash
 # Agent A acquires lock before modifying issue
 cd /project-feature-x
-grit lock acquire --resource issue:abc123 --ttl 15m
-grit issue update abc123 --title "Updated title"
-grit lock release --resource issue:abc123
+grite lock acquire --resource issue:abc123 --ttl 15m
+grite issue update abc123 --title "Updated title"
+grite lock release --resource issue:abc123
 
 # Agent B sees the lock
 cd /project-feature-y
-grit lock status  # Shows Agent A's lock
+grite lock status  # Shows Agent A's lock
 ```
 
 ## Context Indexing in Worktrees
@@ -93,11 +93,11 @@ The context store indexes files from the current working directory:
 ```bash
 # Index files in the main repo
 cd /project
-grit context index
+grite context index
 
 # Index files in the worktree (may have different files on feature branch)
 cd /project-feature
-grit context index  # Indexes worktree's files
+grite context index  # Indexes worktree's files
 ```
 
 Since context uses LWW (last-writer-wins), the most recently indexed version wins. If you want branch-specific context, consider:
@@ -108,12 +108,12 @@ Since context uses LWW (last-writer-wins), the most recently indexed version win
 
 ## Comparison with Beads
 
-Both Grit and Beads support git worktrees with a shared database architecture:
+Both Grite and Beads support git worktrees with a shared database architecture:
 
-| Aspect | Grit | Beads |
+| Aspect | Grite | Beads |
 |--------|------|-------|
 | Daemon in worktrees | Works normally | Auto-disabled (uses `--no-daemon`) |
-| Database location | Main repo's `.git/grit/` | Main repo's `.beads/` |
+| Database location | Main repo's `.git/grite/` | Main repo's `.beads/` |
 | Detection | Automatic via `commondir()` | Automatic via worktree resolution |
 | Sync branch | N/A (uses refs) | Creates internal worktrees in `.git/beads-worktrees/` |
 
@@ -121,7 +121,7 @@ Both Grit and Beads support git worktrees with a shared database architecture:
 
 ### "Not a git repository" Error
 
-If grit fails to detect the repository from a worktree:
+If grite fails to detect the repository from a worktree:
 
 1. Verify the `.git` file exists and contains a valid `gitdir:` path
 2. Check that the main repository's `.git` directory is accessible
@@ -132,15 +132,15 @@ If grit fails to detect the repository from a worktree:
 If you get "database busy" errors across worktrees:
 
 1. Ensure only one daemon is running per repository
-2. Use `grit --no-daemon` for direct access
-3. Check for stale lock files with `grit daemon status`
+2. Use `grite --no-daemon` for direct access
+3. Check for stale lock files with `grite daemon status`
 
 ### Context Store Conflicts
 
 If context seems outdated:
 
-1. Re-run `grit context index` in your current worktree
-2. Use `grit context index --force` to override cached hashes
+1. Re-run `grite context index` in your current worktree
+2. Use `grite context index --force` to override cached hashes
 3. Remember that context uses LWW — the latest index wins
 
 ## Best Practices

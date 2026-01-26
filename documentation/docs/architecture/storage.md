@@ -1,19 +1,19 @@
 # Storage Layout
 
-This document describes grit's storage organization on disk.
+This document describes grite's storage organization on disk.
 
 ## Overview
 
-Grit stores data in two locations:
+Grite stores data in two locations:
 
-1. **Git refs**: Source of truth (`refs/grit/*`)
-2. **Local files**: Materialized view and config (`.git/grit/`)
+1. **Git refs**: Source of truth (`refs/grite/*`)
+2. **Local files**: Materialized view and config (`.git/grite/`)
 
 ## Directory Structure
 
 ```
 .git/
-├── grit/
+├── grite/
 │   ├── config.toml                    # Repository configuration
 │   └── actors/
 │       └── <actor_id>/
@@ -25,7 +25,7 @@ Grit stores data in two locations:
 │               └── signing.key        # Ed25519 private key (optional)
 │
 └── refs/
-    └── grit/
+    └── grite/
         ├── wal                        # Append-only event log
         ├── snapshots/
         │   └── <timestamp>            # Periodic snapshots
@@ -35,7 +35,7 @@ Grit stores data in two locations:
 
 ## Repository Files
 
-### .git/grit/config.toml
+### .git/grite/config.toml
 
 Repository-wide configuration.
 
@@ -57,7 +57,7 @@ max_age_days = 7
 
 ## Actor Files
 
-Each actor has an isolated directory under `.git/grit/actors/<actor_id>/`.
+Each actor has an isolated directory under `.git/grite/actors/<actor_id>/`.
 
 ### config.toml
 
@@ -113,7 +113,7 @@ JSON file indicating daemon ownership.
   "repo_root": "/path/to/repo",
   "actor_id": "64d15a2c383e2161772f9cea23e87222",
   "host_id": "my-laptop",
-  "ipc_endpoint": "ipc:///tmp/grit-daemon.sock",
+  "ipc_endpoint": "ipc:///tmp/grite-daemon.sock",
   "lease_ms": 30000,
   "last_heartbeat_ts": 1700000000000,
   "expires_ts": 1700000030000
@@ -141,20 +141,20 @@ Ed25519 private key for event signing.
 
 ## Git Refs
 
-### refs/grit/wal
+### refs/grite/wal
 
 The append-only event log. See [Git WAL](git-wal.md) for format details.
 
-### refs/grit/snapshots/<timestamp>
+### refs/grite/snapshots/<timestamp>
 
 Point-in-time snapshots for fast rebuilds.
 
 - Timestamp is Unix milliseconds
 - Contains consolidated events up to that point
 - Multiple snapshots may exist
-- Old snapshots removed by `grit snapshot gc`
+- Old snapshots removed by `grite snapshot gc`
 
-### refs/grit/locks/<resource_hash>
+### refs/grite/locks/<resource_hash>
 
 Distributed lease locks.
 
@@ -198,10 +198,10 @@ The sled database uses these key patterns:
 
 ```bash
 # Check sled database size
-grit db stats --json | jq '.data.size_bytes'
+grite db stats --json | jq '.data.size_bytes'
 
 # Check git ref sizes
-git for-each-ref --format='%(refname) %(objectsize)' refs/grit/
+git for-each-ref --format='%(refname) %(objectsize)' refs/grite/
 ```
 
 ## Cleanup
@@ -211,7 +211,7 @@ git for-each-ref --format='%(refname) %(objectsize)' refs/grit/
 Recompute materialized view from events:
 
 ```bash
-grit rebuild
+grite rebuild
 ```
 
 ### Delete and Rebuild
@@ -219,8 +219,8 @@ grit rebuild
 For a fresh start:
 
 ```bash
-rm -rf .git/grit/actors/<actor_id>/sled
-grit rebuild
+rm -rf .git/grite/actors/<actor_id>/sled
+grite rebuild
 ```
 
 ### Garbage Collection
@@ -228,13 +228,13 @@ grit rebuild
 Remove old snapshots:
 
 ```bash
-grit snapshot gc
+grite snapshot gc
 ```
 
 Clean expired locks:
 
 ```bash
-grit lock gc
+grite lock gc
 ```
 
 ## Multi-Actor Scenarios
@@ -242,7 +242,7 @@ grit lock gc
 Each actor has isolated storage:
 
 ```
-.git/grit/actors/
+.git/grite/actors/
 ├── actor-a/
 │   ├── config.toml
 │   ├── sled/
@@ -263,7 +263,7 @@ Each actor has isolated storage:
 
 ### What to Backup
 
-- **Always**: Git refs (`refs/grit/*`) - contains all state
+- **Always**: Git refs (`refs/grite/*`) - contains all state
 - **Optional**: Actor configs - can be recreated
 - **Skip**: sled databases - can be rebuilt
 
@@ -271,10 +271,10 @@ Each actor has isolated storage:
 
 ```bash
 # Backup WAL (git refs are included in normal git backup)
-git push backup refs/grit/*:refs/grit/*
+git push backup refs/grite/*:refs/grite/*
 
 # Export for external backup
-grit export --format json
+grite export --format json
 ```
 
 ## Security Considerations
@@ -292,7 +292,7 @@ grit export --format json
 
 ```bash
 # Signing key should be owner-only
-chmod 600 .git/grit/actors/*/keys/signing.key
+chmod 600 .git/grite/actors/*/keys/signing.key
 ```
 
 ## Next Steps

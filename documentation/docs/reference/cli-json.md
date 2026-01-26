@@ -1,6 +1,6 @@
 # JSON Output
 
-This document defines the JSON output schemas returned by `grit` when `--json` is provided.
+This document defines the JSON output schemas returned by `grite` when `--json` is provided.
 
 ## Response Envelope
 
@@ -113,27 +113,27 @@ All IDs are lowercase hex without `0x`:
 
 The `data` payload for each command:
 
-### grit init
+### grite init
 
 ```json
 {
   "actor_id": "64d15a2c383e2161772f9cea23e87222",
-  "data_dir": ".git/grit/actors/64d15a2c.../",
-  "repo_config": ".git/grit/config.toml"
+  "data_dir": ".git/grite/actors/64d15a2c.../",
+  "repo_config": ".git/grite/config.toml"
 }
 ```
 
-### grit actor init
+### grite actor init
 
 ```json
 {
   "actor_id": "64d15a2c383e2161772f9cea23e87222",
   "label": "work-laptop",
-  "data_dir": ".git/grit/actors/64d15a2c.../"
+  "data_dir": ".git/grite/actors/64d15a2c.../"
 }
 ```
 
-### grit actor list
+### grite actor list
 
 ```json
 {
@@ -141,13 +141,13 @@ The `data` payload for each command:
     {
       "actor_id": "64d15a2c383e2161772f9cea23e87222",
       "label": "work-laptop",
-      "data_dir": ".git/grit/actors/64d15a2c.../"
+      "data_dir": ".git/grite/actors/64d15a2c.../"
     }
   ]
 }
 ```
 
-### grit actor show
+### grite actor show
 
 ```json
 {
@@ -159,28 +159,28 @@ The `data` payload for each command:
 }
 ```
 
-### grit actor current
+### grite actor current
 
 ```json
 {
   "actor_id": "64d15a2c383e2161772f9cea23e87222",
-  "data_dir": ".git/grit/actors/64d15a2c.../",
+  "data_dir": ".git/grite/actors/64d15a2c.../",
   "source": "repo_default"
 }
 ```
 
 Source values: `repo_default`, `env`, `flag`, `auto`
 
-### grit actor use
+### grite actor use
 
 ```json
 {
   "default_actor": "64d15a2c383e2161772f9cea23e87222",
-  "repo_config": ".git/grit/config.toml"
+  "repo_config": ".git/grite/config.toml"
 }
 ```
 
-### grit issue create
+### grite issue create
 
 ```json
 {
@@ -190,7 +190,7 @@ Source values: `repo_default`, `env`, `flag`, `auto`
 }
 ```
 
-### grit issue update
+### grite issue update
 
 ```json
 {
@@ -200,7 +200,7 @@ Source values: `repo_default`, `env`, `flag`, `auto`
 }
 ```
 
-### grit issue comment
+### grite issue comment
 
 ```json
 {
@@ -210,7 +210,7 @@ Source values: `repo_default`, `env`, `flag`, `auto`
 }
 ```
 
-### grit issue close
+### grite issue close
 
 ```json
 {
@@ -221,7 +221,7 @@ Source values: `repo_default`, `env`, `flag`, `auto`
 }
 ```
 
-### grit issue reopen
+### grite issue reopen
 
 ```json
 {
@@ -232,7 +232,7 @@ Source values: `repo_default`, `env`, `flag`, `auto`
 }
 ```
 
-### grit issue label add/remove
+### grite issue label add/remove
 
 ```json
 {
@@ -242,7 +242,7 @@ Source values: `repo_default`, `env`, `flag`, `auto`
 }
 ```
 
-### grit issue assignee add/remove
+### grite issue assignee add/remove
 
 ```json
 {
@@ -252,7 +252,7 @@ Source values: `repo_default`, `env`, `flag`, `auto`
 }
 ```
 
-### grit issue link add
+### grite issue link add
 
 ```json
 {
@@ -262,7 +262,7 @@ Source values: `repo_default`, `env`, `flag`, `auto`
 }
 ```
 
-### grit issue attachment add
+### grite issue attachment add
 
 ```json
 {
@@ -272,7 +272,7 @@ Source values: `repo_default`, `env`, `flag`, `auto`
 }
 ```
 
-### grit issue dep add
+### grite issue dep add
 
 ```json
 {
@@ -284,7 +284,7 @@ Source values: `repo_default`, `env`, `flag`, `auto`
 }
 ```
 
-### grit issue dep remove
+### grite issue dep remove
 
 ```json
 {
@@ -296,7 +296,7 @@ Source values: `repo_default`, `env`, `flag`, `auto`
 }
 ```
 
-### grit issue dep list
+### grite issue dep list
 
 ```json
 {
@@ -312,7 +312,7 @@ Source values: `repo_default`, `env`, `flag`, `auto`
 }
 ```
 
-### grit issue dep topo
+### grite issue dep topo
 
 ```json
 {
@@ -328,7 +328,7 @@ Source values: `repo_default`, `env`, `flag`, `auto`
 }
 ```
 
-### grit issue list
+### grite issue list
 
 ```json
 {
@@ -347,7 +347,7 @@ Source values: `repo_default`, `env`, `flag`, `auto`
 }
 ```
 
-### grit issue show
+### grite issue show
 
 ```json
 {
@@ -373,7 +373,7 @@ Source values: `repo_default`, `env`, `flag`, `auto`
 }
 ```
 
-### grit sync
+### grite sync
 
 ```json
 {
@@ -384,7 +384,7 @@ Source values: `repo_default`, `env`, `flag`, `auto`
 }
 ```
 
-### grit doctor
+### grite doctor
 
 ```json
 {
@@ -402,21 +402,21 @@ Source values: `repo_default`, `env`, `flag`, `auto`
 
 Status values: `ok`, `warn`, `error`
 
-### grit rebuild
+### grite rebuild
 
 ```json
 {
   "wal_head": "abc123...",
   "event_count": 1234,
-  "from_snapshot": "refs/grit/snapshots/1700000000000"
+  "from_snapshot": "refs/grite/snapshots/1700000000000"
 }
 ```
 
-### grit db stats
+### grite db stats
 
 ```json
 {
-  "path": ".git/grit/actors/.../sled",
+  "path": ".git/grite/actors/.../sled",
   "size_bytes": 1234567,
   "event_count": 1234,
   "issue_count": 12,
@@ -427,7 +427,7 @@ Status values: `ok`, `warn`, `error`
 }
 ```
 
-### grit db check
+### grite db check
 
 ```json
 {
@@ -438,7 +438,7 @@ Status values: `ok`, `warn`, `error`
 }
 ```
 
-### grit db verify
+### grite db verify
 
 ```json
 {
@@ -450,36 +450,36 @@ Status values: `ok`, `warn`, `error`
 }
 ```
 
-### grit export
+### grite export
 
 ```json
 {
   "format": "json",
-  "output_path": ".grit/export.json",
+  "output_path": ".grite/export.json",
   "wal_head": "abc123...",
   "event_count": 1234
 }
 ```
 
-### grit snapshot
+### grite snapshot
 
 ```json
 {
-  "snapshot_ref": "refs/grit/snapshots/1700000000000",
+  "snapshot_ref": "refs/grite/snapshots/1700000000000",
   "wal_head": "abc123...",
   "event_count": 1234
 }
 ```
 
-### grit snapshot gc
+### grite snapshot gc
 
 ```json
 {
-  "deleted": ["refs/grit/snapshots/1690000000000"]
+  "deleted": ["refs/grite/snapshots/1690000000000"]
 }
 ```
 
-### grit lock acquire/renew/release
+### grite lock acquire/renew/release
 
 ```json
 {
@@ -492,7 +492,7 @@ Status values: `ok`, `warn`, `error`
 }
 ```
 
-### grit lock status
+### grite lock status
 
 ```json
 {
@@ -507,7 +507,7 @@ Status values: `ok`, `warn`, `error`
 }
 ```
 
-### grit lock gc
+### grite lock gc
 
 ```json
 {
@@ -515,26 +515,26 @@ Status values: `ok`, `warn`, `error`
 }
 ```
 
-### grit daemon status
+### grite daemon status
 
 ```json
 {
   "daemon": {
     "running": true,
     "pid": 12345,
-    "endpoint": "ipc:///tmp/grit-daemon.sock",
+    "endpoint": "ipc:///tmp/grite-daemon.sock",
     "workers": [
       {
         "repo_root": "/path/to/repo",
         "actor_id": "64d15a2c...",
-        "data_dir": ".git/grit/actors/64d15a2c.../"
+        "data_dir": ".git/grite/actors/64d15a2c.../"
       }
     ]
   }
 }
 ```
 
-### grit daemon stop
+### grite daemon stop
 
 ```json
 {
@@ -546,7 +546,7 @@ Status values: `ok`, `warn`, `error`
 
 ## Context Commands
 
-### grit context index
+### grite context index
 
 ```json
 {
@@ -556,7 +556,7 @@ Status values: `ok`, `warn`, `error`
 }
 ```
 
-### grit context query
+### grite context query
 
 ```json
 {
@@ -571,7 +571,7 @@ Status values: `ok`, `warn`, `error`
 }
 ```
 
-### grit context show
+### grite context show
 
 ```json
 {
@@ -591,7 +591,7 @@ Status values: `ok`, `warn`, `error`
 }
 ```
 
-### grit context project
+### grite context project
 
 Without key (list all):
 
@@ -613,7 +613,7 @@ With key:
 }
 ```
 
-### grit context set
+### grite context set
 
 ```json
 {

@@ -28,11 +28,11 @@ We take security vulnerabilities seriously. If you discover a security issue, pl
 
 ## Security Considerations
 
-Grit stores data in git refs and a local sled database. When using Grit, consider:
+Grite stores data in git refs and a local sled database. When using Grite, consider:
 
 ### Git Repository Access
 
-Anyone with read access to the git repository can read the Grit event log. This includes:
+Anyone with read access to the git repository can read the Grite event log. This includes:
 
 - Issue titles and bodies
 - Comments
@@ -46,7 +46,7 @@ Anyone with read access to the git repository can read the Grit event log. This 
 Enable signing for event authenticity verification:
 
 ```bash
-grit actor init --generate-key
+grite actor init --generate-key
 ```
 
 This creates:
@@ -57,7 +57,7 @@ This creates:
 
 ### Local Database
 
-The sled database is stored in `.git/grit/actors/<id>/sled/` and contains:
+The sled database is stored in `.git/grite/actors/<id>/sled/` and contains:
 
 - Materialized views of all events
 - Indexed issue data
@@ -68,7 +68,7 @@ The sled database is stored in `.git/grit/actors/<id>/sled/` and contains:
 
 The daemon uses local IPC sockets for communication:
 
-- Socket at `ipc:///tmp/grit-daemon.sock`
+- Socket at `ipc:///tmp/grite-daemon.sock`
 - Local machine only
 - No network exposure
 
@@ -77,7 +77,7 @@ The daemon uses local IPC sockets for communication:
 Private signing keys are stored at:
 
 ```
-.git/grit/actors/<actor_id>/keys/signing.key
+.git/grite/actors/<actor_id>/keys/signing.key
 ```
 
 **Important:**
@@ -86,7 +86,7 @@ Private signing keys are stored at:
 - Never share signing keys
 - Set appropriate file permissions:
   ```bash
-  chmod 600 .git/grit/actors/*/keys/signing.key
+  chmod 600 .git/grite/actors/*/keys/signing.key
   ```
 
 ## Security Best Practices
@@ -96,13 +96,13 @@ Private signing keys are stored at:
 For sensitive workflows, enable event signing:
 
 ```bash
-grit actor init --label "secure-actor" --generate-key
+grite actor init --label "secure-actor" --generate-key
 ```
 
 Verify signatures:
 
 ```bash
-grit db verify --verbose --json
+grite db verify --verbose --json
 ```
 
 ### 2. Protect Repository Access
@@ -122,7 +122,7 @@ grit db verify --verbose --json
 Periodically review the event log for unexpected entries:
 
 ```bash
-grit issue list --json | jq '.data.issues[] | {title, actor: .events[0].actor}'
+grite issue list --json | jq '.data.issues[] | {title, actor: .events[0].actor}'
 ```
 
 ### 5. Use Lock Policies
@@ -130,7 +130,7 @@ grit issue list --json | jq '.data.issues[] | {title, actor: .events[0].actor}'
 For critical operations, enable lock requirements:
 
 ```toml
-# .git/grit/config.toml
+# .git/grite/config.toml
 lock_policy = "require"
 ```
 
@@ -139,8 +139,8 @@ lock_policy = "require"
 Use separate actors for sensitive work:
 
 ```bash
-grit actor init --label "security-audit" --generate-key
-grit actor use <security-actor-id>
+grite actor init --label "security-audit" --generate-key
+grite actor use <security-actor-id>
 ```
 
 ## Security Features

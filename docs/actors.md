@@ -1,28 +1,28 @@
 # Actors
 
-Actors identify who authored an event and provide per-agent local state isolation. Each actor has its own data directory under `.git/grit/actors/<actor_id>/`.
+Actors identify who authored an event and provide per-agent local state isolation. Each actor has its own data directory under `.git/grite/actors/<actor_id>/`.
 
 ## Actor lifecycle
 
-- Created during `grit init` (default actor; also sets repo default)
-- Additional actors created via `grit actor init`
-- Metadata stored in `.git/grit/actors/<actor_id>/config.toml`
+- Created during `grite init` (default actor; also sets repo default)
+- Additional actors created via `grite actor init`
+- Metadata stored in `.git/grite/actors/<actor_id>/config.toml`
 
 ## Actor commands
 
-- `grit actor init [--label <name>]`
-- `grit actor list [--json]`
-- `grit actor show [<id>] [--json]`
-- `grit actor current [--json]`
-- `grit actor use <id>` (sets repo default in `.git/grit/config.toml`)
+- `grite actor init [--label <name>]`
+- `grite actor list [--json]`
+- `grite actor show [<id>] [--json]`
+- `grite actor current [--json]`
+- `grite actor use <id>` (sets repo default in `.git/grite/config.toml`)
 
 ## Actor selection order
 
 Actor context for a command is resolved in this order:
 
 1. `--data-dir` or `GRIT_HOME`
-2. `--actor <id>` (resolves to `.git/grit/actors/<id>/`)
-3. Repo default in `.git/grit/config.toml`
+2. `--actor <id>` (resolves to `.git/grite/actors/<id>/`)
+3. Repo default in `.git/grite/config.toml`
 4. Auto-init a new actor if none exists
 
 ## Shared repo guidance

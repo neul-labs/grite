@@ -1,6 +1,6 @@
 # Use Cases
 
-Grit serves different audiences with distinct workflows. This section provides detailed use cases and practical examples for each.
+Grite serves different audiences with distinct workflows. This section provides detailed use cases and practical examples for each.
 
 ## Audiences
 
@@ -12,7 +12,7 @@ Grit serves different audiences with distinct workflows. This section provides d
 | [Security & Compliance](security.md) | Private vulnerability tracking, incident response, audit trails |
 | [DevOps & Releases](devops.md) | CI/CD integration, release checklists, deployment tracking |
 
-## Why Grit?
+## Why Grite?
 
 ### For All Audiences
 
@@ -32,7 +32,7 @@ Grit serves different audiences with distinct workflows. This section provides d
 
 - **Private tracking**: Personal task lists and tech debt
 - **Offline work**: Create issues on planes, sync later
-- **Lightweight**: No accounts, no setup, just `grit init`
+- **Lightweight**: No accounts, no setup, just `grite init`
 
 ### For Teams
 
@@ -52,60 +52,60 @@ Grit serves different audiences with distinct workflows. This section provides d
 
 ```bash
 # Decompose task into subtasks
-grit issue create --title "Implement auth" --label "epic"
-grit issue create --title "Create user schema" --label "subtask"
-grit issue create --title "Implement login endpoint" --label "subtask"
+grite issue create --title "Implement auth" --label "epic"
+grite issue create --title "Create user schema" --label "subtask"
+grite issue create --title "Implement login endpoint" --label "subtask"
 
 # Claim a task
-grit lock acquire --resource "issue:$ID" --ttl 30m
+grite lock acquire --resource "issue:$ID" --ttl 30m
 
 # Work and report progress
-grit issue comment $ID --body "Started implementation"
+grite issue comment $ID --body "Started implementation"
 ```
 
 ### Developer Private List
 
 ```bash
 # Track personal tech debt
-grit issue create --title "Refactor API layer" --label "tech-debt"
-grit issue create --title "Add missing tests" --label "tech-debt"
+grite issue create --title "Refactor API layer" --label "tech-debt"
+grite issue create --title "Add missing tests" --label "tech-debt"
 
 # Review your list
-grit issue list --label "tech-debt"
+grite issue list --label "tech-debt"
 ```
 
 ### Team Coordination
 
 ```bash
 # Create release checklist
-grit issue create --title "Release v2.0.0" --label "release"
-grit sync --push
+grite issue create --title "Release v2.0.0" --label "release"
+grite sync --push
 
 # Team member pulls and contributes
-grit sync --pull
-grit issue comment $ID --body "Tests passing"
-grit sync --push
+grite sync --pull
+grite issue comment $ID --body "Tests passing"
+grite sync --push
 ```
 
 ### Security Tracking
 
 ```bash
 # Private vulnerability
-grit issue create --title "[SECURITY] SQL injection" --label "security"
+grite issue create --title "[SECURITY] SQL injection" --label "security"
 
 # Track remediation
-grit issue comment $ID --body "Fixed in commit abc123"
-grit issue close $ID
+grite issue comment $ID --body "Fixed in commit abc123"
+grite issue close $ID
 ```
 
 ### DevOps Checklist
 
 ```bash
 # Deployment checklist
-grit issue create --title "Deploy to prod" --label "deploy"
+grite issue create --title "Deploy to prod" --label "deploy"
 
 # CI creates status issue
-grit issue create --title "Build #1234 failed" --label "ci-failure"
+grite issue create --title "Build #1234 failed" --label "ci-failure"
 ```
 
 ## Choose Your Path

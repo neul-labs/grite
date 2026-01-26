@@ -6,7 +6,7 @@ const path = require('path');
 const { execSync } = require('child_process');
 const os = require('os');
 
-const REPO = 'neul-labs/grit';
+const REPO = 'neul-labs/grite';
 const pkg = require('./package.json');
 const VERSION = pkg.version;
 
@@ -83,14 +83,14 @@ async function install() {
   try {
     const platform = getPlatform();
     const ext = getArchiveExt();
-    const archiveName = `grit-${VERSION}-${platform}.${ext}`;
+    const archiveName = `grite-${VERSION}-${platform}.${ext}`;
     const url = `https://github.com/${REPO}/releases/download/v${VERSION}/${archiveName}`;
 
-    console.log(`Downloading grit v${VERSION} for ${platform}...`);
+    console.log(`Downloading grite v${VERSION} for ${platform}...`);
 
     const data = await download(url);
 
-    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'grit-'));
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'grite-'));
     const archivePath = path.join(tempDir, archiveName);
 
     fs.writeFileSync(archivePath, data);
@@ -98,7 +98,7 @@ async function install() {
     await extract(archivePath, tempDir);
 
     // Find extracted directory
-    const extractedDir = fs.readdirSync(tempDir).find(f => f.startsWith('grit-') && fs.statSync(path.join(tempDir, f)).isDirectory());
+    const extractedDir = fs.readdirSync(tempDir).find(f => f.startsWith('grite-') && fs.statSync(path.join(tempDir, f)).isDirectory());
 
     if (!extractedDir) {
       throw new Error('Could not find extracted directory');
@@ -116,27 +116,27 @@ async function install() {
     const isWindows = os.platform() === 'win32';
     const binExt = isWindows ? '.exe' : '';
 
-    const gritSrc = path.join(srcDir, `grit${binExt}`);
-    const grit-daemonSrc = path.join(srcDir, `grit-daemon${binExt}`);
-    const gritDest = path.join(binDir, `grit${binExt}`);
-    const grit-daemonDest = path.join(binDir, `grit-daemon${binExt}`);
+    const griteSrc = path.join(srcDir, `grite${binExt}`);
+    const griteDaemonSrc = path.join(srcDir, `grite-daemon${binExt}`);
+    const griteDest = path.join(binDir, `grite${binExt}`);
+    const griteDaemonDest = path.join(binDir, `grite-daemon${binExt}`);
 
-    fs.copyFileSync(gritSrc, gritDest);
-    fs.copyFileSync(grit-daemonSrc, grit-daemonDest);
+    fs.copyFileSync(griteSrc, griteDest);
+    fs.copyFileSync(griteDaemonSrc, griteDaemonDest);
 
     // Make executable on Unix
     if (!isWindows) {
-      fs.chmodSync(gritDest, 0o755);
-      fs.chmodSync(grit-daemonDest, 0o755);
+      fs.chmodSync(griteDest, 0o755);
+      fs.chmodSync(griteDaemonDest, 0o755);
     }
 
     // Cleanup
     fs.rmSync(tempDir, { recursive: true, force: true });
 
-    console.log('Successfully installed grit');
+    console.log('Successfully installed grite');
   } catch (error) {
     console.error('Installation failed:', error.message);
-    console.error('You can install manually from: https://github.com/neul-labs/grit/releases');
+    console.error('You can install manually from: https://github.com/neul-labs/grite/releases');
     process.exit(1);
   }
 }

@@ -4,7 +4,7 @@ Exports are generated snapshots of the current materialized view and are never c
 
 ## Output location
 
-- Default: `.grit/`
+- Default: `.grite/`
 - Configurable via CLI in the future
 
 ## JSON schema (v1)
@@ -52,7 +52,7 @@ Markdown exports are human-readable summaries and follow the same ordering rules
 
 ## Incremental exports (`--since`)
 
-`grit export --since <ts|event_id>` limits output to changes after a point-in-time.
+`grite export --since <ts|event_id>` limits output to changes after a point-in-time.
 
 - If `--since` is a timestamp: include events with `ts_unix_ms` **greater than** the timestamp.
 - If `--since` is an event ID: include events **after** that event in `(issue_id, ts_unix_ms, actor, event_id)` order.

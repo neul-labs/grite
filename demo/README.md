@@ -5,7 +5,7 @@ This demo shows how Grit provides persistent memory for AI coding agents like Cl
 ## Quick Start
 
 ```bash
-# Build grit first (if not already built)
+# Build grite first (if not already built)
 cargo build
 
 # Run the interactive demo
@@ -18,17 +18,17 @@ cargo build
 ## What the Demo Shows
 
 ### 1. Project Setup
-- Creates a sample Python CLI project in `/tmp/grit-demo`
-- Initializes git and grit
-- Shows how `grit init` automatically creates `AGENTS.md`
+- Creates a sample Python CLI project in `/tmp/grite-demo`
+- Initializes git and grite
+- Shows how `grite init` automatically creates `AGENTS.md`
 
 ### 2. Agent Discovery via AGENTS.md
 - `AGENTS.md` is the convention that AI coding agents read
-- Contains instructions for using grit as the task/memory system
+- Contains instructions for using grite as the task/memory system
 - Claude Code reads this automatically when entering the repo
 
 ### 3. Task Creation
-- Shows creating issues with `grit issue create`
+- Shows creating issues with `grite issue create`
 - Uses `--label agent:todo` for agent-specific tasks
 - JSON output for machine consumption
 
@@ -40,17 +40,17 @@ cargo build
 ### 5. Memory Persistence
 - Store learnings with `--label memory`
 - Memories survive across sessions
-- Query memories with `grit issue list --label memory`
+- Query memories with `grite issue list --label memory`
 
 ### 6. Session Resume
 - New sessions run startup routine from AGENTS.md
-- `grit sync --pull` retrieves latest state
-- `grit issue list` shows open tasks and memories
+- `grite sync --pull` retrieves latest state
+- `grite issue list` shows open tasks and memories
 
 ### 7. Health Checks
-- `grit doctor` checks database health
+- `grite doctor` checks database health
 - Shows git repo, WAL ref, actor config, store integrity, rebuild threshold
-- `grit doctor --fix` auto-repairs issues
+- `grite doctor --fix` auto-repairs issues
 
 ## Demo Modes
 
@@ -64,30 +64,30 @@ cargo build
 Try using Claude Code with the demo project:
 
 ```bash
-cd /tmp/grit-demo
+cd /tmp/grite-demo
 claude
 ```
 
 Claude Code will:
 1. Read `AGENTS.md` automatically
 2. Run the startup routine (sync, list tasks)
-3. Use grit for any new tasks you assign
+3. Use grite for any new tasks you assign
 4. Store memories about the codebase
 
 ## Requirements
 
-- `jq` - JSON processor (for parsing grit output)
-- `grit` - Built from this repository
+- `jq` - JSON processor (for parsing grite output)
+- `grite` - Built from this repository
 
 ## Environment Variables
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `GRIT_BIN` | `./target/debug/grit` | Path to grit binary |
+| `GRIT_BIN` | `./target/debug/grite` | Path to grite binary |
 
 ## Troubleshooting
 
-**"grit binary not found"**
+**"grite binary not found"**
 ```bash
 cargo build
 ```

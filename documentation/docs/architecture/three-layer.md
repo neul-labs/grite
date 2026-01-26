@@ -1,13 +1,13 @@
 # Three-Layer Design
 
-Grit uses a three-layer architecture that separates the source of truth from the query layer and user interface.
+Grite uses a three-layer architecture that separates the source of truth from the query layer and user interface.
 
 ## Overview
 
 ```
 +------------------+     +-------------------+     +------------------+
 |   Git WAL        | --> | Materialized View | <-- | CLI / Daemon     |
-| refs/grit/wal    |     | sled database     |     | grit / grit-daemon     |
+| refs/grite/wal    |     | sled database     |     | grite / grite-daemon     |
 | (source of truth)|     | (fast queries)    |     | (user interface) |
 +------------------+     +-------------------+     +------------------+
 ```
@@ -19,7 +19,7 @@ The Write-Ahead Log (WAL) is the authoritative source of all state.
 ### Location
 
 ```
-refs/grit/wal
+refs/grite/wal
 ```
 
 ### Characteristics
@@ -34,7 +34,7 @@ refs/grit/wal
 Events are stored in CBOR-encoded chunks within git blobs:
 
 ```
-refs/grit/wal
+refs/grite/wal
   └── points to commit
         └── tree with blob chunks
               └── CBOR-encoded events
@@ -55,7 +55,7 @@ The materialized view is a local cache for fast queries.
 ### Location
 
 ```
-.git/grit/actors/<actor_id>/sled/
+.git/grite/actors/<actor_id>/sled/
 ```
 
 ### Characteristics
@@ -87,15 +87,15 @@ Uses [sled](https://sled.rs/), an embedded MVCC database:
 The materialized view can be rebuilt at any time:
 
 ```bash
-grit rebuild                 # From local events
-grit rebuild --from-snapshot # From snapshot (faster)
+grite rebuild                 # From local events
+grite rebuild --from-snapshot # From snapshot (faster)
 ```
 
 ## Layer 3: CLI / Daemon (User Interface)
 
-The user interface layer provides access to grit functionality.
+The user interface layer provides access to grite functionality.
 
-### CLI (grit)
+### CLI (grite)
 
 The command-line interface:
 
@@ -104,7 +104,7 @@ The command-line interface:
 - JSON output for scripting
 - Auto-spawns daemon when needed
 
-### Daemon (grit-daemon)
+### Daemon (grite-daemon)
 
 Optional background process:
 
@@ -151,7 +151,7 @@ The daemon uses tokio for concurrent task execution. Sled handles internal concu
 ```
 1. CLI starts
 2. Check for daemon.lock
-3. If no lock, spawn grit-daemon in background
+3. If no lock, spawn grite-daemon in background
 4. Wait for daemon to be ready
 5. Route command through IPC
 6. Daemon auto-shuts down after idle timeout
@@ -162,7 +162,7 @@ The daemon uses tokio for concurrent task execution. Sled handles internal concu
 ### Creating an Issue
 
 ```
-1. CLI: grit issue create --title "..."
+1. CLI: grite issue create --title "..."
 2. Create Event struct
 3. Compute event_id (BLAKE2b hash)
 4. Sign event (optional)
@@ -174,7 +174,7 @@ The daemon uses tokio for concurrent task execution. Sled handles internal concu
 ### Listing Issues
 
 ```
-1. CLI: grit issue list
+1. CLI: grite issue list
 2. Query sled issue_state index
 3. Deserialize IssueProjection structs
 4. Filter by state/labels
@@ -184,12 +184,12 @@ The daemon uses tokio for concurrent task execution. Sled handles internal concu
 ### Syncing
 
 ```
-1. CLI: grit sync
-2. git fetch refs/grit/* from remote
+1. CLI: grite sync
+2. git fetch refs/grite/* from remote
 3. Read new WAL entries
 4. Insert events into sled
 5. Rebuild affected projections
-6. git push refs/grit/* to remote
+6. git push refs/grite/* to remote
 7. Handle conflicts via auto-rebase
 ```
 

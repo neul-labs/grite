@@ -1,6 +1,6 @@
 # Guides
 
-This section contains how-to guides for common grit tasks. Each guide focuses on a specific feature and includes practical examples.
+This section contains how-to guides for common grite tasks. Each guide focuses on a specific feature and includes practical examples.
 
 ## Available Guides
 
@@ -35,7 +35,7 @@ Distributed file/symbol index for AI agents:
 
 ### [Git Worktrees](worktrees.md)
 
-Use grit with multiple working directories:
+Use grite with multiple working directories:
 
 - Shared state across all worktrees
 - Multi-agent workflows with parallel development
@@ -88,7 +88,7 @@ Export issues for external use:
 
 ### [Comparison with Alternatives](comparison.md)
 
-How Grit compares with other tools in this space:
+How Grite compares with other tools in this space:
 
 - Beads: Architecture differences, sync reliability, CRDT vs hash IDs
 - git-bug: Git objects, bridges, not agent-optimized
@@ -99,14 +99,14 @@ How Grit compares with other tools in this space:
 
 | Task | Command |
 |------|---------|
-| Create issue | `grit issue create --title "..." --body "..."` |
-| List issues | `grit issue list` |
-| Add dependency | `grit issue dep add <id> --target <id> --type blocks` |
-| Topo order | `grit issue dep topo --state open` |
-| Index files | `grit context index` |
-| Query symbols | `grit context query "SymbolName"` |
-| Sync all | `grit sync` |
-| Create actor | `grit actor init --label "name"` |
-| Acquire lock | `grit lock acquire --resource "..." --ttl 15m` |
-| Start daemon | `grit daemon start` |
-| Export JSON | `grit export --format json` |
+| Create issue | `grite issue create --title "..." --body "..."` |
+| List issues | `grite issue list` |
+| Add dependency | `grite issue dep add <id> --target <id> --type blocks` |
+| Topo order | `grite issue dep topo --state open` |
+| Index files | `grite context index` |
+| Query symbols | `grite context query "SymbolName"` |
+| Sync all | `grite sync` |
+| Create actor | `grite actor init --label "name"` |
+| Acquire lock | `grite lock acquire --resource "..." --ttl 15m` |
+| Start daemon | `grite daemon start` |
+| Export JSON | `grite export --format json` |

@@ -1,20 +1,20 @@
 # Architecture
 
-This section covers the technical architecture of grit.
+This section covers the technical architecture of grite.
 
 ## Overview
 
-Grit is split into three layers:
+Grite is split into three layers:
 
 ```
 +------------------+     +-------------------+     +------------------+
 |   Git WAL        | --> | Materialized View | <-- | CLI / Daemon     |
-| refs/grit/wal    |     | sled database     |     | grit / grit-daemon     |
+| refs/grite/wal    |     | sled database     |     | grite / grite-daemon     |
 | (source of truth)|     | (fast queries)    |     | (user interface) |
 +------------------+     +-------------------+     +------------------+
 ```
 
-1. **[Git-backed WAL](three-layer.md)** - Append-only events in `refs/grit/wal`
+1. **[Git-backed WAL](three-layer.md)** - Append-only events in `refs/grite/wal`
 2. **[Materialized View](three-layer.md#layer-2-materialized-view)** - Fast local queries via sled database
 3. **[Optional Daemon](three-layer.md#layer-3-cli--daemon)** - Performance optimization
 
@@ -22,7 +22,7 @@ Correctness never depends on the daemon; the CLI can always rebuild state from t
 
 ## Key Design Principles
 
-1. **Git is the source of truth** - All state derivable from `refs/grit/*`
+1. **Git is the source of truth** - All state derivable from `refs/grite/*`
 2. **No working tree pollution** - Never writes tracked files
 3. **Daemon optional** - CLI works standalone
 4. **Deterministic merges** - CRDT semantics, no manual conflicts
@@ -73,22 +73,22 @@ File and directory structure:
 ## Crate Structure
 
 ```
-grit/
+grite/
   crates/
-    libgrit-core/     # Core library (no git/IPC deps)
-    libgrit-git/      # Git integration
-    libgrit-ipc/      # IPC protocol
-    grit/             # CLI binary
-    grit-daemon/            # Daemon binary
+    libgrite-core/     # Core library (no git/IPC deps)
+    libgrite-git/      # Git integration
+    libgrite-ipc/      # IPC protocol
+    grite/             # CLI binary
+    grite-daemon/            # Daemon binary
 ```
 
 | Crate | Purpose |
 |-------|---------|
-| `libgrit-core` | Event types, hashing, projections, sled store, signing |
-| `libgrit-git` | WAL commits, ref sync, snapshots, distributed locks |
-| `libgrit-ipc` | IPC message schemas (rkyv), daemon lock, client/server |
-| `grit` | CLI frontend |
-| `grit-daemon` | Optional background daemon |
+| `libgrite-core` | Event types, hashing, projections, sled store, signing |
+| `libgrite-git` | WAL commits, ref sync, snapshots, distributed locks |
+| `libgrite-ipc` | IPC message schemas (rkyv), daemon lock, client/server |
+| `grite` | CLI frontend |
+| `grite-daemon` | Optional background daemon |
 
 ## Data Flow
 
@@ -112,11 +112,11 @@ grit/
 ### Sync Path
 
 ```
-1. git fetch refs/grit/*
+1. git fetch refs/grite/*
 2. New WAL entries read
 3. Events inserted into sled
 4. Projections rebuilt
-5. git push refs/grit/* (if pushing)
+5. git push refs/grite/* (if pushing)
 ```
 
 ## Performance Characteristics

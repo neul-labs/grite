@@ -1,0 +1,27 @@
+[package]
+name = "libgrite-git"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+keywords.workspace = true
+categories.workspace = true
+description = "Git WAL, sync, and snapshot operations for grite"
+readme = "../../README.md"
+
+[dependencies]
+libgrite-core = { path = "../libgrite-core", version = "0.3.0" }
+git2 = { workspace = true }
+blake2 = { workspace = true }
+ciborium = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+hex = { workspace = true }
+chrono = { workspace = true }
+
+[dev-dependencies]
+tempfile = "3.10"

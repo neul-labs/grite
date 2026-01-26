@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2015/06/nuspec.xsd">
+  <metadata>
+    <id>grite</id>
+    <version>0.3.0</version>
+    <title>Grite</title>
+    <authors>Neul Labs</authors>
+    <owners>neul-labs</owners>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <licenseUrl>https://github.com/neul-labs/grite/blob/main/LICENSE-MIT</licenseUrl>
+    <projectUrl>https://github.com/neul-labs/grite</projectUrl>
+    <iconUrl>https://raw.githubusercontent.com/neul-labs/grite/main/assets/icon.png</iconUrl>
+    <description>Git-backed issue tracking for coding agents and humans. Grite is a repo-local, git-backed issue/task system designed for coding agents and humans. It maintains an append-only event log in git refs, builds a fast local materialized view, and never writes tracked state into the working tree.</description>
+    <summary>Git-backed issue tracking for coding agents and humans</summary>
+    <releaseNotes>https://github.com/neul-labs/grite/releases</releaseNotes>
+    <copyright>Copyright 2024 Neul Labs</copyright>
+    <tags>git issue-tracking task-management cli coding-agents developer-tools</tags>
+    <packageSourceUrl>https://github.com/neul-labs/grite/tree/main/packaging/chocolatey</packageSourceUrl>
+    <docsUrl>https://github.com/neul-labs/grite#readme</docsUrl>
+    <bugTrackerUrl>https://github.com/neul-labs/grite/issues</bugTrackerUrl>
+  </metadata>
+  <files>
+    <file src="tools\**" target="tools" />
+  </files>
+</package>

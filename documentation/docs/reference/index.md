@@ -1,6 +1,6 @@
 # Reference
 
-This section contains complete reference documentation for grit.
+This section contains complete reference documentation for grite.
 
 ## Documentation
 
@@ -44,13 +44,13 @@ Environment variable reference:
 
 | Task | Command |
 |------|---------|
-| Initialize | `grit init` |
-| Create issue | `grit issue create --title "..." --body "..."` |
-| List issues | `grit issue list` |
-| Show issue | `grit issue show <id>` |
-| Close issue | `grit issue close <id>` |
-| Sync | `grit sync` |
-| Health check | `grit doctor` |
+| Initialize | `grite init` |
+| Create issue | `grite issue create --title "..." --body "..."` |
+| List issues | `grite issue list` |
+| Show issue | `grite issue show <id>` |
+| Close issue | `grite issue close <id>` |
+| Sync | `grite sync` |
+| Health check | `grite doctor` |
 
 ### Global Flags
 

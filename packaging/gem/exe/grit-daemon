@@ -1,7 +1,0 @@
-#!/usr/bin/env ruby
-# frozen_string_literal: true
-
-require 'grit-cli'
-
-binary = GritCli.binary_path('grit-daemon')
-exec(binary, *ARGV)

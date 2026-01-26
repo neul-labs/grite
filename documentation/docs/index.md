@@ -1,14 +1,14 @@
-# Grit
+# Grite
 
 **A repo-local, git-backed issue/task system for AI coding agents and humans.**
 
-Grit keeps an append-only event log in git refs, builds a fast local materialized view, and never writes tracked state into the working tree. All state syncs via standard `git fetch/push`.
+Grite keeps an append-only event log in git refs, builds a fast local materialized view, and never writes tracked state into the working tree. All state syncs via standard `git fetch/push`.
 
 ## Features
 
 <div class="grid cards" markdown>
 
-- **Git-native storage** - Events stored in `refs/grit/wal`, synced with standard git
+- **Git-native storage** - Events stored in `refs/grite/wal`, synced with standard git
 - **CRDT-based merging** - Deterministic conflict resolution, no manual merge needed
 - **Per-actor isolation** - Each agent/device gets its own actor ID and local database
 - **Optional daemon** - Auto-spawns for performance, not required for correctness
@@ -20,7 +20,7 @@ Grit keeps an append-only event log in git refs, builds a fast local materialize
 ## Quick Install
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/neul-labs/grit/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/neul-labs/grite/main/install.sh | bash
 ```
 
 See [Installation](getting-started/installation.md) for other methods including Homebrew, Cargo, npm, pip, and gem.
@@ -28,23 +28,23 @@ See [Installation](getting-started/installation.md) for other methods including 
 ## Quick Start
 
 ```bash
-# Initialize grit in a git repository
+# Initialize grite in a git repository
 cd your-repo
-grit init
+grite init
 
 # Create an issue
-grit issue create --title "Fix login bug" --body "Users can't login"
+grite issue create --title "Fix login bug" --body "Users can't login"
 
 # List issues
-grit issue list
+grite issue list
 
 # Sync with remote
-grit sync
+grite sync
 ```
 
 See [Quick Start](getting-started/quickstart.md) for a complete walkthrough.
 
-## Who Is Grit For?
+## Who Is Grite For?
 
 | Audience | Primary Use Cases |
 |----------|-------------------|
@@ -56,12 +56,12 @@ See [Quick Start](getting-started/quickstart.md) for a complete walkthrough.
 
 ## Architecture
 
-Grit uses a three-layer architecture:
+Grite uses a three-layer architecture:
 
 ```
 +------------------+     +-------------------+     +------------------+
 |   Git WAL        | --> | Materialized View | <-- | CLI / Daemon     |
-| refs/grit/wal    |     | sled database     |     | grit / grit-daemon     |
+| refs/grite/wal    |     | sled database     |     | grite / grite-daemon     |
 | (source of truth)|     | (fast queries)    |     | (user interface) |
 +------------------+     +-------------------+     +------------------+
 ```
@@ -70,7 +70,7 @@ Learn more in [Architecture](architecture/index.md).
 
 ## Design Principles
 
-1. **Git is the source of truth** - All state derivable from `refs/grit/*`
+1. **Git is the source of truth** - All state derivable from `refs/grite/*`
 2. **No working tree pollution** - Never writes tracked files (except AGENTS.md for agent discoverability)
 3. **Daemon optional** - CLI works standalone, daemon is performance optimization
 4. **Deterministic merges** - CRDT semantics, no manual conflict resolution
@@ -78,7 +78,7 @@ Learn more in [Architecture](architecture/index.md).
 
 ## Next Steps
 
-- [Installation](getting-started/installation.md) - Get grit installed on your system
+- [Installation](getting-started/installation.md) - Get grite installed on your system
 - [Quick Start](getting-started/quickstart.md) - Create your first issue
-- [Core Concepts](getting-started/concepts.md) - Understand how grit works
+- [Core Concepts](getting-started/concepts.md) - Understand how grite works
 - [CLI Reference](reference/cli.md) - Full command documentation

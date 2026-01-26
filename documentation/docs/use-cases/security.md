@@ -1,8 +1,8 @@
 # Security & Compliance
 
-Grit's git-backed storage keeps sensitive data within repository access controls, making it suitable for security-sensitive tracking.
+Grite's git-backed storage keeps sensitive data within repository access controls, making it suitable for security-sensitive tracking.
 
-## Why Grit for Security?
+## Why Grite for Security?
 
 - **Access control**: Issues follow git permissions
 - **Audit trail**: Append-only event log
@@ -15,7 +15,7 @@ Grit's git-backed storage keeps sensitive data within repository access controls
 Track security issues privately before public disclosure:
 
 ```bash
-grit issue create --title "[SECURITY] SQL injection in search endpoint" \
+grite issue create --title "[SECURITY] SQL injection in search endpoint" \
   --body "$(cat <<'EOF'
 ## Severity
 HIGH
@@ -59,7 +59,7 @@ EOF
 Document incident response with timestamps for post-mortems:
 
 ```bash
-grit issue create --title "Incident: Database outage 2024-01-20" \
+grite issue create --title "Incident: Database outage 2024-01-20" \
   --body "$(cat <<'EOF'
 ## Summary
 Production database unavailable for 47 minutes.
@@ -100,7 +100,7 @@ EOF
 Track security review items for each component:
 
 ```bash
-grit issue create --title "Security audit: Authentication module" \
+grite issue create --title "Security audit: Authentication module" \
   --body "$(cat <<'EOF'
 ## OWASP Top 10 Checklist
 
@@ -133,12 +133,12 @@ Create reusable audit templates:
 
 ```bash
 # Web application audit
-grit issue create --title "Security audit: [Component]" \
+grite issue create --title "Security audit: [Component]" \
   --body "$(cat audit-template-web.md)" \
   --label "security-audit"
 
 # API audit
-grit issue create --title "API Security audit: [Service]" \
+grite issue create --title "API Security audit: [Service]" \
   --body "$(cat audit-template-api.md)" \
   --label "security-audit" --label "api"
 ```
@@ -149,11 +149,11 @@ The append-only event log creates an immutable audit trail:
 
 ```bash
 # Verify audit trail integrity
-grit doctor --json | jq '.data.checks[] | select(.id == "store_integrity")'
+grite doctor --json | jq '.data.checks[] | select(.id == "store_integrity")'
 
 # Export audit log for compliance
-grit export --format json
-cp .grit/export.json "audit-$(date +%Y%m%d).json"
+grite export --format json
+cp .grite/export.json "audit-$(date +%Y%m%d).json"
 ```
 
 ### Event Signing
@@ -162,13 +162,13 @@ Enable signatures for authenticity:
 
 ```bash
 # Create actor with signing key
-grit actor init --label "security-team" --generate-key
+grite actor init --label "security-team" --generate-key
 
 # Events are now signed automatically
-grit issue create --title "[SECURITY] ..." --label "security"
+grite issue create --title "[SECURITY] ..." --label "security"
 
 # Verify signatures
-grit db verify --verbose --json
+grite db verify --verbose --json
 ```
 
 ## Compliance Tracking
@@ -176,7 +176,7 @@ grit db verify --verbose --json
 Track compliance requirements:
 
 ```bash
-grit issue create --title "SOC 2 Type II - 2024" \
+grite issue create --title "SOC 2 Type II - 2024" \
   --body "$(cat <<'EOF'
 ## Requirements
 
@@ -211,7 +211,7 @@ EOF
 Track pen test findings:
 
 ```bash
-grit issue create --title "Pentest 2024-Q1: Findings" \
+grite issue create --title "Pentest 2024-Q1: Findings" \
   --body "$(cat <<'EOF'
 ## Summary
 External penetration test by SecureCo, January 2024.
@@ -246,7 +246,7 @@ EOF
 Document incident response procedures:
 
 ```bash
-grit issue create --title "[Runbook] Suspected data breach" \
+grite issue create --title "[Runbook] Suspected data breach" \
   --body "$(cat <<'EOF'
 ## Immediate Actions (First 15 minutes)
 1. [ ] Confirm breach via logs
@@ -300,7 +300,7 @@ Security issues should be in a repo with restricted access:
 Enable event signing for security-critical tracking:
 
 ```bash
-grit actor init --label "security-auditor" --generate-key
+grite actor init --label "security-auditor" --generate-key
 ```
 
 ### Regular Exports
@@ -309,9 +309,9 @@ Create periodic backups of security issues:
 
 ```bash
 # Weekly backup
-grit export --format json
-gpg --encrypt --recipient security@company.com .grit/export.json
-mv .grit/export.json.gpg "backups/security-$(date +%Y%m%d).json.gpg"
+grite export --format json
+gpg --encrypt --recipient security@company.com .grite/export.json
+mv .grite/export.json.gpg "backups/security-$(date +%Y%m%d).json.gpg"
 ```
 
 ### Timely Updates
@@ -319,8 +319,8 @@ mv .grit/export.json.gpg "backups/security-$(date +%Y%m%d).json.gpg"
 Update issues as situations evolve:
 
 ```bash
-grit issue comment $INCIDENT_ID --body "$(date -u +%H:%M) - Update: ..."
-grit sync --push
+grite issue comment $INCIDENT_ID --body "$(date -u +%H:%M) - Update: ..."
+grite sync --push
 ```
 
 ## Next Steps

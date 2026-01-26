@@ -1,19 +1,19 @@
 # Health Checks
 
-The `grit doctor` command performs health checks and provides remediation suggestions.
+The `grite doctor` command performs health checks and provides remediation suggestions.
 
 ## Basic Usage
 
 Run health checks:
 
 ```bash
-grit doctor
+grite doctor
 ```
 
 Output:
 
 ```
-Checking grit health...
+Checking grite health...
 
 [OK] git_repo: Git repository is valid
 [OK] wal_ref: WAL ref exists and is readable
@@ -22,7 +22,7 @@ Checking grit health...
 [WARN] rebuild_threshold: 15000 events since last rebuild (threshold: 10000)
 
 Suggestions:
-  - Run 'grit rebuild' to improve query performance
+  - Run 'grite rebuild' to improve query performance
 ```
 
 ## Auto-Repair
@@ -30,7 +30,7 @@ Suggestions:
 Automatically fix issues:
 
 ```bash
-grit doctor --fix
+grite doctor --fix
 ```
 
 This runs safe local repairs:
@@ -39,7 +39,7 @@ This runs safe local repairs:
 - Does **not** modify git refs
 - Does **not** push to remote
 
-If remote sync is needed, the remediation plan explicitly lists `grit sync --pull` and/or `grit sync --push`.
+If remote sync is needed, the remediation plan explicitly lists `grite sync --pull` and/or `grite sync --push`.
 
 ## Checks Performed
 
@@ -64,14 +64,14 @@ Verifies the current directory is a valid git repository.
 
 ### wal_ref
 
-Checks that `refs/grit/wal` exists and is readable.
+Checks that `refs/grite/wal` exists and is readable.
 
 **Failures:**
 
 - WAL ref doesn't exist
 - WAL commits are corrupted
 
-**Resolution:** Run `grit sync --pull` to fetch from remote, or `grit init` for new repositories.
+**Resolution:** Run `grite sync --pull` to fetch from remote, or `grite init` for new repositories.
 
 ### actor_config
 
@@ -82,7 +82,7 @@ Verifies actor configuration is valid.
 - Actor config file missing
 - Actor config malformed
 
-**Resolution:** Run `grit actor init` to create a new actor.
+**Resolution:** Run `grite actor init` to create a new actor.
 
 ### store_integrity
 
@@ -93,7 +93,7 @@ Verifies event hashes in the database match computed hashes.
 - Hash mismatches indicate corruption
 - Missing events
 
-**Resolution:** `grit doctor --fix` rebuilds the database automatically.
+**Resolution:** `grite doctor --fix` rebuilds the database automatically.
 
 ### rebuild_threshold
 
@@ -107,12 +107,12 @@ Checks if rebuild is recommended based on:
 - Too many events accumulated
 - Too long since last rebuild
 
-**Resolution:** Run `grit rebuild` for better performance.
+**Resolution:** Run `grite rebuild` for better performance.
 
 ## JSON Output
 
 ```bash
-grit doctor --json
+grite doctor --json
 ```
 
 ```json
@@ -143,7 +143,7 @@ grit doctor --json
         "id": "rebuild_threshold",
         "status": "warn",
         "message": "15000 events since last rebuild",
-        "plan": ["grit rebuild"]
+        "plan": ["grite rebuild"]
       }
     ],
     "applied": []
@@ -164,7 +164,7 @@ grit doctor --json
 For deeper integrity verification:
 
 ```bash
-grit db check --json
+grite db check --json
 ```
 
 ```json
@@ -185,7 +185,7 @@ grit db check --json
 If events are signed:
 
 ```bash
-grit db verify --verbose --json
+grite db verify --verbose --json
 ```
 
 ```json
@@ -207,11 +207,11 @@ grit db verify --verbose --json
 ### CI Pipeline
 
 ```yaml
-- name: Grit Health Check
+- name: Grite Health Check
   run: |
-    result=$(grit doctor --json)
+    result=$(grite doctor --json)
     if echo "$result" | jq -e '.data.checks[] | select(.status == "error")' > /dev/null; then
-      echo "Grit health check failed"
+      echo "Grite health check failed"
       exit 1
     fi
 ```
@@ -220,14 +220,14 @@ grit db verify --verbose --json
 
 ```bash
 # Run weekly health check
-0 0 * * 0 cd /path/to/repo && grit doctor --fix >> /var/log/grit-doctor.log 2>&1
+0 0 * * 0 cd /path/to/repo && grite doctor --fix >> /var/log/grite-doctor.log 2>&1
 ```
 
 ## Best Practices
 
 ### Regular Checks
 
-Run `grit doctor` periodically:
+Run `grite doctor` periodically:
 
 - After major changes
 - Before important syncs
@@ -239,7 +239,7 @@ Warnings indicate potential issues:
 
 ```bash
 # Check for warnings
-grit doctor --json | jq '.data.checks[] | select(.status == "warn")'
+grite doctor --json | jq '.data.checks[] | select(.status == "warn")'
 ```
 
 ### Fix Before Sync
@@ -247,8 +247,8 @@ grit doctor --json | jq '.data.checks[] | select(.status == "warn")'
 Run doctor before syncing with others:
 
 ```bash
-grit doctor --fix
-grit sync
+grite doctor --fix
+grite sync
 ```
 
 ## Next Steps

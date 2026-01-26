@@ -1,15 +1,15 @@
 # Git WAL
 
-This document describes the Write-Ahead Log (WAL) format used by grit.
+This document describes the Write-Ahead Log (WAL) format used by grite.
 
 ## Overview
 
-The WAL is an append-only event log stored in git refs. It is the source of truth for all grit state.
+The WAL is an append-only event log stored in git refs. It is the source of truth for all grite state.
 
 ## Location
 
 ```
-refs/grit/wal
+refs/grite/wal
 ```
 
 This ref points to a git commit containing the current WAL state.
@@ -17,7 +17,7 @@ This ref points to a git commit containing the current WAL state.
 ## Structure
 
 ```
-refs/grit/wal
+refs/grite/wal
   └── commit (HEAD of WAL)
         ├── parent commit (previous WAL state)
         └── tree
@@ -134,7 +134,7 @@ To read all events:
 For large WALs, snapshots accelerate reads:
 
 ```
-refs/grit/snapshots/<timestamp>
+refs/grite/snapshots/<timestamp>
 ```
 
 Snapshots contain consolidated events up to a point. Reading starts from the latest snapshot instead of the root commit.
@@ -144,7 +144,7 @@ Snapshots contain consolidated events up to a point. Reading starts from the lat
 ### Fetch (Pull)
 
 ```bash
-git fetch origin refs/grit/wal:refs/grit/wal
+git fetch origin refs/grite/wal:refs/grite/wal
 ```
 
 After fetch:
@@ -157,7 +157,7 @@ After fetch:
 ### Push
 
 ```bash
-git push origin refs/grit/wal:refs/grit/wal
+git push origin refs/grite/wal:refs/grite/wal
 ```
 
 If rejected (non-fast-forward):
@@ -178,7 +178,7 @@ Snapshots accelerate rebuilds for large WALs.
 ### Location
 
 ```
-refs/grit/snapshots/<timestamp>
+refs/grite/snapshots/<timestamp>
 ```
 
 ### Format
@@ -188,7 +188,7 @@ Same as WAL: commit with tree containing CBOR blob.
 ### Creation
 
 ```bash
-grit snapshot
+grite snapshot
 ```
 
 Creates a snapshot containing all events up to current WAL HEAD.
@@ -196,7 +196,7 @@ Creates a snapshot containing all events up to current WAL HEAD.
 ### Garbage Collection
 
 ```bash
-grit snapshot gc
+grite snapshot gc
 ```
 
 Removes old snapshots according to policy.
@@ -206,7 +206,7 @@ Removes old snapshots according to policy.
 ### Location
 
 ```
-refs/grit/locks/<resource_hash>
+refs/grite/locks/<resource_hash>
 ```
 
 ### Format
@@ -237,9 +237,9 @@ Delete the lock ref.
 
 | Ref | Purpose |
 |-----|---------|
-| `refs/grit/wal` | Append-only event log |
-| `refs/grit/snapshots/<ts>` | Point-in-time snapshots |
-| `refs/grit/locks/<hash>` | Distributed lease locks |
+| `refs/grite/wal` | Append-only event log |
+| `refs/grite/snapshots/<ts>` | Point-in-time snapshots |
+| `refs/grite/locks/<hash>` | Distributed lease locks |
 
 ## Design Rationale
 

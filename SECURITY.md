@@ -32,7 +32,7 @@ Grit stores data in git refs and a local sled database. When using Grit, conside
 
 - **Git repository access**: Anyone with read access to the git repository can read the Grit event log
 - **Ed25519 signing**: Enable signing for event authenticity verification
-- **Local database**: The sled database is stored in `.git/grit/` and contains materialized views of the event log
+- **Local database**: The sled database is stored in `.git/grite/` and contains materialized views of the event log
 - **Daemon IPC**: The daemon uses local IPC sockets for communication
 
 ## Security Best Practices

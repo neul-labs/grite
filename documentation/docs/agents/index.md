@@ -1,10 +1,10 @@
 # For AI Agents
 
-This section contains documentation specifically for AI coding agents using grit.
+This section contains documentation specifically for AI coding agents using grite.
 
 ## Overview
 
-Grit is designed with AI coding agents as a primary use case. The git-backed architecture ensures agents can:
+Grite is designed with AI coding agents as a primary use case. The git-backed architecture ensures agents can:
 
 - Work autonomously while coordinating with humans and other agents
 - Maintain persistent memory across sessions
@@ -30,30 +30,30 @@ Quick reference for agent behavior:
 Run at the beginning of each session:
 
 ```bash
-grit sync --pull --json
-grit issue list --state open --label agent:todo --json
-grit issue list --state open --label priority:P0 --json
+grite sync --pull --json
+grite issue list --state open --label agent:todo --json
+grite issue list --state open --label priority:P0 --json
 ```
 
 ### Claim a Task
 
 ```bash
-grit lock acquire --resource "issue:$ID" --ttl 30m --json
-grit issue comment $ID --body "Starting work" --json
+grite lock acquire --resource "issue:$ID" --ttl 30m --json
+grite issue comment $ID --body "Starting work" --json
 ```
 
 ### Post Progress
 
 ```bash
-grit issue comment $ID --body "Checkpoint: Completed X, starting Y" --json
+grite issue comment $ID --body "Checkpoint: Completed X, starting Y" --json
 ```
 
 ### Finish
 
 ```bash
-grit issue close $ID --json
-grit lock release --resource "issue:$ID" --json
-grit sync --push --json
+grite issue close $ID --json
+grite lock release --resource "issue:$ID" --json
+grite sync --push --json
 ```
 
 ## Key Principles
@@ -69,7 +69,7 @@ grit sync --push --json
 Each agent should use its own actor:
 
 ```bash
-grit actor init --label "agent-$(hostname)"
+grite actor init --label "agent-$(hostname)"
 ```
 
 Or set via environment:
@@ -83,9 +83,9 @@ export GRIT_HOME=/path/to/agent/data
 Before modifying shared resources:
 
 ```bash
-grit lock acquire --resource "path:src/critical.rs" --ttl 15m --json
+grite lock acquire --resource "path:src/critical.rs" --ttl 15m --json
 # ... work ...
-grit lock release --resource "path:src/critical.rs" --json
+grite lock release --resource "path:src/critical.rs" --json
 ```
 
 ### Document Everything
@@ -93,7 +93,7 @@ grit lock release --resource "path:src/critical.rs" --json
 Leave clear trails for other agents:
 
 ```bash
-grit issue comment $ID --body "$(cat <<'EOF'
+grite issue comment $ID --body "$(cat <<'EOF'
 ## Progress
 - Completed: X
 - In Progress: Y
@@ -114,16 +114,16 @@ EOF
 import subprocess
 import json
 
-def grit_cmd(args):
+def grite_cmd(args):
     result = subprocess.run(
-        ["grit"] + args + ["--json"],
+        ["grite"] + args + ["--json"],
         capture_output=True,
         text=True
     )
     return json.loads(result.stdout)
 
 # Get open tasks
-tasks = grit_cmd(["issue", "list", "--state", "open", "--label", "agent:todo"])
+tasks = grite_cmd(["issue", "list", "--state", "open", "--label", "agent:todo"])
 for issue in tasks["data"]["issues"]:
     print(f"Task: {issue['title']}")
 ```
@@ -134,21 +134,21 @@ for issue in tasks["data"]["issues"]:
 #!/bin/bash
 
 # Startup
-grit sync --pull --json > /dev/null
+grite sync --pull --json > /dev/null
 
 # Get first available task
-TASK=$(grit issue list --state open --label "agent:todo" --json | jq -r '.data.issues[0].issue_id')
+TASK=$(grite issue list --state open --label "agent:todo" --json | jq -r '.data.issues[0].issue_id')
 
 if [ -n "$TASK" ] && [ "$TASK" != "null" ]; then
   # Claim it
-  grit lock acquire --resource "issue:$TASK" --ttl 30m --json
+  grite lock acquire --resource "issue:$TASK" --ttl 30m --json
 
   # Work...
 
   # Finish
-  grit issue close "$TASK" --json
-  grit lock release --resource "issue:$TASK" --json
-  grit sync --push --json
+  grite issue close "$TASK" --json
+  grite lock release --resource "issue:$TASK" --json
+  grite sync --push --json
 fi
 ```
 

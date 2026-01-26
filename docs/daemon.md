@@ -1,20 +1,20 @@
 # Daemon
 
-The daemon (`grit-daemon`) is optional and exists only to improve performance and coordination. Correctness never depends on it.
+The daemon (`grite-daemon`) is optional and exists only to improve performance and coordination. Correctness never depends on it.
 
 ## Quick Start
 
 ```bash
 # Daemon auto-spawns on first command (no manual start needed)
-grit issue list
+grite issue list
 
 # Manual control
-grit daemon start --idle-timeout 300
-grit daemon status
-grit daemon stop
+grite daemon start --idle-timeout 300
+grite daemon status
+grite daemon stop
 
 # Force local execution (skip daemon)
-grit --no-daemon issue list
+grite --no-daemon issue list
 ```
 
 ## Auto-Spawn
@@ -22,7 +22,7 @@ grit --no-daemon issue list
 The daemon automatically spawns when you run CLI commands:
 
 1. CLI checks for running daemon
-2. If no daemon, spawns `grit-daemon` in background
+2. If no daemon, spawns `grite-daemon` in background
 3. Waits for daemon to become ready (up to 5 seconds)
 4. Routes command through IPC
 5. Daemon runs until idle timeout
@@ -34,7 +34,7 @@ Default idle timeout is 5 minutes (300 seconds).
 Use `--no-daemon` to force local execution:
 
 ```bash
-grit --no-daemon issue list
+grite --no-daemon issue list
 ```
 
 ## Idle Timeout
@@ -43,10 +43,10 @@ The daemon automatically shuts down after a period of inactivity:
 
 ```bash
 # Start with 10-minute idle timeout
-grit daemon start --idle-timeout 600
+grite daemon start --idle-timeout 600
 
 # Start with no timeout (runs until stopped)
-grit daemon start --idle-timeout 0
+grite daemon start --idle-timeout 0
 ```
 
 The idle timer resets on each command. When timeout is reached:
@@ -68,14 +68,14 @@ The idle timer resets on each command. When timeout is reached:
 - Never rewrites refs or force-pushes
 - Never writes to the working tree
 - Never becomes required for correctness
-- No background sync (sync is explicit via `grit sync`)
+- No background sync (sync is explicit via `grite sync`)
 
 ## Architecture
 
 ```
 +----------------+     +----------------+     +----------------+
 |    CLI         | --> |   Supervisor   | --> |    Worker      |
-|  (grit)        |     |  (manages IPC) |     | (per repo/actor)|
+|  (grite)        |     |  (manages IPC) |     | (per repo/actor)|
 +----------------+     +----------------+     +----------------+
         |                      |                      |
         v                      v                      v
@@ -90,7 +90,7 @@ The idle timer resets on each command. When timeout is reached:
 
 ### Supervisor
 
-- Listens on IPC socket (`ipc:///tmp/grit-daemon.sock`)
+- Listens on IPC socket (`ipc:///tmp/grite-daemon.sock`)
 - Routes requests to appropriate worker
 - Manages worker lifecycle
 - Tracks idle time for auto-shutdown
@@ -121,7 +121,7 @@ Multiple CLI processes can issue commands simultaneously. The daemon serializes 
 The daemon acquires an exclusive `flock` on `sled.lock`:
 
 ```
-.git/grit/actors/<actor_id>/sled.lock
+.git/grite/actors/<actor_id>/sled.lock
 ```
 
 This prevents other processes from opening the sled database while the daemon is running.
@@ -131,7 +131,7 @@ This prevents other processes from opening the sled database while the daemon is
 The daemon creates a JSON lock file for coordination:
 
 ```
-.git/grit/actors/<actor_id>/daemon.lock
+.git/grite/actors/<actor_id>/daemon.lock
 ```
 
 Example:
@@ -143,7 +143,7 @@ Example:
   "repo_root": "/path/to/repo",
   "actor_id": "64d15a2c383e2161772f9cea23e87222",
   "host_id": "hostname",
-  "ipc_endpoint": "ipc:///tmp/grit-daemon.sock",
+  "ipc_endpoint": "ipc:///tmp/grite-daemon.sock",
   "lease_ms": 30000,
   "last_heartbeat_ts": 1700000000000,
   "expires_ts": 1700000030000
@@ -164,11 +164,11 @@ Example:
 ### Status
 
 ```bash
-$ grit daemon status
+$ grite daemon status
 Daemon is running
   PID:            12345
   Host ID:        my-laptop
-  IPC Endpoint:   ipc:///tmp/grit-daemon.sock
+  IPC Endpoint:   ipc:///tmp/grite-daemon.sock
   Started:        2024-01-15 10:30:00 UTC
   Expires in:     25s
 ```
@@ -176,12 +176,12 @@ Daemon is running
 ### JSON Output
 
 ```bash
-$ grit daemon status --json
+$ grite daemon status --json
 {
   "running": true,
   "pid": 12345,
   "host_id": "my-laptop",
-  "ipc_endpoint": "ipc:///tmp/grit-daemon.sock",
+  "ipc_endpoint": "ipc:///tmp/grite-daemon.sock",
   "started_ts": 1705315800000,
   "expires_ts": 1705315830000,
   "time_remaining_ms": 25000
@@ -202,7 +202,7 @@ $ grit daemon status --json
 The daemon logs to stderr. Control verbosity with `--log-level`:
 
 ```bash
-grit-daemon --log-level debug
+grite-daemon --log-level debug
 ```
 
 Log levels: `trace`, `debug`, `info`, `warn`, `error`
@@ -211,7 +211,7 @@ When auto-spawned, daemon runs with `--log-level info` and stdout/stderr redirec
 
 ## IPC Protocol
 
-- Socket: `ipc:///tmp/grit-daemon.sock`
+- Socket: `ipc:///tmp/grite-daemon.sock`
 - Serialization: rkyv (zero-copy)
 - Pattern: REQ/REP (request/response)
 

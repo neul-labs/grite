@@ -1,6 +1,6 @@
 # Dependencies
 
-Grit supports typed relationships between issues with cycle detection and topological ordering. Dependencies sync automatically between actors via `grit sync`.
+Grite supports typed relationships between issues with cycle detection and topological ordering. Dependencies sync automatically between actors via `grite sync`.
 
 ## Dependency Types
 
@@ -14,13 +14,13 @@ Grit supports typed relationships between issues with cycle detection and topolo
 
 ```bash
 # Issue A blocks issue B
-grit issue dep add <issue-a> --target <issue-b> --type blocks
+grite issue dep add <issue-a> --target <issue-b> --type blocks
 
 # Issue A depends on issue B
-grit issue dep add <issue-a> --target <issue-b> --type depends_on
+grite issue dep add <issue-a> --target <issue-b> --type depends_on
 
 # Issues are related (symmetric, no direction)
-grit issue dep add <issue-a> --target <issue-b> --type related_to
+grite issue dep add <issue-a> --target <issue-b> --type related_to
 ```
 
 Both issues must exist before adding a dependency.
@@ -28,17 +28,17 @@ Both issues must exist before adding a dependency.
 ## Removing Dependencies
 
 ```bash
-grit issue dep remove <issue-a> --target <issue-b> --type blocks
+grite issue dep remove <issue-a> --target <issue-b> --type blocks
 ```
 
 ## Listing Dependencies
 
 ```bash
 # Show what issue-a depends on / blocks
-grit issue dep list <issue-a>
+grite issue dep list <issue-a>
 
 # Show what depends on / is blocked by issue-a
-grit issue dep list <issue-a> --reverse
+grite issue dep list <issue-a> --reverse
 ```
 
 ### Example Output
@@ -63,23 +63,23 @@ Get issues in dependency order (issues with no blockers first):
 
 ```bash
 # All open issues in dependency order
-grit issue dep topo --state open
+grite issue dep topo --state open
 
 # Filter by label
-grit issue dep topo --state open --label sprint-1
+grite issue dep topo --state open --label sprint-1
 ```
 
 This uses Kahn's algorithm over the dependency DAG. Useful for determining which issues can be worked on next.
 
 ## Cycle Detection
 
-For `blocks` and `depends_on` types, grit prevents cycles at command time:
+For `blocks` and `depends_on` types, grite prevents cycles at command time:
 
 ```bash
-$ grit issue dep add <a> --target <b> --type blocks
+$ grite issue dep add <a> --target <b> --type blocks
 # OK
 
-$ grit issue dep add <b> --target <a> --type blocks
+$ grite issue dep add <b> --target <a> --type blocks
 # Error: Adding this dependency would create a cycle in the blocks graph
 ```
 
@@ -89,7 +89,7 @@ The `related_to` type has no cycle constraint since it represents symmetric rela
 
 Dependencies are CRDT-compatible (add/remove sets). This means:
 
-- Dependencies sync automatically via `grit sync`
+- Dependencies sync automatically via `grite sync`
 - Concurrent add + remove of the same edge: add wins
 - No manual conflict resolution needed
 
@@ -102,26 +102,26 @@ Actor A: dep add issue-1 --target issue-2 --type blocks
 Actor B: dep add issue-2 --target issue-1 --type blocks
 ```
 
-Each operation passes local cycle detection, but after sync a cycle exists. Use `grit doctor` to detect these cases.
+Each operation passes local cycle detection, but after sync a cycle exists. Use `grite doctor` to detect these cases.
 
 ## Workflow Example
 
 ```bash
 # Create a set of related issues
-grit issue create --title "Design API schema" --label sprint-1
+grite issue create --title "Design API schema" --label sprint-1
 # → issue-1
 
-grit issue create --title "Implement API endpoints" --label sprint-1
+grite issue create --title "Implement API endpoints" --label sprint-1
 # → issue-2
 
-grit issue create --title "Write API tests" --label sprint-1
+grite issue create --title "Write API tests" --label sprint-1
 # → issue-3
 
 # Set up dependencies
-grit issue dep add <issue-2> --target <issue-1> --type depends_on
-grit issue dep add <issue-3> --target <issue-2> --type depends_on
+grite issue dep add <issue-2> --target <issue-1> --type depends_on
+grite issue dep add <issue-3> --target <issue-2> --type depends_on
 
 # View execution order
-grit issue dep topo --state open --label sprint-1
+grite issue dep topo --state open --label sprint-1
 # Returns: issue-1, issue-2, issue-3 (correct order)
 ```
