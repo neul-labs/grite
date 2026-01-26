@@ -22,7 +22,7 @@
   "main": "index.js",
   "bin": {
     "grit": "bin/grit",
-    "gritd": "bin/gritd"
+    "grited": "bin/grited"
   },
   "scripts": {
     "postinstall": "node install.js"

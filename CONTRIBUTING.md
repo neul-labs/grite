@@ -83,7 +83,7 @@ When reporting issues, please include:
 | `libgrit-git` | WAL commits, ref sync, snapshots, distributed locks |
 | `libgrit-ipc` | IPC message schemas (rkyv), daemon lock, client/server |
 | `grit` | CLI frontend |
-| `gritd` | Optional background daemon |
+| `grited` | Optional background daemon |
 
 ## Design Principles
 

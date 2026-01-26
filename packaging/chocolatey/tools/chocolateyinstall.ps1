@@ -28,7 +28,7 @@ if ($extractedDir) {
   New-Item -ItemType Directory -Force -Path $binDir | Out-Null
 
   Move-Item -Path (Join-Path $extractedDir.FullName 'grit.exe') -Destination (Join-Path $binDir 'grit.exe') -Force
-  Move-Item -Path (Join-Path $extractedDir.FullName 'gritd.exe') -Destination (Join-Path $binDir 'gritd.exe') -Force
+  Move-Item -Path (Join-Path $extractedDir.FullName 'grited.exe') -Destination (Join-Path $binDir 'grited.exe') -Force
 
   Remove-Item -Path $extractedDir.FullName -Recurse -Force
 }

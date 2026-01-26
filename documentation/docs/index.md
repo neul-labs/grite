@@ -61,7 +61,7 @@ Grit uses a three-layer architecture:
 ```
 +------------------+     +-------------------+     +------------------+
 |   Git WAL        | --> | Materialized View | <-- | CLI / Daemon     |
-| refs/grit/wal    |     | sled database     |     | grit / gritd     |
+| refs/grit/wal    |     | sled database     |     | grit / grited     |
 | (source of truth)|     | (fast queries)    |     | (user interface) |
 +------------------+     +-------------------+     +------------------+
 ```

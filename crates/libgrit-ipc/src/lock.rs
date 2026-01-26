@@ -25,7 +25,7 @@ pub struct DaemonLock {
     pub actor_id: String,
     /// Stable host identifier
     pub host_id: String,
-    /// IPC endpoint (e.g., "ipc:///tmp/gritd.sock")
+    /// IPC endpoint (e.g., "ipc:///tmp/grited.sock")
     pub ipc_endpoint: String,
     /// Lease duration in milliseconds
     pub lease_ms: u64,

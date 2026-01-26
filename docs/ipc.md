@@ -1,7 +1,7 @@
 # IPC Schema
 
 This document specifies the daemon IPC message schema used between `grit`
-and `gritd`. The wire format is `rkyv`-serialized structs transported over
+and `grited`. The wire format is `rkyv`-serialized structs transported over
 NNG sockets. JSON examples are provided for readability; actual bytes are
 `rkyv`.
 
@@ -94,7 +94,7 @@ Response:
   "protocol": "grit-ipc",
   "ipc_schema_version": 1,
   "daemon_id": "uuid",
-  "endpoint": "ipc://.../gritd.sock",
+  "endpoint": "ipc://.../grited.sock",
   "workers": [
     { "repo_root": "/path/to/repo", "actor_id": "...", "data_dir": "..." }
   ]

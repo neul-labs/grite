@@ -4,7 +4,7 @@ This guide explains the grit daemon and how to use it effectively.
 
 ## Overview
 
-The daemon (`gritd`) is an optional background process that:
+The daemon (`grited`) is an optional background process that:
 
 - Keeps the materialized view warm for fast queries
 - Handles concurrent CLI requests efficiently
@@ -24,7 +24,7 @@ grit issue list  # Daemon spawns automatically
 The process:
 
 1. CLI checks for running daemon
-2. If none, spawns `gritd` in background
+2. If none, spawns `grited` in background
 3. Waits for daemon to be ready (up to 5 seconds)
 4. Routes command through IPC
 5. Daemon runs until idle timeout (default: 5 minutes)
@@ -55,7 +55,7 @@ Output:
 Daemon is running
   PID:            12345
   Host ID:        my-laptop
-  IPC Endpoint:   ipc:///tmp/gritd.sock
+  IPC Endpoint:   ipc:///tmp/grited.sock
   Started:        2024-01-15 10:30:00 UTC
   Expires in:     4m 30s
 ```
@@ -188,7 +188,7 @@ grit daemon status --json
     "daemon": {
       "running": true,
       "pid": 12345,
-      "endpoint": "ipc:///tmp/gritd.sock",
+      "endpoint": "ipc:///tmp/grited.sock",
       "workers": [
         {
           "repo_root": "/path/to/repo",
@@ -215,7 +215,7 @@ grit daemon status --json
 Control daemon log level:
 
 ```bash
-gritd --log-level debug
+grited --log-level debug
 ```
 
 Log levels: `trace`, `debug`, `info`, `warn`, `error`

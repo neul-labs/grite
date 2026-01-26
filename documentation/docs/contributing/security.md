@@ -68,7 +68,7 @@ The sled database is stored in `.git/grit/actors/<id>/sled/` and contains:
 
 The daemon uses local IPC sockets for communication:
 
-- Socket at `ipc:///tmp/gritd.sock`
+- Socket at `ipc:///tmp/grited.sock`
 - Local machine only
 - No network exposure
 

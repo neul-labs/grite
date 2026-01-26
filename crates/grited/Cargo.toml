@@ -1,5 +1,5 @@
 [package]
-name = "gritd"
+name = "grited"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -13,7 +13,7 @@ description = "Background daemon for grit providing concurrent access and perfor
 readme = "../../README.md"
 
 [[bin]]
-name = "gritd"
+name = "grited"
 path = "src/main.rs"
 
 [dependencies]

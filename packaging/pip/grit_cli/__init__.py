@@ -128,7 +128,7 @@ def download_binary(dest_dir: Path) -> None:
         dest_dir.mkdir(parents=True, exist_ok=True)
 
         # Copy binaries
-        for binary in ["grit", "gritd"]:
+        for binary in ["grit", "grited"]:
             src = src_dir / get_binary_name(binary)
             dst = dest_dir / get_binary_name(binary)
             shutil.copy2(src, dst)
@@ -147,6 +147,6 @@ def main() -> None:
 
 
 def main_daemon() -> None:
-    """Entry point for gritd command."""
-    binary = get_binary_path("gritd")
+    """Entry point for grited command."""
+    binary = get_binary_path("grited")
     os.execv(str(binary), [str(binary)] + sys.argv[1:])

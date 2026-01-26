@@ -5,7 +5,7 @@ members = [
     "crates/libgrit-git",
     "crates/libgrit-ipc",
     "crates/grit",
-    "crates/gritd",
+    "crates/grited",
 ]
 
 [workspace.package]

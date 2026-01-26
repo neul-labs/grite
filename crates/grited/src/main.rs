@@ -20,10 +20,10 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilte
 use supervisor::Supervisor;
 
 #[derive(Parser)]
-#[command(name = "gritd", about = "Grit daemon", version)]
+#[command(name = "grited", about = "Grit daemon", version)]
 struct Cli {
-    /// IPC endpoint (e.g., ipc:///tmp/gritd.sock)
-    #[arg(long, default_value = "ipc:///tmp/gritd.sock")]
+    /// IPC endpoint (e.g., ipc:///tmp/grited.sock)
+    #[arg(long, default_value = "ipc:///tmp/grited.sock")]
     endpoint: String,
 
     /// Daemonize (run in background)
@@ -57,7 +57,7 @@ async fn main() {
         .with(tracing_subscriber::fmt::layer())
         .init();
 
-    info!("gritd starting");
+    info!("grited starting");
 
     // Daemonize if requested
     if cli.daemon {
@@ -101,7 +101,7 @@ async fn main() {
         let _ = std::fs::remove_file(pid_file);
     }
 
-    info!("gritd stopped");
+    info!("grited stopped");
 }
 
 /// Set up signal handlers for graceful shutdown

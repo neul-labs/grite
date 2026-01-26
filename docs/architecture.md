@@ -30,7 +30,7 @@ grit/
     libgrit-git/      # Git integration
     libgrit-ipc/      # IPC protocol
     grit/             # CLI binary
-    gritd/            # Daemon binary
+    grited/            # Daemon binary
 ```
 
 ### libgrit-core
@@ -88,7 +88,7 @@ Command-line interface.
 | `commands/*` | Individual command implementations |
 | `output` | JSON/human output formatting |
 
-### gritd (Daemon)
+### grited (Daemon)
 
 Background daemon process.
 
@@ -158,7 +158,7 @@ When CLI runs without daemon:
 
 ```
 1. Check for daemon.lock
-2. If no lock, try to spawn gritd
+2. If no lock, try to spawn grited
 3. Wait for daemon to be ready
 4. Route command through IPC
 5. Daemon auto-shuts down after idle timeout

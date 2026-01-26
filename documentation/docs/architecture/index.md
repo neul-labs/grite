@@ -9,7 +9,7 @@ Grit is split into three layers:
 ```
 +------------------+     +-------------------+     +------------------+
 |   Git WAL        | --> | Materialized View | <-- | CLI / Daemon     |
-| refs/grit/wal    |     | sled database     |     | grit / gritd     |
+| refs/grit/wal    |     | sled database     |     | grit / grited     |
 | (source of truth)|     | (fast queries)    |     | (user interface) |
 +------------------+     +-------------------+     +------------------+
 ```
@@ -79,7 +79,7 @@ grit/
     libgrit-git/      # Git integration
     libgrit-ipc/      # IPC protocol
     grit/             # CLI binary
-    gritd/            # Daemon binary
+    grited/            # Daemon binary
 ```
 
 | Crate | Purpose |
@@ -88,7 +88,7 @@ grit/
 | `libgrit-git` | WAL commits, ref sync, snapshots, distributed locks |
 | `libgrit-ipc` | IPC message schemas (rkyv), daemon lock, client/server |
 | `grit` | CLI frontend |
-| `gritd` | Optional background daemon |
+| `grited` | Optional background daemon |
 
 ## Data Flow
 

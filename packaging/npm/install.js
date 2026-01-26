@@ -117,17 +117,17 @@ async function install() {
     const binExt = isWindows ? '.exe' : '';
 
     const gritSrc = path.join(srcDir, `grit${binExt}`);
-    const gritdSrc = path.join(srcDir, `gritd${binExt}`);
+    const gritedSrc = path.join(srcDir, `grited${binExt}`);
     const gritDest = path.join(binDir, `grit${binExt}`);
-    const gritdDest = path.join(binDir, `gritd${binExt}`);
+    const gritedDest = path.join(binDir, `grited${binExt}`);
 
     fs.copyFileSync(gritSrc, gritDest);
-    fs.copyFileSync(gritdSrc, gritdDest);
+    fs.copyFileSync(gritedSrc, gritedDest);
 
     // Make executable on Unix
     if (!isWindows) {
       fs.chmodSync(gritDest, 0o755);
-      fs.chmodSync(gritdDest, 0o755);
+      fs.chmodSync(gritedDest, 0o755);
     }
 
     // Cleanup

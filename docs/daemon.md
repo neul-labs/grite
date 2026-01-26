@@ -1,6 +1,6 @@
 # Daemon
 
-The daemon (`gritd`) is optional and exists only to improve performance and coordination. Correctness never depends on it.
+The daemon (`grited`) is optional and exists only to improve performance and coordination. Correctness never depends on it.
 
 ## Quick Start
 
@@ -22,7 +22,7 @@ grit --no-daemon issue list
 The daemon automatically spawns when you run CLI commands:
 
 1. CLI checks for running daemon
-2. If no daemon, spawns `gritd` in background
+2. If no daemon, spawns `grited` in background
 3. Waits for daemon to become ready (up to 5 seconds)
 4. Routes command through IPC
 5. Daemon runs until idle timeout
@@ -90,7 +90,7 @@ The idle timer resets on each command. When timeout is reached:
 
 ### Supervisor
 
-- Listens on IPC socket (`ipc:///tmp/gritd.sock`)
+- Listens on IPC socket (`ipc:///tmp/grited.sock`)
 - Routes requests to appropriate worker
 - Manages worker lifecycle
 - Tracks idle time for auto-shutdown
@@ -143,7 +143,7 @@ Example:
   "repo_root": "/path/to/repo",
   "actor_id": "64d15a2c383e2161772f9cea23e87222",
   "host_id": "hostname",
-  "ipc_endpoint": "ipc:///tmp/gritd.sock",
+  "ipc_endpoint": "ipc:///tmp/grited.sock",
   "lease_ms": 30000,
   "last_heartbeat_ts": 1700000000000,
   "expires_ts": 1700000030000
@@ -168,7 +168,7 @@ $ grit daemon status
 Daemon is running
   PID:            12345
   Host ID:        my-laptop
-  IPC Endpoint:   ipc:///tmp/gritd.sock
+  IPC Endpoint:   ipc:///tmp/grited.sock
   Started:        2024-01-15 10:30:00 UTC
   Expires in:     25s
 ```
@@ -181,7 +181,7 @@ $ grit daemon status --json
   "running": true,
   "pid": 12345,
   "host_id": "my-laptop",
-  "ipc_endpoint": "ipc:///tmp/gritd.sock",
+  "ipc_endpoint": "ipc:///tmp/grited.sock",
   "started_ts": 1705315800000,
   "expires_ts": 1705315830000,
   "time_remaining_ms": 25000
@@ -202,7 +202,7 @@ $ grit daemon status --json
 The daemon logs to stderr. Control verbosity with `--log-level`:
 
 ```bash
-gritd --log-level debug
+grited --log-level debug
 ```
 
 Log levels: `trace`, `debug`, `info`, `warn`, `error`
@@ -211,7 +211,7 @@ When auto-spawned, daemon runs with `--log-level info` and stdout/stderr redirec
 
 ## IPC Protocol
 
-- Socket: `ipc:///tmp/gritd.sock`
+- Socket: `ipc:///tmp/grited.sock`
 - Serialization: rkyv (zero-copy)
 - Pattern: REQ/REP (request/response)
 
