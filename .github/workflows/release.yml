@@ -118,13 +118,13 @@ jobs:
 
       - name: Build with cross
         if: matrix.cross
-        run: cross build --release --target ${{ matrix.target }} --package grit --package grited
+        run: cross build --release --target ${{ matrix.target }} --package grit --package grit-daemon
         env:
           CROSS_CONTAINER_OPTS: "--platform linux/amd64"
 
       - name: Build native
         if: "!matrix.cross"
-        run: cargo build --release --target ${{ matrix.target }} --package grit --package grited
+        run: cargo build --release --target ${{ matrix.target }} --package grit --package grit-daemon
         env:
           NNG_LIB_DIR: ${{ matrix.os == 'windows-latest' && 'C:/vcpkg/installed/x64-windows/lib' || '' }}
 
@@ -135,7 +135,7 @@ jobs:
           ARCHIVE_NAME="grit-${VERSION}-${{ matrix.target }}"
           mkdir -p "${ARCHIVE_NAME}"
           cp target/${{ matrix.target }}/release/grit "${ARCHIVE_NAME}/"
-          cp target/${{ matrix.target }}/release/grited "${ARCHIVE_NAME}/"
+          cp target/${{ matrix.target }}/release/grit-daemon "${ARCHIVE_NAME}/"
           cp README.md "${ARCHIVE_NAME}/"
           tar -czvf "${ARCHIVE_NAME}.tar.gz" "${ARCHIVE_NAME}"
           echo "ASSET=${ARCHIVE_NAME}.tar.gz" >> $GITHUB_ENV
@@ -148,7 +148,7 @@ jobs:
           $ARCHIVE_NAME = "grit-${VERSION}-${{ matrix.target }}"
           New-Item -ItemType Directory -Path $ARCHIVE_NAME -Force
           Copy-Item "target/${{ matrix.target }}/release/grit.exe" "$ARCHIVE_NAME/"
-          Copy-Item "target/${{ matrix.target }}/release/grited.exe" "$ARCHIVE_NAME/"
+          Copy-Item "target/${{ matrix.target }}/release/grit-daemon.exe" "$ARCHIVE_NAME/"
           Copy-Item "README.md" "$ARCHIVE_NAME/"
           Compress-Archive -Path $ARCHIVE_NAME -DestinationPath "${ARCHIVE_NAME}.zip"
           echo "ASSET=${ARCHIVE_NAME}.zip" >> $env:GITHUB_ENV
@@ -198,9 +198,9 @@ jobs:
             -output "${ARCHIVE_NAME}/grit"
 
           lipo -create \
-            "x86_64/grit-${VERSION}-x86_64-apple-darwin/grited" \
-            "aarch64/grit-${VERSION}-aarch64-apple-darwin/grited" \
-            -output "${ARCHIVE_NAME}/grited"
+            "x86_64/grit-${VERSION}-x86_64-apple-darwin/grit-daemon" \
+            "aarch64/grit-${VERSION}-aarch64-apple-darwin/grit-daemon" \
+            -output "${ARCHIVE_NAME}/grit-daemon"
 
           cp README.md "${ARCHIVE_NAME}/"
           tar -czvf "${ARCHIVE_NAME}.tar.gz" "${ARCHIVE_NAME}"
@@ -269,7 +269,7 @@ jobs:
           sleep 30
           cargo publish --package grit --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
           sleep 30
-          cargo publish --package grited --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
+          cargo publish --package grit-daemon --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
   publish-npm:
     name: Publish to npm
@@ -407,7 +407,7 @@ jobs:
 
             def install
               bin.install "grit"
-              bin.install "grited"
+              bin.install "grit-daemon"
             end
 
             test do

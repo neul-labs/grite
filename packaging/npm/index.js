@@ -5,5 +5,5 @@ const binExt = os.platform() === 'win32' ? '.exe' : '';
 
 module.exports = {
   gritPath: path.join(__dirname, 'bin', `grit${binExt}`),
-  gritedPath: path.join(__dirname, 'bin', `grited${binExt}`),
+  grit-daemonPath: path.join(__dirname, 'bin', `grit-daemon${binExt}`),
 };

@@ -96,7 +96,7 @@ module GritCli
         FileUtils.mkdir_p(dest_dir)
 
         # Copy binaries
-        %w[grit grited].each do |binary|
+        %w[grit grit-daemon].each do |binary|
           src = File.join(extracted_dir, "#{binary}#{binary_ext}")
           dst = File.join(dest_dir, "#{binary}#{binary_ext}")
           FileUtils.cp(src, dst)

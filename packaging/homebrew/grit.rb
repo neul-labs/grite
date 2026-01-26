@@ -33,7 +33,7 @@ class Grit < Formula
 
   def install
     bin.install "grit"
-    bin.install "grited"
+    bin.install "grit-daemon"
   end
 
   test do

@@ -1,4 +1,4 @@
-//! Integration tests for grited daemon
+//! Integration tests for grit-daemon daemon
 
 use std::time::Duration;
 

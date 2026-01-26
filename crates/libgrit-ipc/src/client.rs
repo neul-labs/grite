@@ -156,7 +156,7 @@ pub fn try_connect(endpoint: &str) -> Option<IpcClient> {
 #[cfg(test)]
 mod tests {
     // Client tests require a running daemon or mock server
-    // These are integration tests that would be in the grited crate
+    // These are integration tests that would be in the grit-daemon crate
 
     #[test]
     fn test_timeout_config() {

@@ -9,7 +9,7 @@ Grit uses a three-layer architecture:
 ```
 +------------------+     +-------------------+     +------------------+
 |   Git WAL        | --> | Materialized View | <-- | CLI / Daemon     |
-| refs/grit/wal    |     | sled database     |     | grit / grited     |
+| refs/grit/wal    |     | sled database     |     | grit / grit-daemon     |
 | (source of truth)|     | (fast queries)    |     | (user interface) |
 +------------------+     +-------------------+     +------------------+
 ```
@@ -37,7 +37,7 @@ A local database caches the current state of all issues:
 The command-line interface and optional daemon:
 
 - **CLI**: `grit` command for all operations
-- **Daemon**: `grited` for improved performance (optional)
+- **Daemon**: `grit-daemon` for improved performance (optional)
 
 ## Events
 
@@ -145,7 +145,7 @@ This ensures deterministic ordering even with clock skew.
 
 ## The Daemon
 
-The daemon (`grited`) is optional and provides:
+The daemon (`grit-daemon`) is optional and provides:
 
 - **Warm cache**: Keeps materialized view ready
 - **Concurrent access**: Handles multiple CLI calls efficiently

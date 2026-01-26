@@ -23,7 +23,7 @@ This downloads the pre-built binary for your platform and installs to `~/.local/
 === "Cargo (Rust)"
 
     ```bash
-    cargo install grit grited
+    cargo install grit grit-daemon
     ```
 
     Requires Rust 1.75+.
@@ -142,7 +142,7 @@ To update grit to the latest version:
 === "Cargo"
 
     ```bash
-    cargo install grit grited --force
+    cargo install grit grit-daemon --force
     ```
 
 === "npm"
@@ -157,7 +157,7 @@ To update grit to the latest version:
 
     Remove the binaries:
     ```bash
-    rm ~/.local/bin/grit ~/.local/bin/grited
+    rm ~/.local/bin/grit ~/.local/bin/grit-daemon
     ```
 
 === "Homebrew"
@@ -169,7 +169,7 @@ To update grit to the latest version:
 === "Cargo"
 
     ```bash
-    cargo uninstall grit grited
+    cargo uninstall grit grit-daemon
     ```
 
 === "npm"

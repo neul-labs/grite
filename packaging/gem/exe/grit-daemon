@@ -3,5 +3,5 @@
 
 require 'grit-cli'
 
-binary = GritCli.binary_path('grited')
+binary = GritCli.binary_path('grit-daemon')
 exec(binary, *ARGV)

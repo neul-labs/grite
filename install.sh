@@ -168,11 +168,11 @@ install_binary() {
 
     if [[ "$platform" == *"windows"* ]]; then
         cp "${extracted_dir}/grit.exe" "${BIN_DIR}/"
-        cp "${extracted_dir}/grited.exe" "${BIN_DIR}/"
+        cp "${extracted_dir}/grit-daemon.exe" "${BIN_DIR}/"
     else
         cp "${extracted_dir}/grit" "${BIN_DIR}/"
-        cp "${extracted_dir}/grited" "${BIN_DIR}/"
-        chmod +x "${BIN_DIR}/grit" "${BIN_DIR}/grited"
+        cp "${extracted_dir}/grit-daemon" "${BIN_DIR}/"
+        chmod +x "${BIN_DIR}/grit" "${BIN_DIR}/grit-daemon"
     fi
 
     echo "Successfully installed grit v${version}"
@@ -192,17 +192,17 @@ build_from_source() {
 
     # Check if we're in the grit repo
     if [ -f "Cargo.toml" ] && grep -q 'name = "grit"' crates/grit/Cargo.toml 2>/dev/null; then
-        echo "Building grit and grited (release)..."
-        cargo build --release --package grit --package grited
+        echo "Building grit and grit-daemon (release)..."
+        cargo build --release --package grit --package grit-daemon
 
         echo "Installing to ${BIN_DIR}..."
         mkdir -p "${BIN_DIR}"
         cp target/release/grit "${BIN_DIR}/grit"
-        cp target/release/grited "${BIN_DIR}/grited"
+        cp target/release/grit-daemon "${BIN_DIR}/grit-daemon"
     else
         # Install from crates.io or git
         echo "Installing from crates.io..."
-        cargo install grit grited --root "${PREFIX}"
+        cargo install grit grit-daemon --root "${PREFIX}"
     fi
 
     echo "Successfully built and installed grit"
@@ -226,7 +226,7 @@ main() {
     fi
 
     echo ""
-    echo "Done. Installed: grit, grited"
+    echo "Done. Installed: grit, grit-daemon"
     echo ""
 
     # Verify installation

@@ -113,7 +113,7 @@ JSON file indicating daemon ownership.
   "repo_root": "/path/to/repo",
   "actor_id": "64d15a2c383e2161772f9cea23e87222",
   "host_id": "my-laptop",
-  "ipc_endpoint": "ipc:///tmp/grited.sock",
+  "ipc_endpoint": "ipc:///tmp/grit-daemon.sock",
   "lease_ms": 30000,
   "last_heartbeat_ts": 1700000000000,
   "expires_ts": 1700000030000

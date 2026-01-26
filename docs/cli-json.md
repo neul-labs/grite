@@ -393,7 +393,7 @@ The JSON blocks below describe the `data` payload inside the envelope.
   "daemon": {
     "running": true,
     "pid": 12345,
-    "endpoint": "ipc://.../grited.sock",
+    "endpoint": "ipc://.../grit-daemon.sock",
     "workers": [
       { "repo_root": "/path/to/repo", "actor_id": "...", "data_dir": "..." }
     ]

@@ -117,17 +117,17 @@ async function install() {
     const binExt = isWindows ? '.exe' : '';
 
     const gritSrc = path.join(srcDir, `grit${binExt}`);
-    const gritedSrc = path.join(srcDir, `grited${binExt}`);
+    const grit-daemonSrc = path.join(srcDir, `grit-daemon${binExt}`);
     const gritDest = path.join(binDir, `grit${binExt}`);
-    const gritedDest = path.join(binDir, `grited${binExt}`);
+    const grit-daemonDest = path.join(binDir, `grit-daemon${binExt}`);
 
     fs.copyFileSync(gritSrc, gritDest);
-    fs.copyFileSync(gritedSrc, gritedDest);
+    fs.copyFileSync(grit-daemonSrc, grit-daemonDest);
 
     // Make executable on Unix
     if (!isWindows) {
       fs.chmodSync(gritDest, 0o755);
-      fs.chmodSync(gritedDest, 0o755);
+      fs.chmodSync(grit-daemonDest, 0o755);
     }
 
     // Cleanup

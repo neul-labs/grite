@@ -48,7 +48,7 @@ brew install neul-labs/tap/grit
 
 **Cargo (Rust):**
 ```bash
-cargo install grit grited
+cargo install grit grit-daemon
 ```
 
 **npm:**
@@ -134,7 +134,7 @@ Grit uses a three-layer architecture:
 ```
 +------------------+     +-------------------+     +------------------+
 |   Git WAL        | --> | Materialized View | <-- | CLI / Daemon     |
-| refs/grit/wal    |     | sled database     |     | grit / grited     |
+| refs/grit/wal    |     | sled database     |     | grit / grit-daemon     |
 | (source of truth)|     | (fast queries)    |     | (user interface) |
 +------------------+     +-------------------+     +------------------+
 ```
@@ -147,7 +147,7 @@ Grit uses a three-layer architecture:
 | `libgrit-git` | WAL commits, ref sync, snapshots, distributed locks |
 | `libgrit-ipc` | IPC message schemas (rkyv), daemon lock, client/server |
 | `grit` | CLI frontend |
-| `grited` | Optional background daemon |
+| `grit-daemon` | Optional background daemon |
 
 ### ID Types
 
@@ -161,7 +161,7 @@ IDs are stored as byte arrays internally and displayed as lowercase hex strings.
 
 ## Daemon
 
-The daemon (`grited`) is optional and provides:
+The daemon (`grit-daemon`) is optional and provides:
 
 - **Auto-spawn** - Automatically starts on first CLI command
 - **Idle shutdown** - Stops after 5 minutes of inactivity (configurable)

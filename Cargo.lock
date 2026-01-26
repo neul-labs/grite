@@ -571,7 +571,7 @@ checksum = "0cc23270f6e1808e30a928bdc84dea0b9b4136a8bc82338574f23baf47bbd280"
 
 [[package]]
 name = "grit"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "assert_cmd",
  "chrono",
@@ -592,8 +592,8 @@ dependencies = [
 ]
 
 [[package]]
-name = "grited"
-version = "0.2.1"
+name = "grit-daemon"
+version = "0.2.2"
 dependencies = [
  "clap",
  "hex",
@@ -846,7 +846,7 @@ dependencies = [
 
 [[package]]
 name = "libgrit-core"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "blake2",
  "chrono",
@@ -881,7 +881,7 @@ dependencies = [
 
 [[package]]
 name = "libgrit-git"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "blake2",
  "chrono",
@@ -897,7 +897,7 @@ dependencies = [
 
 [[package]]
 name = "libgrit-ipc"
-version = "0.2.1"
+version = "0.2.2"
 dependencies = [
  "libgrit-core",
  "nng",

@@ -7,7 +7,7 @@ Grit uses a three-layer architecture that separates the source of truth from the
 ```
 +------------------+     +-------------------+     +------------------+
 |   Git WAL        | --> | Materialized View | <-- | CLI / Daemon     |
-| refs/grit/wal    |     | sled database     |     | grit / grited     |
+| refs/grit/wal    |     | sled database     |     | grit / grit-daemon     |
 | (source of truth)|     | (fast queries)    |     | (user interface) |
 +------------------+     +-------------------+     +------------------+
 ```
@@ -104,7 +104,7 @@ The command-line interface:
 - JSON output for scripting
 - Auto-spawns daemon when needed
 
-### Daemon (grited)
+### Daemon (grit-daemon)
 
 Optional background process:
 
@@ -151,7 +151,7 @@ The daemon uses tokio for concurrent task execution. Sled handles internal concu
 ```
 1. CLI starts
 2. Check for daemon.lock
-3. If no lock, spawn grited in background
+3. If no lock, spawn grit-daemon in background
 4. Wait for daemon to be ready
 5. Route command through IPC
 6. Daemon auto-shuts down after idle timeout

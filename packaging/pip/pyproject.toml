@@ -36,7 +36,7 @@ Issues = "https://github.com/neul-labs/grit/issues"
 
 [project.scripts]
 grit = "grit_cli:main"
-grited = "grit_cli:main_daemon"
+grit-daemon = "grit_cli:main_daemon"
 
 [tool.setuptools.packages.find]
 where = ["."]

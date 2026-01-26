@@ -22,6 +22,6 @@ Gem::Specification.new do |spec|
   end
 
   spec.bindir = 'exe'
-  spec.executables = ['grit', 'grited']
+  spec.executables = ['grit', 'grit-daemon']
   spec.require_paths = ['lib']
 end

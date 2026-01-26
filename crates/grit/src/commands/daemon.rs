@@ -11,7 +11,7 @@ use crate::cli::{Cli, DaemonCommand};
 use crate::context::GritContext;
 
 /// Default IPC endpoint for daemon
-pub const DEFAULT_DAEMON_ENDPOINT: &str = "ipc:///tmp/grited.sock";
+pub const DEFAULT_DAEMON_ENDPOINT: &str = "ipc:///tmp/grit-daemon.sock";
 
 pub fn run(cli: &Cli, cmd: DaemonCommand) -> Result<(), GritError> {
     match cmd {
@@ -47,7 +47,7 @@ fn start(cli: &Cli, idle_timeout: u64) -> Result<(), GritError> {
         let _ = DaemonLock::remove(&ctx.data_dir);
     }
 
-    // Spawn grited in background
+    // Spawn grit-daemon in background
     let endpoint = DEFAULT_DAEMON_ENDPOINT;
     let result = spawn_daemon(endpoint, idle_timeout)?;
 
@@ -79,12 +79,12 @@ struct SpawnResult {
     pid: u32,
 }
 
-/// Spawn the grited process in background
+/// Spawn the grit-daemon process in background
 fn spawn_daemon(endpoint: &str, idle_timeout: u64) -> Result<SpawnResult, GritError> {
-    // Find grited binary - assume it's in the same directory as grit or in PATH
-    let grited_path = find_grited_binary()?;
+    // Find grit-daemon binary - assume it's in the same directory as grit or in PATH
+    let grit_daemon_path = find_grit_daemon_binary()?;
 
-    let child = Command::new(&grited_path)
+    let child = Command::new(&grit_daemon_path)
         .arg("--endpoint")
         .arg(endpoint)
         .arg("--idle-timeout")
@@ -93,25 +93,25 @@ fn spawn_daemon(endpoint: &str, idle_timeout: u64) -> Result<SpawnResult, GritEr
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .spawn()
-        .map_err(|e| GritError::Internal(format!("Failed to spawn grited: {}", e)))?;
+        .map_err(|e| GritError::Internal(format!("Failed to spawn grit-daemon: {}", e)))?;
 
     Ok(SpawnResult { pid: child.id() })
 }
 
-/// Find the grited binary
-fn find_grited_binary() -> Result<String, GritError> {
+/// Find the grit-daemon binary
+fn find_grit_daemon_binary() -> Result<String, GritError> {
     // First, try to find it relative to current executable
     if let Ok(current_exe) = std::env::current_exe() {
         if let Some(dir) = current_exe.parent() {
-            let grited_path = dir.join("grited");
-            if grited_path.exists() {
-                return Ok(grited_path.to_string_lossy().to_string());
+            let grit_daemon_path = dir.join("grit-daemon");
+            if grit_daemon_path.exists() {
+                return Ok(grit_daemon_path.to_string_lossy().to_string());
             }
         }
     }
 
     // Fall back to PATH
-    Ok("grited".to_string())
+    Ok("grit-daemon".to_string())
 }
 
 /// Wait for daemon to become ready

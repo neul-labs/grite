@@ -1,5 +1,5 @@
 [package]
-name = "grited"
+name = "grit-daemon"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -13,13 +13,13 @@ description = "Background daemon for grit providing concurrent access and perfor
 readme = "../../README.md"
 
 [[bin]]
-name = "grited"
+name = "grit-daemon"
 path = "src/main.rs"
 
 [dependencies]
-libgrit-core = { path = "../libgrit-core", version = "0.2.1" }
-libgrit-git = { path = "../libgrit-git", version = "0.2.1" }
-libgrit-ipc = { path = "../libgrit-ipc", version = "0.2.1" }
+libgrit-core = { path = "../libgrit-core", version = "0.2.2" }
+libgrit-git = { path = "../libgrit-git", version = "0.2.2" }
+libgrit-ipc = { path = "../libgrit-ipc", version = "0.2.2" }
 nng = { workspace = true }
 rkyv = { workspace = true }
 tokio = { workspace = true }
