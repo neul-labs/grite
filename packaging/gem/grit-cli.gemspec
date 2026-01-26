@@ -7,7 +7,7 @@ Gem::Specification.new do |spec|
   spec.summary       = 'Git-backed issue tracking for coding agents and humans'
   spec.description   = 'Grit is a repo-local, git-backed issue/task system designed for coding agents and humans. It maintains an append-only event log in git refs, builds a fast local materialized view, and never writes tracked state into the working tree.'
   spec.homepage      = 'https://github.com/neul-labs/grit'
-  spec.license       = 'MIT OR Apache-2.0'
+  spec.license       = 'MIT'
 
   spec.required_ruby_version = '>= 2.7.0'
 

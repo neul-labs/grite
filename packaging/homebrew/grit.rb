@@ -5,7 +5,7 @@ class Grit < Formula
   desc "Git-backed issue tracking for coding agents and humans"
   homepage "https://github.com/neul-labs/grit"
   version "0.1.0"
-  license any_of: ["MIT", "Apache-2.0"]
+  license "MIT"
 
   on_macos do
     if Hardware::CPU.arm?

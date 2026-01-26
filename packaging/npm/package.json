@@ -17,7 +17,7 @@
     "type": "git",
     "url": "git+https://github.com/neul-labs/grit.git"
   },
-  "license": "(MIT OR Apache-2.0)",
+  "license": "MIT",
   "author": "Neul Labs",
   "main": "index.js",
   "bin": {

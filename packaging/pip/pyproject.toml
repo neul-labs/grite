@@ -7,7 +7,7 @@ name = "grit-cli"
 version = "0.1.0"
 description = "Git-backed issue tracking for coding agents and humans"
 readme = "README.md"
-license = {text = "MIT OR Apache-2.0"}
+license = {text = "MIT"}
 authors = [
     {name = "Neul Labs"}
 ]
@@ -17,7 +17,6 @@ classifiers = [
     "Environment :: Console",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
-    "License :: OSI Approved :: Apache Software License",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.8",

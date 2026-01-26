@@ -13,7 +13,7 @@ description = "Git WAL, sync, and snapshot operations for grit"
 readme = "../../README.md"
 
 [dependencies]
-libgrit-core = { path = "../libgrit-core", version = "0.2.0" }
+libgrit-core = { path = "../libgrit-core", version = "0.2.1" }
 git2 = { workspace = true }
 blake2 = { workspace = true }
 ciborium = { workspace = true }

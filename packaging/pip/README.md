@@ -50,4 +50,4 @@ See the full documentation at [github.com/neul-labs/grit](https://github.com/neu
 
 ## License
 
-MIT OR Apache-2.0
+MIT

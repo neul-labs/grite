@@ -396,7 +396,7 @@ jobs:
             desc "Git-backed issue tracking for coding agents and humans"
             homepage "https://github.com/neul-labs/grit"
             version "${VERSION}"
-            license any_of: ["MIT", "Apache-2.0"]
+            license "MIT"
 
             on_macos do
               url "https://github.com/neul-labs/grit/releases/download/v${VERSION}/grit-${VERSION}-universal-apple-darwin.tar.gz"
