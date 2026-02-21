@@ -6,6 +6,7 @@ members = [
     "crates/libgrite-ipc",
     "crates/grite",
     "crates/grite-daemon",
+    "crates/grite-bench",
 ]
 
 [workspace.package]

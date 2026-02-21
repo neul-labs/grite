@@ -89,9 +89,29 @@ fn run_init(cli: &Cli, label: Option<String>, generate_key: bool) -> Result<(), 
         config.key_scheme = Some("ed25519".to_string());
 
         // Store private key seed in separate file (hex-encoded)
+        // Use restricted permissions (0600) on Unix to protect the key
         std::fs::create_dir_all(&data_dir)?;
         let signing_key_path = data_dir.join("signing_key");
-        std::fs::write(&signing_key_path, keypair.seed_hex())?;
+
+        #[cfg(unix)]
+        {
+            use std::fs::OpenOptions;
+            use std::io::Write;
+            use std::os::unix::fs::OpenOptionsExt;
+
+            let mut file = OpenOptions::new()
+                .write(true)
+                .create(true)
+                .truncate(true)
+                .mode(0o600)
+                .open(&signing_key_path)?;
+            file.write_all(keypair.seed_hex().as_bytes())?;
+        }
+
+        #[cfg(not(unix))]
+        {
+            std::fs::write(&signing_key_path, keypair.seed_hex())?;
+        }
     }
 
     save_actor_config(&data_dir, &config)?;

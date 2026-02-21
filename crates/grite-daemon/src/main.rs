@@ -19,12 +19,33 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilte
 
 use supervisor::Supervisor;
 
+/// Get the default IPC endpoint for the daemon.
+/// Uses user-specific path for security isolation.
+fn get_default_daemon_endpoint() -> String {
+    // Prefer XDG_RUNTIME_DIR which is properly secured by systemd
+    if let Ok(runtime_dir) = std::env::var("XDG_RUNTIME_DIR") {
+        return format!("ipc://{}/grite-daemon.sock", runtime_dir);
+    }
+
+    // Fallback: user-specific path in /tmp
+    #[cfg(unix)]
+    {
+        let uid = unsafe { libc::getuid() };
+        return format!("ipc:///tmp/grite-daemon-{}.sock", uid);
+    }
+
+    #[cfg(not(unix))]
+    {
+        "ipc:///tmp/grite-daemon.sock".to_string()
+    }
+}
+
 #[derive(Parser)]
 #[command(name = "grite-daemon", about = "Grite daemon", version)]
 struct Cli {
     /// IPC endpoint (e.g., ipc:///tmp/grite-daemon.sock)
-    #[arg(long, default_value = "ipc:///tmp/grite-daemon.sock")]
-    endpoint: String,
+    #[arg(long)]
+    endpoint: Option<String>,
 
     /// Daemonize (run in background)
     #[arg(long, short)]
@@ -83,7 +104,8 @@ async fn main() {
     } else {
         None
     };
-    let supervisor = Supervisor::new(cli.endpoint, idle_timeout);
+    let endpoint = cli.endpoint.unwrap_or_else(get_default_daemon_endpoint);
+    let supervisor = Supervisor::new(endpoint, idle_timeout);
 
     tokio::select! {
         result = supervisor.run() => {

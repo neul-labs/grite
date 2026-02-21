@@ -1,5 +1,5 @@
 [package]
-name = "grite"
+name = "grite-bench"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -9,32 +9,37 @@ homepage.workspace = true
 documentation.workspace = true
 keywords.workspace = true
 categories.workspace = true
-description = "Git-backed issue tracker with CRDT merging, designed for AI coding agents"
+description = "TUI benchmark tool for testing concurrent agent writes to grite"
 readme = "../../README.md"
 
 [[bin]]
-name = "grite"
+name = "grite-bench"
 path = "src/main.rs"
 
 [dependencies]
 libgrite-core = { path = "../libgrite-core", version = "0.3.0" }
 libgrite-git = { path = "../libgrite-git", version = "0.3.0" }
-libgrite-ipc = { path = "../libgrite-ipc", version = "0.3.0" }
+
+# TUI
+ratatui = "0.29"
+crossterm = "0.28"
+
+# CLI
 clap = { workspace = true }
+
+# Serialization
 serde = { workspace = true }
 serde_json = { workspace = true }
+
+# Utils
 thiserror = { workspace = true }
 hex = { workspace = true }
 chrono = { workspace = true }
-uuid = { workspace = true }
-sha2 = { workspace = true }
-glob = { workspace = true }
+rand = "0.8"
 git2 = { workspace = true }
 
-[target.'cfg(unix)'.dependencies]
-libc = "0.2"
+# Metrics
+hdrhistogram = "7.5"
 
 [dev-dependencies]
-assert_cmd = "2.0"
-predicates = "3.1"
 tempfile = "3.10"

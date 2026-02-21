@@ -10,8 +10,29 @@ use libgrite_ipc::{DaemonLock, IpcClient};
 use crate::cli::{Cli, DaemonCommand};
 use crate::context::GriteContext;
 
-/// Default IPC endpoint for daemon
-pub const DEFAULT_DAEMON_ENDPOINT: &str = "ipc:///tmp/grite-daemon.sock";
+/// Get the default IPC endpoint for the daemon.
+/// Uses user-specific path for security isolation:
+/// - XDG_RUNTIME_DIR if available (Linux with systemd)
+/// - /tmp/grite-daemon-<uid>.sock as fallback on Unix
+/// - /tmp/grite-daemon.sock on non-Unix platforms
+pub fn get_default_daemon_endpoint() -> String {
+    // Prefer XDG_RUNTIME_DIR which is properly secured by systemd
+    if let Ok(runtime_dir) = std::env::var("XDG_RUNTIME_DIR") {
+        return format!("ipc://{}/grite-daemon.sock", runtime_dir);
+    }
+
+    // Fallback: user-specific path in /tmp
+    #[cfg(unix)]
+    {
+        let uid = unsafe { libc::getuid() };
+        return format!("ipc:///tmp/grite-daemon-{}.sock", uid);
+    }
+
+    #[cfg(not(unix))]
+    {
+        "ipc:///tmp/grite-daemon.sock".to_string()
+    }
+}
 
 pub fn run(cli: &Cli, cmd: DaemonCommand) -> Result<(), GriteError> {
     match cmd {
@@ -48,11 +69,11 @@ fn start(cli: &Cli, idle_timeout: u64) -> Result<(), GriteError> {
     }
 
     // Spawn grite-daemon in background
-    let endpoint = DEFAULT_DAEMON_ENDPOINT;
-    let result = spawn_daemon(endpoint, idle_timeout)?;
+    let endpoint = get_default_daemon_endpoint();
+    let result = spawn_daemon(&endpoint, idle_timeout)?;
 
     // Wait for daemon to be ready
-    let ready = wait_for_daemon(endpoint, Duration::from_secs(5))?;
+    let ready = wait_for_daemon(&endpoint, Duration::from_secs(5))?;
 
     if ready {
         if cli.json {
@@ -146,13 +167,13 @@ pub fn ensure_daemon_running(cli: &Cli) -> Result<Option<String>, GriteError> {
     }
 
     // Spawn daemon with default idle timeout (5 minutes)
-    let endpoint = DEFAULT_DAEMON_ENDPOINT;
+    let endpoint = get_default_daemon_endpoint();
     let idle_timeout = 300; // 5 minutes default
-    spawn_daemon(endpoint, idle_timeout)?;
+    spawn_daemon(&endpoint, idle_timeout)?;
 
     // Wait for daemon to be ready
-    if wait_for_daemon(endpoint, Duration::from_secs(5))? {
-        Ok(Some(endpoint.to_string()))
+    if wait_for_daemon(&endpoint, Duration::from_secs(5))? {
+        Ok(Some(endpoint))
     } else {
         Err(GriteError::Internal("Failed to start daemon".to_string()))
     }

@@ -37,7 +37,11 @@ pub fn run(cli: &Cli, format: ExportFormat, since: Option<String>) -> Result<(),
     };
 
     // Create .grite directory if needed
-    let grite_export_dir = ctx.git_dir.parent().unwrap().join(".grite");
+    let repo_root = ctx.git_dir.parent()
+        .ok_or_else(|| GriteError::Internal(
+            "Cannot determine repository root from git directory".to_string()
+        ))?;
+    let grite_export_dir = repo_root.join(".grite");
     std::fs::create_dir_all(&grite_export_dir)?;
 
     let (format_str, output_path, event_count) = match format {
