@@ -8,7 +8,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 
-use libgrite_core::types::ids::{hex_to_id, id_to_hex, ActorId};
+use libgrite_core::types::ids::{hex_to_id, ActorId};
 use libgrite_core::{GriteError, GritStore, LockedStore};
 use libgrite_core::store::IssueFilter;
 use libgrite_ipc::{DaemonLock, IpcCommand, IpcResponse, Notification};
@@ -278,8 +278,8 @@ fn execute_command_inner(
         }
 
         IpcCommand::IssueShow { issue_id } => {
-            let id = hex_to_id(issue_id)
-                .map_err(|e| DaemonError::Grit(GriteError::InvalidArgs(e.to_string())))?;
+            let id = store.resolve_issue_id(issue_id)
+                .map_err(|e| DaemonError::Grit(e))?;
             let p = store.get_issue(&id)?
                 .ok_or_else(|| DaemonError::Grit(GriteError::NotFound(format!("Issue {} not found", issue_id))))?;
 

@@ -2,7 +2,7 @@ use libgrite_core::{
     hash::compute_event_id,
     lock::LockCheckResult,
     types::event::{Event, EventKind, IssueState},
-    types::ids::{generate_issue_id, id_to_hex, hex_to_id, parse_issue_id},
+    types::ids::{generate_issue_id, id_to_hex, hex_to_id},
     types::issue::IssueSummary,
     store::IssueFilter,
     GriteError,
@@ -255,7 +255,7 @@ fn run_show(cli: &Cli, id: String) -> Result<(), GriteError> {
     let ctx = GriteContext::resolve(cli)?;
     let store = ctx.open_store()?;
 
-    let issue_id = parse_issue_id(&id)?;
+    let issue_id = store.resolve_issue_id(&id)?;
     let proj = store.get_issue(&issue_id)?
         .ok_or_else(|| GriteError::NotFound(format!("Issue {} not found", id)))?;
 
@@ -298,7 +298,7 @@ fn run_update(cli: &Cli, id: String, title: Option<String>, body: Option<String>
     let wal = ctx.open_wal().map_err(|e| GriteError::Internal(e.to_string()))?;
     let actor = ctx.actor_config.actor_id_bytes()?;
 
-    let issue_id = parse_issue_id(&id)?;
+    let issue_id = store.resolve_issue_id(&id)?;
 
     // Verify issue exists
     store.get_issue(&issue_id)?
@@ -334,7 +334,7 @@ fn run_comment(cli: &Cli, id: String, body: String, lock: bool) -> Result<(), Gr
     let wal = ctx.open_wal().map_err(|e| GriteError::Internal(e.to_string()))?;
     let actor = ctx.actor_config.actor_id_bytes()?;
 
-    let issue_id = parse_issue_id(&id)?;
+    let issue_id = store.resolve_issue_id(&id)?;
 
     // Verify issue exists
     store.get_issue(&issue_id)?
@@ -370,7 +370,7 @@ fn run_close(cli: &Cli, id: String, lock: bool) -> Result<(), GriteError> {
     let wal = ctx.open_wal().map_err(|e| GriteError::Internal(e.to_string()))?;
     let actor = ctx.actor_config.actor_id_bytes()?;
 
-    let issue_id = parse_issue_id(&id)?;
+    let issue_id = store.resolve_issue_id(&id)?;
 
     // Verify issue exists
     store.get_issue(&issue_id)?
@@ -407,7 +407,7 @@ fn run_reopen(cli: &Cli, id: String, lock: bool) -> Result<(), GriteError> {
     let wal = ctx.open_wal().map_err(|e| GriteError::Internal(e.to_string()))?;
     let actor = ctx.actor_config.actor_id_bytes()?;
 
-    let issue_id = parse_issue_id(&id)?;
+    let issue_id = store.resolve_issue_id(&id)?;
 
     // Verify issue exists
     store.get_issue(&issue_id)?
@@ -443,7 +443,7 @@ fn run_label(cli: &Cli, cmd: LabelCommand) -> Result<(), GriteError> {
             let wal = ctx.open_wal().map_err(|e| GriteError::Internal(e.to_string()))?;
             let actor = ctx.actor_config.actor_id_bytes()?;
 
-            let issue_id = parse_issue_id(&id)?;
+            let issue_id = store.resolve_issue_id(&id)?;
             store.get_issue(&issue_id)?
                 .ok_or_else(|| GriteError::NotFound(format!("Issue {} not found", id)))?;
 
@@ -471,7 +471,7 @@ fn run_label(cli: &Cli, cmd: LabelCommand) -> Result<(), GriteError> {
             let wal = ctx.open_wal().map_err(|e| GriteError::Internal(e.to_string()))?;
             let actor = ctx.actor_config.actor_id_bytes()?;
 
-            let issue_id = parse_issue_id(&id)?;
+            let issue_id = store.resolve_issue_id(&id)?;
             store.get_issue(&issue_id)?
                 .ok_or_else(|| GriteError::NotFound(format!("Issue {} not found", id)))?;
 
@@ -505,7 +505,7 @@ fn run_assignee(cli: &Cli, cmd: AssigneeCommand) -> Result<(), GriteError> {
             let wal = ctx.open_wal().map_err(|e| GriteError::Internal(e.to_string()))?;
             let actor = ctx.actor_config.actor_id_bytes()?;
 
-            let issue_id = parse_issue_id(&id)?;
+            let issue_id = store.resolve_issue_id(&id)?;
             store.get_issue(&issue_id)?
                 .ok_or_else(|| GriteError::NotFound(format!("Issue {} not found", id)))?;
 
@@ -533,7 +533,7 @@ fn run_assignee(cli: &Cli, cmd: AssigneeCommand) -> Result<(), GriteError> {
             let wal = ctx.open_wal().map_err(|e| GriteError::Internal(e.to_string()))?;
             let actor = ctx.actor_config.actor_id_bytes()?;
 
-            let issue_id = parse_issue_id(&id)?;
+            let issue_id = store.resolve_issue_id(&id)?;
             store.get_issue(&issue_id)?
                 .ok_or_else(|| GriteError::NotFound(format!("Issue {} not found", id)))?;
 
@@ -567,7 +567,7 @@ fn run_link(cli: &Cli, cmd: LinkCommand) -> Result<(), GriteError> {
             let wal = ctx.open_wal().map_err(|e| GriteError::Internal(e.to_string()))?;
             let actor = ctx.actor_config.actor_id_bytes()?;
 
-            let issue_id = parse_issue_id(&id)?;
+            let issue_id = store.resolve_issue_id(&id)?;
             store.get_issue(&issue_id)?
                 .ok_or_else(|| GriteError::NotFound(format!("Issue {} not found", id)))?;
 
@@ -601,7 +601,7 @@ fn run_attachment(cli: &Cli, cmd: AttachmentCommand) -> Result<(), GriteError> {
             let wal = ctx.open_wal().map_err(|e| GriteError::Internal(e.to_string()))?;
             let actor = ctx.actor_config.actor_id_bytes()?;
 
-            let issue_id = parse_issue_id(&id)?;
+            let issue_id = store.resolve_issue_id(&id)?;
             store.get_issue(&issue_id)?
                 .ok_or_else(|| GriteError::NotFound(format!("Issue {} not found", id)))?;
 
