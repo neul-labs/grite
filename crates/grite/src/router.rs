@@ -108,10 +108,10 @@ pub fn should_route_through_daemon(cmd: &crate::cli::Command) -> bool {
         // Context commands are local-only (need filesystem access)
         Command::Context { .. } => false,
 
-        // Issue commands can be routed, except dep (needs cycle detection)
-        Command::Issue { cmd } => !matches!(cmd, crate::cli::IssueCommand::Dep { .. }),
+        // All issue commands (including dep) route through daemon
+        Command::Issue { .. } => true,
         Command::Export { .. } => true,
-        Command::Rebuild { from_snapshot } => !from_snapshot, // Snapshot-based rebuild is local-only
+        Command::Rebuild { .. } => false, // Always local — stops daemon first to acquire the flock
         Command::Sync { .. } => true,
         Command::Snapshot { .. } => true,
     }
@@ -133,8 +133,7 @@ pub fn cli_to_ipc_command(cmd: &crate::cli::Command) -> Option<IpcCommand> {
             },
             since: since.clone(),
         }),
-        Command::Rebuild { from_snapshot } if !from_snapshot => Some(IpcCommand::Rebuild),
-        Command::Rebuild { .. } => None, // Snapshot-based rebuild handled locally
+        Command::Rebuild { .. } => None, // Always local
         Command::Sync { remote, pull, push } => Some(IpcCommand::Sync {
             remote: remote.clone(),
             pull: *pull,
@@ -214,10 +213,7 @@ fn issue_to_ipc(cmd: &crate::cli::IssueCommand) -> IpcCommand {
                 file_path: format!("{}:{}:{}", name, sha256, mime),
             },
         },
-        // Dep commands are local-only, should not reach here
-        IssueCommand::Dep { .. } => {
-            unreachable!("Dep commands should not be routed through daemon")
-        }
+        IssueCommand::Dep { cmd: dep_cmd } => dep_to_ipc(dep_cmd),
     }
 }
 
@@ -230,6 +226,31 @@ fn db_to_ipc(cmd: &crate::cli::DbCommand) -> IpcCommand {
         DbCommand::Check { .. } | DbCommand::Verify { .. } => {
             unreachable!("Check and Verify commands should not be routed through daemon")
         }
+    }
+}
+
+fn dep_to_ipc(cmd: &crate::cli::DepCommand) -> IpcCommand {
+    use crate::cli::DepCommand;
+
+    match cmd {
+        DepCommand::Add { id, target, r#type, .. } => IpcCommand::IssueDepAdd {
+            issue_id: id.clone(),
+            target_id: target.clone(),
+            dep_type: r#type.clone(),
+        },
+        DepCommand::Remove { id, target, r#type, .. } => IpcCommand::IssueDepRemove {
+            issue_id: id.clone(),
+            target_id: target.clone(),
+            dep_type: r#type.clone(),
+        },
+        DepCommand::List { id, reverse } => IpcCommand::IssueDepList {
+            issue_id: id.clone(),
+            reverse: *reverse,
+        },
+        DepCommand::Topo { state, label } => IpcCommand::IssueDepTopo {
+            state: state.clone(),
+            label: label.clone(),
+        },
     }
 }
 

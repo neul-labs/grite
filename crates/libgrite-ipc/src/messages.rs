@@ -155,6 +155,24 @@ pub enum IpcCommand {
         issue_id: String,
         file_path: String,
     },
+    IssueDepAdd {
+        issue_id: String,
+        target_id: String,
+        dep_type: String,
+    },
+    IssueDepRemove {
+        issue_id: String,
+        target_id: String,
+        dep_type: String,
+    },
+    IssueDepList {
+        issue_id: String,
+        reverse: bool,
+    },
+    IssueDepTopo {
+        state: Option<String>,
+        label: Option<String>,
+    },
 
     // Database commands
     DbStats,
