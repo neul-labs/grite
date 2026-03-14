@@ -8,7 +8,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 
-use libgrite_core::types::ids::{hex_to_id, ActorId};
+use libgrite_core::types::ids::{hex_to_id, id_to_hex, ActorId};
 use libgrite_core::{GriteError, GritStore, LockedStore};
 use libgrite_core::store::IssueFilter;
 use libgrite_ipc::{DaemonLock, IpcCommand, IpcResponse, Notification};
@@ -264,16 +264,26 @@ fn execute_command_inner(
                 label: label.clone(),
             };
             let issues = store.list_issues(&filter)?;
-            let json = serde_json::to_string(&serde_json::json!({ "issues": issues }))?;
+            let summaries: Vec<serde_json::Value> = issues.iter().map(|s| serde_json::json!({
+                "issue_id": id_to_hex(&s.issue_id),
+                "title": s.title,
+                "state": format!("{:?}", s.state).to_lowercase(),
+                "labels": s.labels,
+                "assignees": s.assignees,
+                "updated_ts": s.updated_ts,
+                "comment_count": s.comment_count,
+            })).collect();
+            let json = serde_json::to_string(&serde_json::json!({ "issues": summaries }))?;
             Ok(Some(json))
         }
 
         IpcCommand::IssueShow { issue_id } => {
             let id = hex_to_id(issue_id)
                 .map_err(|e| DaemonError::Grit(GriteError::InvalidArgs(e.to_string())))?;
-            let projection = store.get_issue(&id)?
+            let p = store.get_issue(&id)?
                 .ok_or_else(|| DaemonError::Grit(GriteError::NotFound(format!("Issue {} not found", issue_id))))?;
-            let json = serde_json::to_string(&projection)?;
+
+            let json = serde_json::to_string(&projection_to_json(&p))?;
             Ok(Some(json))
         }
 
@@ -292,11 +302,9 @@ fn execute_command_inner(
             store.flush()?;
 
             let projection = IssueProjection::from_event(&event)?;
-            let json = serde_json::to_string(&serde_json::json!({
-                "issue_id": id_to_hex(&issue_id),
-                "event_id": id_to_hex(&event_id),
-                "projection": projection,
-            }))?;
+            let mut json_val = projection_to_json(&projection);
+            json_val["event_id"] = serde_json::Value::String(id_to_hex(&event_id));
+            let json = serde_json::to_string(&json_val)?;
             Ok(Some(json))
         }
 
@@ -639,6 +647,48 @@ fn execute_command_inner(
             )))
         }
     }
+}
+
+/// Convert an IssueProjection to a JSON value with hex-encoded IDs
+fn projection_to_json(p: &libgrite_core::types::issue::IssueProjection) -> serde_json::Value {
+    use libgrite_core::types::ids::id_to_hex;
+
+    let comments: Vec<serde_json::Value> = p.comments.iter().map(|c| serde_json::json!({
+        "event_id": id_to_hex(&c.event_id),
+        "actor": id_to_hex(&c.actor),
+        "ts_unix_ms": c.ts_unix_ms,
+        "body": c.body,
+    })).collect();
+    let links: Vec<serde_json::Value> = p.links.iter().map(|l| serde_json::json!({
+        "event_id": id_to_hex(&l.event_id),
+        "url": l.url,
+        "note": l.note,
+    })).collect();
+    let attachments: Vec<serde_json::Value> = p.attachments.iter().map(|a| serde_json::json!({
+        "event_id": id_to_hex(&a.event_id),
+        "name": a.name,
+        "sha256": hex::encode(a.sha256),
+        "mime": a.mime,
+    })).collect();
+    let deps: Vec<serde_json::Value> = p.dependencies.iter().map(|d| serde_json::json!({
+        "target": id_to_hex(&d.target),
+        "dep_type": d.dep_type.as_str(),
+    })).collect();
+
+    serde_json::json!({
+        "issue_id": id_to_hex(&p.issue_id),
+        "title": p.title,
+        "body": p.body,
+        "state": format!("{:?}", p.state).to_lowercase(),
+        "labels": p.labels,
+        "assignees": p.assignees,
+        "comments": comments,
+        "links": links,
+        "attachments": attachments,
+        "dependencies": deps,
+        "created_ts": p.created_ts,
+        "updated_ts": p.updated_ts,
+    })
 }
 
 /// Get current time in milliseconds since Unix epoch
