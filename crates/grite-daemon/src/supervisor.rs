@@ -123,6 +123,9 @@ impl Supervisor {
             .set_opt::<nng::options::RecvTimeout>(Some(Duration::from_millis(100)))
             .map_err(|e| DaemonError::BindFailed(e.to_string()))?;
         rep_socket
+            .set_opt::<nng::options::SendTimeout>(Some(Duration::from_secs(5)))
+            .map_err(|e| DaemonError::BindFailed(e.to_string()))?;
+        rep_socket
             .listen(&self.ipc_endpoint)
             .map_err(|e| DaemonError::BindFailed(format!("Failed to bind to {}: {}", self.ipc_endpoint, e)))?;
 
