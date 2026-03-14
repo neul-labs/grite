@@ -111,7 +111,7 @@ pub fn should_route_through_daemon(cmd: &crate::cli::Command) -> bool {
         // All issue commands (including dep) route through daemon
         Command::Issue { .. } => true,
         Command::Export { .. } => true,
-        Command::Rebuild { .. } => false, // Always local — stops daemon first to acquire the flock
+        Command::Rebuild { .. } => false, // Handled specially in rebuild.rs with a longer IPC timeout
         Command::Sync { .. } => true,
         Command::Snapshot { .. } => true,
     }
