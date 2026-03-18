@@ -29,7 +29,6 @@ struct WorkerHandle {
     tx: mpsc::Sender<WorkerMessage>,
     repo_root: PathBuf,
     actor_id: String,
-    data_dir: PathBuf,
 }
 
 /// Key for worker lookup
@@ -87,18 +86,6 @@ impl Supervisor {
     fn touch_activity(&self) {
         let elapsed_ms = self.start_instant.elapsed().as_millis() as u64;
         self.last_activity_ms.store(elapsed_ms, Ordering::Relaxed);
-    }
-
-    /// Check if we've been idle too long
-    fn is_idle_timeout(&self) -> bool {
-        if let Some(timeout) = self.idle_timeout {
-            let last_activity_ms = self.last_activity_ms.load(Ordering::Relaxed);
-            let now_ms = self.start_instant.elapsed().as_millis() as u64;
-            let idle_ms = now_ms.saturating_sub(last_activity_ms);
-            idle_ms >= timeout.as_millis() as u64
-        } else {
-            false
-        }
     }
 
     /// Run the supervisor
@@ -415,7 +402,6 @@ impl Supervisor {
                     tx: tx.clone(),
                     repo_root,
                     actor_id,
-                    data_dir,
                 },
             );
         }
