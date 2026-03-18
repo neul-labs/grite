@@ -6,6 +6,7 @@
 
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
 
 use libgrite_core::types::ids::{hex_to_id, ActorId};
@@ -148,6 +149,9 @@ impl Worker {
             })
             .await;
 
+        // Track in-flight commands so we can wait for them on shutdown
+        let in_flight = Arc::new(AtomicUsize::new(0));
+
         // Event loop - commands are spawned as concurrent tasks
         while let Some(msg) = self.rx.recv().await {
             match msg {
@@ -162,6 +166,9 @@ impl Worker {
                     let sled_path = self.sled_path.clone();
                     let data_dir = self.data_dir.clone();
                     let git_dir = self.git_dir.clone();
+                    let in_flight = Arc::clone(&in_flight);
+
+                    in_flight.fetch_add(1, Ordering::SeqCst);
 
                     // Spawn task for concurrent command execution
                     // sled's MVCC handles concurrent access safely
@@ -176,6 +183,7 @@ impl Worker {
                             &command,
                         );
                         let _ = response_tx.send(response);
+                        in_flight.fetch_sub(1, Ordering::SeqCst);
                     });
                 }
                 WorkerMessage::Heartbeat => {
@@ -188,6 +196,19 @@ impl Worker {
                     break;
                 }
             }
+        }
+
+        // Wait for in-flight commands to complete (with timeout)
+        let deadline = tokio::time::Instant::now() + Duration::from_secs(5);
+        while in_flight.load(Ordering::SeqCst) > 0 {
+            if tokio::time::Instant::now() >= deadline {
+                warn!(
+                    "Timed out waiting for {} in-flight commands",
+                    in_flight.load(Ordering::SeqCst)
+                );
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(50)).await;
         }
 
         // Cleanup
