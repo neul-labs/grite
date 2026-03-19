@@ -3,11 +3,13 @@
 use libgrite_core::integrity::check_store_integrity;
 use libgrite_core::GriteError;
 use libgrite_git::WalManager;
+use libgrite_ipc::IpcCommand;
 use serde::Serialize;
 
 use crate::cli::Cli;
-use crate::context::GriteContext;
+use crate::context::{ExecutionMode, GriteContext};
 use crate::output::output_success;
+use crate::router::route_command;
 
 #[derive(Serialize)]
 struct DoctorOutput {
@@ -53,6 +55,15 @@ impl CheckResult {
     }
 }
 
+fn store_held_by_daemon(cli: &Cli) -> bool {
+    GriteContext::resolve(cli)
+        .map(|ctx| matches!(
+            ctx.execution_mode(cli.no_daemon),
+            ExecutionMode::Daemon { .. } | ExecutionMode::Blocked { .. }
+        ))
+        .unwrap_or(false)
+}
+
 pub fn run(cli: &Cli, fix: bool) -> Result<(), GriteError> {
     let mut checks = Vec::new();
     let mut applied = Vec::new();
@@ -76,9 +87,22 @@ pub fn run(cli: &Cli, fix: bool) -> Result<(), GriteError> {
     // Auto-repair if requested
     if fix && needs_rebuild {
         if let Ok(ctx) = GriteContext::resolve(cli) {
-            if let Ok(store) = ctx.open_store() {
-                if store.rebuild().is_ok() {
-                    applied.push("rebuild".to_string());
+            match ctx.execution_mode(cli.no_daemon) {
+                ExecutionMode::Daemon { .. } => {
+                    // Daemon is reachable — route rebuild through IPC
+                    if route_command(&ctx, cli, IpcCommand::Rebuild).is_ok() {
+                        applied.push("rebuild".to_string());
+                    }
+                }
+                ExecutionMode::Blocked { .. } => {
+                    // Lock held but daemon unreachable — can't fix
+                }
+                ExecutionMode::Local => {
+                    if let Ok(store) = ctx.open_store() {
+                        if store.rebuild().is_ok() {
+                            applied.push("rebuild".to_string());
+                        }
+                    }
                 }
             }
         }
@@ -203,6 +227,14 @@ fn check_store(cli: &Cli) -> (CheckResult, bool) {
         }
     };
 
+    // If the daemon is running it holds the exclusive flock — that's healthy.
+    if store_held_by_daemon(cli) {
+        return (
+            CheckResult::ok("store_integrity", "Store held by running daemon"),
+            false,
+        );
+    }
+
     let store = match ctx.open_store() {
         Ok(store) => store,
         Err(e) => {
@@ -264,6 +296,14 @@ fn check_rebuild_threshold(cli: &Cli) -> CheckResult {
             )
         }
     };
+
+    // Daemon holds the store; skip this check to avoid lock contention.
+    if store_held_by_daemon(cli) {
+        return CheckResult::ok(
+            "rebuild_threshold",
+            "Rebuild threshold managed by running daemon",
+        );
+    }
 
     let store = match ctx.open_store() {
         Ok(store) => store,
