@@ -1,5 +1,5 @@
 use std::path::PathBuf;
-use std::time::Duration;
+
 use git2::Repository;
 use libgrite_core::{
     config::{load_repo_config, save_repo_config, load_actor_config, save_actor_config, actor_dir, list_actors, RepoConfig, load_signing_key},
@@ -96,6 +96,7 @@ impl GriteContext {
     }
 
     /// Check if we're currently in a git worktree (not the main repo).
+    #[cfg(test)]
     pub fn is_worktree() -> Result<bool, GriteError> {
         let cwd = std::env::current_dir()?;
         let repo = Repository::discover(&cwd).map_err(|_| {
@@ -212,14 +213,6 @@ impl GriteContext {
     pub fn open_store(&self) -> Result<LockedStore, GriteError> {
         let sled_path = self.data_dir.join("sled");
         GritStore::open_locked(&sled_path)
-    }
-
-    /// Open the store with blocking lock and timeout.
-    ///
-    /// Waits up to `timeout` for the lock to become available.
-    pub fn open_store_blocking(&self, timeout: Duration) -> Result<LockedStore, GriteError> {
-        let sled_path = self.data_dir.join("sled");
-        GritStore::open_locked_blocking(&sled_path, timeout)
     }
 
     /// Get the sled database path
