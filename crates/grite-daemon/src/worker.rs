@@ -559,6 +559,129 @@ fn execute_command_inner(
             Ok(Some(output))
         }
 
+        IpcCommand::IssueDepAdd { issue_id, target_id, dep_type } => {
+            use libgrite_core::hash::compute_event_id;
+            use libgrite_core::types::event::{Event, EventKind, DependencyType};
+            use libgrite_core::types::ids::id_to_hex;
+
+            let id = hex_to_id(issue_id)
+                .map_err(|e| DaemonError::Grit(GriteError::InvalidArgs(e.to_string())))?;
+            let target = hex_to_id(target_id)
+                .map_err(|e| DaemonError::Grit(GriteError::InvalidArgs(e.to_string())))?;
+            let dep = DependencyType::from_str(dep_type).ok_or_else(|| {
+                DaemonError::Grit(GriteError::InvalidArgs(format!("Invalid dep type: {}", dep_type)))
+            })?;
+
+            store.get_issue(&id)?
+                .ok_or_else(|| DaemonError::Grit(GriteError::NotFound(format!("Issue {} not found", issue_id))))?;
+            store.get_issue(&target)?
+                .ok_or_else(|| DaemonError::Grit(GriteError::NotFound(format!("Target {} not found", target_id))))?;
+
+            if store.would_create_cycle(&id, &target, &dep)? {
+                return Err(DaemonError::Grit(GriteError::InvalidArgs(format!(
+                    "Adding this dependency would create a cycle in the {} graph", dep.as_str()
+                ))));
+            }
+
+            let ts = current_time_ms();
+            let kind = EventKind::DependencyAdded { target, dep_type: dep };
+            let event_id = compute_event_id(&id, &actor_id_bytes, ts, None, &kind);
+            let event = Event::new(event_id, id, actor_id_bytes, ts, None, kind);
+            store.insert_event(&event)?;
+            store.flush()?;
+
+            let json = serde_json::to_string(&serde_json::json!({
+                "event_id": id_to_hex(&event_id),
+                "issue_id": issue_id,
+                "target": target_id,
+                "dep_type": dep_type,
+                "action": "added",
+            }))?;
+            Ok(Some(json))
+        }
+
+        IpcCommand::IssueDepRemove { issue_id, target_id, dep_type } => {
+            use libgrite_core::hash::compute_event_id;
+            use libgrite_core::types::event::{Event, EventKind, DependencyType};
+            use libgrite_core::types::ids::id_to_hex;
+
+            let id = hex_to_id(issue_id)
+                .map_err(|e| DaemonError::Grit(GriteError::InvalidArgs(e.to_string())))?;
+            let target = hex_to_id(target_id)
+                .map_err(|e| DaemonError::Grit(GriteError::InvalidArgs(e.to_string())))?;
+            let dep = DependencyType::from_str(dep_type).ok_or_else(|| {
+                DaemonError::Grit(GriteError::InvalidArgs(format!("Invalid dep type: {}", dep_type)))
+            })?;
+
+            let ts = current_time_ms();
+            let kind = EventKind::DependencyRemoved { target, dep_type: dep };
+            let event_id = compute_event_id(&id, &actor_id_bytes, ts, None, &kind);
+            let event = Event::new(event_id, id, actor_id_bytes, ts, None, kind);
+            store.insert_event(&event)?;
+            store.flush()?;
+
+            let json = serde_json::to_string(&serde_json::json!({
+                "event_id": id_to_hex(&event_id),
+                "issue_id": issue_id,
+                "target": target_id,
+                "dep_type": dep_type,
+                "action": "removed",
+            }))?;
+            Ok(Some(json))
+        }
+
+        IpcCommand::IssueDepList { issue_id, reverse } => {
+            use libgrite_core::types::ids::id_to_hex;
+
+            let id = hex_to_id(issue_id)
+                .map_err(|e| DaemonError::Grit(GriteError::InvalidArgs(e.to_string())))?;
+            let deps = if *reverse {
+                store.get_dependents(&id)?
+            } else {
+                store.get_dependencies(&id)?
+            };
+            let dep_list: Vec<serde_json::Value> = deps.iter().map(|(target, dep_type)| {
+                let title = store.get_issue(target).ok().flatten()
+                    .map(|p| p.title.clone()).unwrap_or_else(|| "?".to_string());
+                serde_json::json!({
+                    "issue_id": id_to_hex(target),
+                    "dep_type": dep_type.as_str(),
+                    "title": title,
+                })
+            }).collect();
+            let json = serde_json::to_string(&serde_json::json!({
+                "issue_id": issue_id,
+                "direction": if *reverse { "dependents" } else { "dependencies" },
+                "deps": dep_list,
+            }))?;
+            Ok(Some(json))
+        }
+
+        IpcCommand::IssueDepTopo { state, label } => {
+            use libgrite_core::types::event::IssueState;
+            use libgrite_core::types::ids::id_to_hex;
+
+            let filter = IssueFilter {
+                state: state.as_deref().map(|s| match s {
+                    "closed" => IssueState::Closed,
+                    _ => IssueState::Open,
+                }),
+                label: label.clone(),
+            };
+            let sorted = store.topological_order(&filter)?;
+            let issues: Vec<serde_json::Value> = sorted.iter().map(|s| serde_json::json!({
+                "issue_id": id_to_hex(&s.issue_id),
+                "title": s.title,
+                "state": format!("{:?}", s.state).to_lowercase(),
+                "labels": s.labels,
+            })).collect();
+            let json = serde_json::to_string(&serde_json::json!({
+                "issues": issues,
+                "order": "topological",
+            }))?;
+            Ok(Some(json))
+        }
+
         IpcCommand::DaemonStatus => {
             let lock = DaemonLock::read(data_dir)
                 .map_err(|e| DaemonError::LockFailed(e.to_string()))?;
