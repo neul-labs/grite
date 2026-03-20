@@ -3,7 +3,8 @@
 //! The daemon lock prevents multiple processes from owning the same
 //! actor data directory. It uses a lease-based approach with heartbeats.
 
-use std::fs;
+use std::fs::{self, OpenOptions};
+use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -101,13 +102,14 @@ impl DaemonLock {
     /// Read a lock from the filesystem
     pub fn read(data_dir: &Path) -> Result<Option<Self>, IpcError> {
         let path = Self::lock_path(data_dir);
-        if !path.exists() {
-            return Ok(None);
+        match fs::read_to_string(&path) {
+            Ok(contents) => {
+                let lock: DaemonLock = serde_json::from_str(&contents)?;
+                Ok(Some(lock))
+            }
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
+            Err(e) => Err(e.into()),
         }
-
-        let contents = fs::read_to_string(&path)?;
-        let lock: DaemonLock = serde_json::from_str(&contents)?;
-        Ok(Some(lock))
     }
 
     /// Write the lock to the filesystem
@@ -121,15 +123,18 @@ impl DaemonLock {
     /// Remove the lock file
     pub fn remove(data_dir: &Path) -> Result<(), IpcError> {
         let path = Self::lock_path(data_dir);
-        if path.exists() {
-            fs::remove_file(&path)?;
+        match fs::remove_file(&path) {
+            Ok(()) => Ok(()),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
+            Err(e) => Err(e.into()),
         }
-        Ok(())
     }
 
     /// Try to acquire the lock
     ///
-    /// Returns Ok(lock) if acquired, Err if held by another non-expired process
+    /// Returns Ok(lock) if acquired, Err if held by another non-expired process.
+    /// Uses atomic file creation to prevent two processes from acquiring
+    /// the lock simultaneously when an expired lock is being replaced.
     pub fn acquire(
         data_dir: &Path,
         repo_root: String,
@@ -137,6 +142,8 @@ impl DaemonLock {
         host_id: String,
         ipc_endpoint: String,
     ) -> Result<Self, IpcError> {
+        let path = Self::lock_path(data_dir);
+
         // Check for existing lock
         if let Some(existing) = Self::read(data_dir)? {
             if !existing.is_expired() {
@@ -145,7 +152,8 @@ impl DaemonLock {
                     expires_in_ms: existing.time_remaining_ms(),
                 });
             }
-            // Lock is expired, we can take it
+            // Lock is expired — remove it so we can create exclusively
+            let _ = std::fs::remove_file(&path);
         }
 
         let lock = DaemonLock::new(
@@ -155,8 +163,25 @@ impl DaemonLock {
             host_id,
             ipc_endpoint,
         );
-        lock.write(data_dir)?;
-        Ok(lock)
+
+        let contents = serde_json::to_string_pretty(&lock)?;
+
+        // O_CREAT | O_EXCL: fails if another process created the file
+        // between our remove and this create.
+        match OpenOptions::new().write(true).create_new(true).open(&path) {
+            Ok(mut f) => {
+                f.write_all(contents.as_bytes())?;
+                Ok(lock)
+            }
+            Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {
+                // Another process beat us to it
+                Err(IpcError::LockHeld {
+                    pid: 0,
+                    expires_in_ms: 0,
+                })
+            }
+            Err(e) => Err(e.into()),
+        }
     }
 
     /// Release the lock (only if owned by current process)

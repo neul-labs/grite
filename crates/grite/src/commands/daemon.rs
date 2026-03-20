@@ -260,6 +260,8 @@ fn stop(cli: &Cli) -> Result<(), GriteError> {
 
     match lock {
         Some(lock) if !lock.is_expired() => {
+            let pid = lock.pid;
+
             // Try to connect and send stop command
             match libgrite_ipc::IpcClient::connect(&lock.ipc_endpoint) {
                 Ok(client) => {
@@ -271,23 +273,8 @@ fn stop(cli: &Cli) -> Result<(), GriteError> {
                         libgrite_ipc::IpcCommand::DaemonStop,
                     );
 
-                    match client.send(&request) {
-                        Ok(_) => {
-                            if cli.json {
-                                println!("{}", serde_json::json!({"stopped": true}));
-                            } else if !cli.quiet {
-                                println!("Daemon stopped");
-                            }
-                        }
-                        Err(e) => {
-                            // Daemon may have stopped before responding
-                            if cli.json {
-                                println!("{}", serde_json::json!({"stopped": true, "note": format!("Connection closed: {}", e)}));
-                            } else if !cli.quiet {
-                                println!("Daemon stopped (connection closed)");
-                            }
-                        }
-                    }
+                    // Send stop command (ignore errors - daemon may close connection)
+                    let _ = client.send(&request);
                 }
                 Err(_) => {
                     // Can't connect - daemon may already be dead
@@ -298,7 +285,20 @@ fn stop(cli: &Cli) -> Result<(), GriteError> {
                     } else if !cli.quiet {
                         println!("Daemon not reachable (cleaned up stale lock)");
                     }
+                    return Ok(());
                 }
+            }
+
+            // Wait for daemon process to actually exit
+            wait_for_daemon_exit(pid, Duration::from_secs(10));
+
+            // Clean up stale lock file if it still exists
+            let _ = DaemonLock::remove(&ctx.data_dir);
+
+            if cli.json {
+                println!("{}", serde_json::json!({"stopped": true}));
+            } else if !cli.quiet {
+                println!("Daemon stopped");
             }
         }
         _ => {
@@ -311,6 +311,33 @@ fn stop(cli: &Cli) -> Result<(), GriteError> {
     }
 
     Ok(())
+}
+
+/// Wait for a process to exit (by PID)
+fn wait_for_daemon_exit(pid: u32, timeout: Duration) {
+    let start = Instant::now();
+    let mut delay = Duration::from_millis(50);
+
+    while start.elapsed() < timeout {
+        // Check if process is still alive
+        #[cfg(unix)]
+        {
+            let result = unsafe { libc::kill(pid as i32, 0) };
+            if result != 0 {
+                // Process doesn't exist anymore (ESRCH) or we can't signal it
+                return;
+            }
+        }
+        #[cfg(not(unix))]
+        {
+            // On non-Unix, just wait a reasonable time
+            thread::sleep(Duration::from_secs(1));
+            return;
+        }
+
+        thread::sleep(delay);
+        delay = (delay * 2).min(Duration::from_millis(500));
+    }
 }
 
 fn format_timestamp(ts_ms: u64) -> String {

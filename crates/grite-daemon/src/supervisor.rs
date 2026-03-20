@@ -27,6 +27,7 @@ use crate::worker::{Worker, WorkerMessage};
 /// Worker handle for communication
 struct WorkerHandle {
     tx: mpsc::Sender<WorkerMessage>,
+    join_handle: Option<tokio::task::JoinHandle<()>>,
     repo_root: PathBuf,
     actor_id: String,
 }
@@ -88,8 +89,27 @@ impl Supervisor {
         self.last_activity_ms.store(elapsed_ms, Ordering::Relaxed);
     }
 
+    /// Check if we've been idle too long
+    fn is_idle_timeout(&self) -> bool {
+        if let Some(timeout) = self.idle_timeout {
+            let last_activity_ms = self.last_activity_ms.load(Ordering::Relaxed);
+            let now_ms = self.start_instant.elapsed().as_millis() as u64;
+            let idle_ms = now_ms.saturating_sub(last_activity_ms);
+            idle_ms >= timeout.as_millis() as u64
+        } else {
+            false
+        }
+    }
+
+    /// Trigger shutdown signal (for use from signal handlers)
+    pub fn trigger_shutdown(&self) {
+        if let Some(ref tx) = self.shutdown_tx {
+            let _ = tx.send(());
+        }
+    }
+
     /// Run the supervisor
-    pub async fn run(mut self) -> Result<(), DaemonError> {
+    pub async fn run(&mut self) -> Result<(), DaemonError> {
         info!(
             daemon_id = %self.daemon_id,
             endpoint = %self.ipc_endpoint,
@@ -108,6 +128,9 @@ impl Supervisor {
         let rep_socket = Socket::new(Protocol::Rep0)?;
         rep_socket
             .set_opt::<nng::options::RecvTimeout>(Some(Duration::from_millis(100)))
+            .map_err(|e| DaemonError::BindFailed(e.to_string()))?;
+        rep_socket
+            .set_opt::<nng::options::SendTimeout>(Some(Duration::from_secs(5)))
             .map_err(|e| DaemonError::BindFailed(e.to_string()))?;
         rep_socket
             .listen(&self.ipc_endpoint)
@@ -384,7 +407,7 @@ impl Supervisor {
         )?;
 
         // Spawn worker task using spawn_blocking since worker does sync I/O
-        tokio::task::spawn_blocking(move || {
+        let join_handle = tokio::task::spawn_blocking(move || {
             // Create a new tokio runtime for the worker
             let rt = tokio::runtime::Builder::new_current_thread()
                 .enable_all()
@@ -400,6 +423,7 @@ impl Supervisor {
                 key,
                 WorkerHandle {
                     tx: tx.clone(),
+                    join_handle: Some(join_handle),
                     repo_root,
                     actor_id,
                 },
@@ -409,15 +433,29 @@ impl Supervisor {
         Ok(tx)
     }
 
-    /// Shutdown all workers
-    async fn shutdown_workers(&self) {
-        let workers = self.workers.read().await;
+    /// Shutdown all workers and wait for them to finish
+    pub async fn shutdown_workers(&self) {
+        let mut workers = self.workers.write().await;
+
+        // Send shutdown to all workers
         for handle in workers.values() {
             let _ = handle.tx.send(WorkerMessage::Shutdown).await;
         }
 
-        // Give workers time to cleanup
-        tokio::time::sleep(Duration::from_millis(500)).await;
+        // Wait for all workers to actually finish (with timeout)
+        for handle in workers.values_mut() {
+            if let Some(jh) = handle.join_handle.take() {
+                match tokio::time::timeout(Duration::from_secs(10), jh).await {
+                    Ok(Ok(())) => {}
+                    Ok(Err(e)) => warn!("Worker task panicked: {}", e),
+                    Err(_) => warn!(
+                        "Worker {}/{} didn't shut down within 10s",
+                        handle.repo_root.display(),
+                        handle.actor_id
+                    ),
+                }
+            }
+        }
     }
 }
 

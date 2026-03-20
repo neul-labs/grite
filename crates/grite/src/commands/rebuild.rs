@@ -1,9 +1,13 @@
 use libgrite_core::GriteError;
 use libgrite_git::{SnapshotManager, WalManager};
+use libgrite_ipc::{IpcClient, IpcCommand, IpcRequest};
 use serde::Serialize;
 use crate::cli::Cli;
-use crate::context::GriteContext;
+use crate::context::{ExecutionMode, GriteContext};
 use crate::output::{output_success, print_human};
+
+/// Rebuild can take much longer than normal IPC commands (minutes for large stores).
+const REBUILD_TIMEOUT_MS: u64 = 300_000; // 5 minutes
 
 #[derive(Serialize)]
 struct RebuildOutput {
@@ -15,14 +19,76 @@ struct RebuildOutput {
 
 pub fn run(cli: &Cli, use_snapshot: bool) -> Result<(), GriteError> {
     let ctx = GriteContext::resolve(cli)?;
-    let store = ctx.open_store()?;
-    let git_dir = ctx.repo_root().join(".git");
 
+    match ctx.execution_mode(cli.no_daemon) {
+        ExecutionMode::Daemon { endpoint, .. } => {
+            // The daemon holds the store flock. Route rebuild through it
+            // with a generous timeout since rebuilds can be slow.
+            rebuild_via_daemon(cli, &ctx, &endpoint)
+        }
+        ExecutionMode::Blocked { lock } => {
+            Err(GriteError::DbBusy(format!(
+                "Store is locked by pid {} (expires in {}s). \
+                 Try again later or run 'grite daemon stop' first.",
+                lock.pid,
+                lock.time_remaining_ms() / 1000
+            )))
+        }
+        ExecutionMode::Local => {
+            let store = ctx.open_store()?;
+            let git_dir = ctx.repo_root().join(".git");
+            do_rebuild(cli, &store, &git_dir, use_snapshot)
+        }
+    }
+}
+
+/// Send rebuild command through the daemon's IPC with a long timeout.
+fn rebuild_via_daemon(cli: &Cli, ctx: &GriteContext, endpoint: &str) -> Result<(), GriteError> {
+    let client = IpcClient::connect_with_timeout(endpoint, REBUILD_TIMEOUT_MS)
+        .map_err(|e| GriteError::Internal(format!("Failed to connect to daemon: {}", e)))?;
+
+    let request = IpcRequest::new(
+        uuid::Uuid::new_v4().to_string(),
+        ctx.repo_root().to_string_lossy().to_string(),
+        ctx.actor_id.clone(),
+        ctx.data_dir.to_string_lossy().to_string(),
+        IpcCommand::Rebuild,
+    );
+
+    let response = client.send(&request)
+        .map_err(|e| GriteError::Internal(format!("Rebuild via daemon failed: {}", e)))?;
+
+    if response.ok {
+        if let Some(data) = &response.data {
+            if cli.json {
+                println!("{}", data);
+            } else if !cli.quiet {
+                if let Ok(json) = serde_json::from_str::<serde_json::Value>(data) {
+                    let count = json.get("event_count").and_then(|v| v.as_u64()).unwrap_or(0);
+                    print_human(cli, &format!("Rebuilt {} events (via daemon)", count));
+                }
+            }
+        }
+        Ok(())
+    } else {
+        let msg = response.error
+            .map(|e| e.message)
+            .unwrap_or_else(|| "unknown error".to_string());
+        Err(GriteError::Internal(format!("Daemon rebuild failed: {}", msg)))
+    }
+}
+
+fn do_rebuild(
+    cli: &Cli,
+    store: &libgrite_core::LockedStore,
+    git_dir: &std::path::Path,
+    use_snapshot: bool,
+) -> Result<(), GriteError> {
     if use_snapshot {
         // Snapshot-based rebuild: load from latest snapshot
-        let snap_mgr = SnapshotManager::open(&git_dir)
+        let snap_mgr = SnapshotManager::open(git_dir)
             .map_err(|e| GriteError::Internal(e.to_string()))?;
-        let wal_mgr = WalManager::open(&git_dir)
+        let wal_mgr = WalManager::open(git_dir)
             .map_err(|e| GriteError::Internal(e.to_string()))?;
 
         // Get latest snapshot
@@ -68,7 +134,7 @@ pub fn run(cli: &Cli, use_snapshot: bool) -> Result<(), GriteError> {
         });
     } else {
         // Standard rebuild from store events
-        let wal_head = WalManager::open(&git_dir)
+        let wal_head = WalManager::open(git_dir)
             .ok()
             .and_then(|wal| wal.head().ok().flatten());
 
