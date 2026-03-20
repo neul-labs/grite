@@ -13,14 +13,6 @@ pub enum DaemonError {
     #[error("Failed to acquire lock: {0}")]
     LockFailed(String),
 
-    /// Worker not found for request
-    #[error("No worker for repo={repo_root}, actor={actor_id}")]
-    WorkerNotFound { repo_root: String, actor_id: String },
-
-    /// Worker already exists
-    #[error("Worker already exists for repo={repo_root}, actor={actor_id}")]
-    WorkerExists { repo_root: String, actor_id: String },
-
     /// Core grit error
     #[error("Grit error: {0}")]
     Grit(#[from] libgrite_core::GriteError),
@@ -45,13 +37,6 @@ pub enum DaemonError {
     #[error("JSON error: {0}")]
     Json(#[from] serde_json::Error),
 
-    /// Channel send error
-    #[error("Channel error: {0}")]
-    Channel(String),
-
-    /// Shutdown requested
-    #[error("Shutdown requested")]
-    Shutdown,
 }
 
 impl From<nng::Error> for DaemonError {

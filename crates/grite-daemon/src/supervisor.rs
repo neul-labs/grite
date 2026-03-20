@@ -30,7 +30,6 @@ struct WorkerHandle {
     join_handle: Option<tokio::task::JoinHandle<()>>,
     repo_root: PathBuf,
     actor_id: String,
-    data_dir: PathBuf,
 }
 
 /// Key for worker lookup
@@ -427,7 +426,6 @@ impl Supervisor {
                     join_handle: Some(join_handle),
                     repo_root,
                     actor_id,
-                    data_dir,
                 },
             );
         }
