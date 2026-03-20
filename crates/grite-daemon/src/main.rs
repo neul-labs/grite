@@ -105,7 +105,7 @@ async fn main() {
         None
     };
     let endpoint = cli.endpoint.unwrap_or_else(get_default_daemon_endpoint);
-    let supervisor = Supervisor::new(endpoint, idle_timeout);
+    let mut supervisor = Supervisor::new(endpoint, idle_timeout);
 
     tokio::select! {
         result = supervisor.run() => {
@@ -115,6 +115,9 @@ async fn main() {
         }
         _ = shutdown => {
             info!("Received shutdown signal");
+            // Trigger graceful shutdown through the supervisor so workers clean up
+            supervisor.trigger_shutdown();
+            supervisor.shutdown_workers().await;
         }
     }
 

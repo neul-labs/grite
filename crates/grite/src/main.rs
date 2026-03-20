@@ -129,16 +129,26 @@ fn output_daemon_data(cli: &Cli, data: &str) -> Result<(), GriteError> {
             // Issue list response
             if let Some(arr) = issues.as_array() {
                 for issue in arr {
-                    let id = issue.get("id").and_then(|v| v.as_str()).unwrap_or("?");
+                    let id = issue.get("issue_id").and_then(|v| v.as_str()).unwrap_or("?");
                     let state = issue.get("state").and_then(|v| v.as_str()).unwrap_or("?");
                     let title = issue.get("title").and_then(|v| v.as_str()).unwrap_or("?");
                     println!("{} [{}] {}", &id[..8.min(id.len())], state, title);
                 }
             }
-        } else if json.get("issue_id").is_some() {
-            // Issue created response
+        } else if json.get("issue_id").is_some() && json.get("event_id").is_some() {
+            // Issue created response (has both issue_id and event_id)
             let issue_id = json.get("issue_id").and_then(|v| v.as_str()).unwrap_or("?");
             println!("Created issue {}", issue_id);
+        } else if json.get("issue_id").is_some() && json.get("title").is_some() {
+            // Issue show response
+            let id = json.get("issue_id").and_then(|v| v.as_str()).unwrap_or("?");
+            let title = json.get("title").and_then(|v| v.as_str()).unwrap_or("?");
+            let state = json.get("state").and_then(|v| v.as_str()).unwrap_or("?");
+            let body = json.get("body").and_then(|v| v.as_str()).unwrap_or("");
+            println!("{} [{}] {}", &id[..8.min(id.len())], state, title);
+            if !body.is_empty() {
+                println!("\n{}", body);
+            }
         } else if json.get("event_count").is_some() {
             // Rebuild response
             let events = json.get("event_count").and_then(|v| v.as_u64()).unwrap_or(0);

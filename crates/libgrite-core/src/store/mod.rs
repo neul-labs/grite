@@ -376,6 +376,70 @@ impl GritStore {
         }
     }
 
+    /// Resolve a hex prefix to a full issue ID
+    ///
+    /// If the prefix is already a full 32-char hex ID, parses it directly.
+    /// Otherwise, scans the issue_states tree for matching prefixes.
+    /// Returns an error if the prefix is ambiguous (matches multiple issues).
+    pub fn resolve_issue_id(&self, hex_prefix: &str) -> Result<IssueId, GriteError> {
+        use crate::types::ids::{hex_to_id, id_to_hex};
+
+        // Full ID — parse directly
+        if hex_prefix.len() == 32 {
+            return hex_to_id::<16>(hex_prefix)
+                .map_err(|e| GriteError::InvalidArgs(e.to_string()));
+        }
+
+        // Validate hex characters
+        if !hex_prefix.chars().all(|c| c.is_ascii_hexdigit()) {
+            return Err(GriteError::InvalidArgs(format!(
+                "invalid hex prefix: {}", hex_prefix
+            )));
+        }
+
+        if hex_prefix.len() < 4 {
+            return Err(GriteError::InvalidArgs(
+                "issue ID prefix must be at least 4 characters".to_string()
+            ));
+        }
+
+        // Decode the prefix bytes for sled scan_prefix
+        // Pad odd-length prefixes with 0 for byte-level prefix scanning
+        let prefix_lower = hex_prefix.to_ascii_lowercase();
+        let full_byte_len = prefix_lower.len() / 2;
+        let prefix_bytes = hex::decode(&prefix_lower[..full_byte_len * 2])
+            .map_err(|e| GriteError::InvalidArgs(format!("invalid hex: {}", e)))?;
+
+        let mut scan_key = Vec::with_capacity(12 + prefix_bytes.len());
+        scan_key.extend_from_slice(b"issue_state/");
+        scan_key.extend_from_slice(&prefix_bytes);
+
+        let mut matches = Vec::new();
+        for result in self.issue_states.scan_prefix(&scan_key) {
+            let (key, _) = result?;
+            if key.len() != 12 + 16 {
+                continue;
+            }
+            let mut id = [0u8; 16];
+            id.copy_from_slice(&key[12..]);
+            let hex = id_to_hex(&id);
+            // Check the full hex prefix (handles odd-length prefixes)
+            if hex.starts_with(&prefix_lower) {
+                matches.push(id);
+            }
+        }
+
+        match matches.len() {
+            0 => Err(GriteError::NotFound(format!(
+                "no issue matching prefix {}", hex_prefix
+            ))),
+            1 => Ok(matches[0]),
+            n => Err(GriteError::InvalidArgs(format!(
+                "ambiguous prefix {} matches {} issues", hex_prefix, n
+            ))),
+        }
+    }
+
     /// Get an issue projection by ID
     pub fn get_issue(&self, issue_id: &IssueId) -> Result<Option<IssueProjection>, GriteError> {
         let key = issue_state_key(issue_id);
