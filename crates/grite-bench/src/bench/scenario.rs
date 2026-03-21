@@ -73,6 +73,7 @@ pub enum OpType {
 }
 
 impl OpType {
+    #[allow(dead_code)]
     pub fn as_str(&self) -> &'static str {
         match self {
             OpType::CreateIssue => "create_issue",

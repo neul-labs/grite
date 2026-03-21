@@ -118,11 +118,13 @@ impl MetricsCollector {
     }
 
     /// Record a CRDT conflict (LWW overwrite)
+    #[allow(dead_code)]
     pub fn record_crdt_conflict(&self) {
         self.crdt_conflicts.fetch_add(1, Ordering::Relaxed);
     }
 
     /// Record a database lock wait
+    #[allow(dead_code)]
     pub fn record_db_lock_wait(&self) {
         self.db_lock_waits.fetch_add(1, Ordering::Relaxed);
     }

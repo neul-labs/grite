@@ -10,6 +10,7 @@ use super::widgets;
 #[derive(Default)]
 pub struct UiState {
     pub agent_scroll: usize,
+    #[allow(dead_code)]
     pub status_message: String,
 }
 

@@ -7,6 +7,6 @@ pub mod runner;
 pub mod scenario;
 
 pub use config::BenchmarkConfig;
-pub use metrics::{AgentMetrics, AgentStatus, MetricsCollector, MetricsSnapshot};
+pub use metrics::{AgentStatus, MetricsCollector, MetricsSnapshot};
 pub use runner::BenchmarkRunner;
-pub use scenario::{BenchmarkScenario, OpType, OperationMix};
+pub use scenario::BenchmarkScenario;
