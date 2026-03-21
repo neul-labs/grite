@@ -13,7 +13,7 @@ use libgrite_core::{
 };
 use libgrite_git::WalManager;
 
-use super::metrics::{AgentStatus, MetricsCollector};
+use super::metrics::MetricsCollector;
 use super::scenario::{BenchmarkScenario, OpType};
 use crate::error::{BenchError, Result};
 
