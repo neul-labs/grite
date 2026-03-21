@@ -135,10 +135,15 @@ fn output_daemon_data(cli: &Cli, data: &str) -> Result<(), GriteError> {
                     println!("{} [{}] {}", &id[..8.min(id.len())], state, title);
                 }
             }
-        } else if json.get("issue_id").is_some() && json.get("event_id").is_some() {
-            // Issue created response (has both issue_id and event_id)
+        } else if let Some(action) = json.get("action").and_then(|v| v.as_str()) {
             let issue_id = json.get("issue_id").and_then(|v| v.as_str()).unwrap_or("?");
-            println!("Created issue {}", issue_id);
+            let action_str = match action {
+                libgrite_ipc::issue_action::CREATED => "Created",
+                libgrite_ipc::issue_action::CLOSED => "Closed",
+                libgrite_ipc::issue_action::REOPENED => "Reopened",
+                _ => action,
+            };
+            println!("{} issue {}", action_str, issue_id);
         } else if json.get("issue_id").is_some() && json.get("title").is_some() {
             // Issue show response
             let id = json.get("issue_id").and_then(|v| v.as_str()).unwrap_or("?");

@@ -32,3 +32,10 @@ pub const DEFAULT_TIMEOUT_MS: u64 = 10_000;
 
 /// Default lease duration for daemon locks in milliseconds
 pub const DEFAULT_LEASE_MS: u64 = 30_000;
+
+/// Issue action types returned in daemon responses
+pub mod issue_action {
+    pub const CREATED: &str = "created";
+    pub const CLOSED: &str = "closed";
+    pub const REOPENED: &str = "reopened";
+}
