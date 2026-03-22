@@ -83,7 +83,7 @@ Claude Code will:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `GRIT_BIN` | `./target/debug/grite` | Path to grite binary |
+| `GRITE_BIN` | `./target/debug/grite` | Path to grite binary |
 
 ## Troubleshooting
 

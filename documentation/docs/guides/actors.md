@@ -143,7 +143,7 @@ grite --actor e5f6a7b8 issue create --title "..."
 Set actor via environment:
 
 ```bash
-export GRIT_HOME=.git/grite/actors/e5f6a7b8/
+export GRITE_HOME=.git/grite/actors/e5f6a7b8/
 grite issue list
 ```
 
@@ -151,7 +151,7 @@ grite issue list
 
 Grite resolves actor context in this order:
 
-1. `--data-dir` or `GRIT_HOME` environment variable
+1. `--data-dir` or `GRITE_HOME` environment variable
 2. `--actor <id>` flag
 3. `default_actor` in `.git/grite/config.toml`
 4. Auto-create new actor if none exists

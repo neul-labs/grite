@@ -7,7 +7,7 @@ use libgrite_core::{
 use serde::Serialize;
 use std::fs;
 use std::path::PathBuf;
-use crate::agents_md::GRIT_AGENTS_SECTION;
+use crate::agents_md::GRITE_AGENTS_SECTION;
 use crate::cli::Cli;
 use crate::context::GriteContext;
 use crate::output::{output_success, print_human};
@@ -124,9 +124,9 @@ fn handle_agents_md(git_dir: &PathBuf) -> Result<(Option<PathBuf>, AgentsMdActio
 
         // Append grite section
         let new_content = if content.ends_with('\n') {
-            format!("{}\n{}", content, GRIT_AGENTS_SECTION)
+            format!("{}\n{}", content, GRITE_AGENTS_SECTION)
         } else {
-            format!("{}\n\n{}", content, GRIT_AGENTS_SECTION)
+            format!("{}\n\n{}", content, GRITE_AGENTS_SECTION)
         };
 
         fs::write(&agents_md_path, new_content).map_err(|e| {
@@ -136,7 +136,7 @@ fn handle_agents_md(git_dir: &PathBuf) -> Result<(Option<PathBuf>, AgentsMdActio
         Ok((Some(agents_md_path), AgentsMdAction::Updated))
     } else {
         // Create new AGENTS.md
-        fs::write(&agents_md_path, GRIT_AGENTS_SECTION).map_err(|e| {
+        fs::write(&agents_md_path, GRITE_AGENTS_SECTION).map_err(|e| {
             GriteError::Internal(format!("Failed to create AGENTS.md: {}", e))
         })?;
 

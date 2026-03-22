@@ -1,5 +1,5 @@
 /// Template content for the Grite section in AGENTS.md
-pub const GRIT_AGENTS_SECTION: &str = r#"## Grite
+pub const GRITE_AGENTS_SECTION: &str = r#"## Grite
 
 This repository uses **Grite** as the canonical task and memory system. **Always use grite commands** (not git) for task/issue tracking.
 

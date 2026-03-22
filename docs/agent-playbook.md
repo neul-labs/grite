@@ -21,7 +21,7 @@ Select exactly one issue at a time.
 
 ## Shared repo note
 
-If multiple agents share the same `.git` directory, each agent must use a separate data directory. Set `GRIT_HOME`, `--data-dir`, or `--actor <id>` so the local DB is not shared between processes.
+If multiple agents share the same `.git` directory, each agent must use a separate data directory. Set `GRITE_HOME`, `--data-dir`, or `--actor <id>` so the local DB is not shared between processes.
 
 ## Plan format
 

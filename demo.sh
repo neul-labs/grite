@@ -10,9 +10,9 @@ set -e
 
 DEMO_DIR="/tmp/grit-demo"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-GRIT_BIN="${GRIT_BIN:-$SCRIPT_DIR/target/debug/grit}"
+GRITE_BIN="${GRITE_BIN:-$SCRIPT_DIR/target/debug/grit}"
 # Use --no-daemon to avoid IPC issues in demo
-GRIT="$GRIT_BIN --no-daemon"
+GRIT="$GRITE_BIN --no-daemon"
 
 # Colors for output
 GREEN='\033[0;32m'
@@ -56,15 +56,15 @@ check_dependencies() {
         exit 1
     fi
 
-    if [ ! -x "$GRIT_BIN" ]; then
-        print_error "grite binary not found at $GRIT_BIN"
+    if [ ! -x "$GRITE_BIN" ]; then
+        print_error "grite binary not found at $GRITE_BIN"
         print_info "Build grite first with: cargo build"
-        print_info "Or set GRIT_BIN environment variable"
+        print_info "Or set GRITE_BIN environment variable"
         exit 1
     fi
 
     # Stop any existing daemon to avoid IPC issues
-    "$GRIT_BIN" daemon stop 2>/dev/null || true
+    "$GRITE_BIN" daemon stop 2>/dev/null || true
 }
 
 # Step 1: Setup project

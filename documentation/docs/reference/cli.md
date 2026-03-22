@@ -524,7 +524,7 @@ grite daemon stop
 
 Actor context is resolved in this order:
 
-1. `--data-dir` or `GRIT_HOME`
+1. `--data-dir` or `GRITE_HOME`
 2. `--actor <id>`
 3. `default_actor` in `.git/grite/config.toml`
 4. Auto-create new actor if none exists

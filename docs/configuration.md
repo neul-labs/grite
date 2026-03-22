@@ -23,7 +23,7 @@ max_age_days = 7
 ### Fields
 
 - `default_actor` (optional): 16-byte hex actor ID used when no `--actor` or
-  `GRIT_HOME/--data-dir` is provided.
+  `GRITE_HOME/--data-dir` is provided.
 - `lock_policy` (optional, default `warn`): one of `off`, `warn`, or `require`.
 - `[snapshot]` (optional): local snapshot policy overrides.
   - `max_events` (optional, default 10000): create a snapshot when events since

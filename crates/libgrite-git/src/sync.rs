@@ -14,7 +14,7 @@ use crate::wal::WalManager;
 use crate::GitError;
 
 /// Refspec for grite refs
-pub const GRIT_REFSPEC: &str = "refs/grite/*:refs/grite/*";
+pub const GRITE_REFSPEC: &str = "refs/grite/*:refs/grite/*";
 
 /// Result of a pull operation
 #[derive(Debug)]
@@ -66,7 +66,7 @@ impl SyncManager {
 
         // Fetch refs/grite/* from remote
         let mut remote = self.repo.find_remote(remote_name)?;
-        let refspecs = [GRIT_REFSPEC];
+        let refspecs = [GRITE_REFSPEC];
 
         let mut callbacks = RemoteCallbacks::new();
         callbacks.transfer_progress(|_stats| true);
@@ -107,7 +107,7 @@ impl SyncManager {
     /// Push grite refs to a remote
     pub fn push(&self, remote_name: &str) -> Result<PushResult, GitError> {
         let mut remote = self.repo.find_remote(remote_name)?;
-        let refspecs = [GRIT_REFSPEC];
+        let refspecs = [GRITE_REFSPEC];
 
         let push_error: Rc<RefCell<Option<String>>> = Rc::new(RefCell::new(None));
         let push_error_clone = Rc::clone(&push_error);

@@ -4,7 +4,7 @@ This document describes environment variables that affect grite behavior.
 
 ## Variables
 
-### GRIT_HOME
+### GRITE_HOME
 
 Override the actor data directory.
 
@@ -15,7 +15,7 @@ Override the actor data directory.
 When set, grite uses this directory for all actor data instead of the default location.
 
 ```bash
-export GRIT_HOME=/custom/path/grite/actor1
+export GRITE_HOME=/custom/path/grite/actor1
 grite issue list  # Uses data from /custom/path/grite/actor1
 ```
 
@@ -29,11 +29,11 @@ grite issue list  # Uses data from /custom/path/grite/actor1
 
 ```bash
 # Agent 1
-export GRIT_HOME=/tmp/grite/agent1
+export GRITE_HOME=/tmp/grite/agent1
 grite issue list
 
 # Agent 2
-export GRIT_HOME=/tmp/grite/agent2
+export GRITE_HOME=/tmp/grite/agent2
 grite issue list
 ```
 
@@ -90,7 +90,7 @@ export RUST_LOG=debug,libgrite_core::store=trace
 Actor context is resolved in this order (highest precedence first):
 
 1. **`--data-dir` flag** - Explicit path
-2. **`GRIT_HOME` environment variable** - Override default
+2. **`GRITE_HOME` environment variable** - Override default
 3. **`--actor` flag** - Specific actor ID
 4. **`default_actor` in config** - Repository default
 5. **Auto-create** - New actor if none exists
@@ -102,7 +102,7 @@ Actor context is resolved in this order (highest precedence first):
 grite --data-dir /custom/path issue list
 
 # Environment variable
-export GRIT_HOME=/custom/path
+export GRITE_HOME=/custom/path
 grite issue list
 
 # Flag
@@ -118,7 +118,7 @@ grite issue list  # Uses default_actor from .git/grite/config.toml
 
 ```yaml
 env:
-  GRIT_HOME: ${{ runner.temp }}/grite-${{ github.run_id }}
+  GRITE_HOME: ${{ runner.temp }}/grite-${{ github.run_id }}
 
 steps:
   - name: Initialize grite
@@ -130,7 +130,7 @@ steps:
 
 ```yaml
 variables:
-  GRIT_HOME: "${CI_PROJECT_DIR}/.grite-ci-${CI_JOB_ID}"
+  GRITE_HOME: "${CI_PROJECT_DIR}/.grite-ci-${CI_JOB_ID}"
 
 script:
   - grite actor init --label "ci-${CI_JOB_ID}"
@@ -139,10 +139,10 @@ script:
 ### Docker
 
 ```dockerfile
-ENV GRIT_HOME=/app/.grite
+ENV GRITE_HOME=/app/.grite
 
 # Or at runtime
-docker run -e GRIT_HOME=/app/.grite myimage
+docker run -e GRITE_HOME=/app/.grite myimage
 ```
 
 ## Shell Configuration
@@ -153,7 +153,7 @@ Add to `~/.bashrc` or `~/.zshrc`:
 
 ```bash
 # Custom grite home
-export GRIT_HOME="$HOME/.grite/default-actor"
+export GRITE_HOME="$HOME/.grite/default-actor"
 
 # Debug logging
 alias grite-debug='RUST_LOG=debug grite'
@@ -164,7 +164,7 @@ alias grite-debug='RUST_LOG=debug grite'
 Add to `~/.config/fish/config.fish`:
 
 ```fish
-set -x GRIT_HOME "$HOME/.grite/default-actor"
+set -x GRITE_HOME "$HOME/.grite/default-actor"
 ```
 
 ## Troubleshooting
@@ -176,7 +176,7 @@ set -x GRIT_HOME "$HOME/.grite/default-actor"
 grite actor current --json | jq
 
 # Check environment
-echo $GRIT_HOME
+echo $GRITE_HOME
 echo $RUST_LOG
 ```
 
@@ -190,8 +190,8 @@ Check actor selection precedence:
 # What's the current actor?
 grite actor current --json
 
-# Is GRIT_HOME set?
-echo $GRIT_HOME
+# Is GRITE_HOME set?
+echo $GRITE_HOME
 
 # What's the default in config?
 cat .git/grite/config.toml
