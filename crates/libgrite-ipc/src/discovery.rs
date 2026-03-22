@@ -10,7 +10,7 @@ use crate::{IPC_SCHEMA_VERSION, PROTOCOL_NAME};
 #[derive(Archive, Serialize, Deserialize, Debug, Clone)]
 #[rkyv(derive(Debug))]
 pub struct DiscoverRequest {
-    /// Protocol name (should be "grit-ipc")
+    /// Protocol name (should be "grite-ipc")
     pub protocol: String,
     /// Minimum supported version
     pub min_version: u32,

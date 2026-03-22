@@ -25,7 +25,7 @@ pub use notifications::Notification;
 pub const IPC_SCHEMA_VERSION: u32 = 1;
 
 /// Protocol identifier for discovery
-pub const PROTOCOL_NAME: &str = "grit-ipc";
+pub const PROTOCOL_NAME: &str = "grite-ipc";
 
 /// Default request timeout in milliseconds
 pub const DEFAULT_TIMEOUT_MS: u64 = 10_000;

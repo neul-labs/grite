@@ -8,7 +8,7 @@
 
 set -e
 
-DEMO_DIR="/tmp/grit-demo"
+DEMO_DIR="/tmp/grite-demo"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 GRITE_BIN="${GRITE_BIN:-$SCRIPT_DIR/target/debug/grite}"
 # Use --no-daemon to avoid IPC issues in demo
