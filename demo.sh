@@ -1,5 +1,5 @@
 #!/bin/bash
-# Grit + Claude Code Demo
+# grite + Claude Code Demo
 # Shows how grite provides persistent memory for AI coding agents
 #
 # Usage:
@@ -129,7 +129,7 @@ MDEOF
 show_agents_md() {
     print_step "STEP 2: AGENTS.md - Agent Discovery"
 
-    print_info "Grit automatically created AGENTS.md for Claude Code to discover."
+    print_info "grite automatically created AGENTS.md for Claude Code to discover."
     print_info "This file tells AI coding agents how to use grite for memory/tasks."
     echo ""
 
@@ -257,7 +257,7 @@ store_memory() {
 demo_dependencies() {
     print_step "STEP 6: Dependencies"
 
-    print_info "Grit tracks dependencies between issues with a formal DAG."
+    print_info "grite tracks dependencies between issues with a formal DAG."
     print_info "This lets agents understand task ordering and blockers."
     echo ""
 
@@ -402,7 +402,7 @@ show_summary() {
 }
 
 show_help() {
-    echo "Grit + Claude Code Demo"
+    echo "grite + Claude Code Demo"
     echo ""
     echo "Usage: $0 [OPTIONS]"
     echo ""

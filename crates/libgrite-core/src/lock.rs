@@ -1,6 +1,6 @@
 //! Lock types for team coordination
 //!
-//! Grit uses lease-based locks stored as git refs for coordination.
+//! grite uses lease-based locks stored as git refs for coordination.
 //! Locks are optional and designed for coordination, not enforcement.
 
 use serde::{Deserialize, Serialize};

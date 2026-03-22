@@ -246,7 +246,7 @@ pub fn export_json(store: &GritStore, since: Option<ExportSince>) -> Result<Json
 pub fn export_markdown(store: &GritStore, _since: Option<ExportSince>) -> Result<String, GriteError> {
     let mut md = String::new();
 
-    md.push_str("# Grit Export\n\n");
+    md.push_str("# grite Export\n\n");
 
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -359,7 +359,7 @@ mod tests {
         store.insert_event(&event).unwrap();
 
         let md = export_markdown(&store, None).unwrap();
-        assert!(md.contains("# Grit Export"));
+        assert!(md.contains("# grite Export"));
         assert!(md.contains("Test Issue"));
         assert!(md.contains("bug"));
     }
