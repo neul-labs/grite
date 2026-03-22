@@ -22,9 +22,6 @@ jobs:
         with:
           components: rustfmt, clippy
 
-      - name: Install system dependencies
-        run: sudo apt-get update && sudo apt-get install -y libnng-dev
-
       - name: Cache cargo registry
         uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
         with:
@@ -55,21 +52,6 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Install system dependencies (Ubuntu)
-        if: matrix.os == 'ubuntu-latest'
-        run: sudo apt-get update && sudo apt-get install -y libnng-dev
-
-      - name: Install system dependencies (macOS)
-        if: matrix.os == 'macos-latest'
-        run: brew install nng
-
-      - name: Install system dependencies (Windows)
-        if: matrix.os == 'windows-latest'
-        run: |
-          vcpkg integrate install
-          vcpkg install nng:x64-windows
-        shell: pwsh
-
       - name: Cache cargo registry
         uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
         with:
@@ -83,8 +65,6 @@ jobs:
 
       - name: Run tests
         run: cargo test --all --verbose
-        env:
-          NNG_LIB_DIR: ${{ matrix.os == 'windows-latest' && 'C:/vcpkg/installed/x64-windows/lib' || '' }}
 
   build:
     name: Build (${{ matrix.os }})
@@ -99,21 +79,6 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Install system dependencies (Ubuntu)
-        if: matrix.os == 'ubuntu-latest'
-        run: sudo apt-get update && sudo apt-get install -y libnng-dev
-
-      - name: Install system dependencies (macOS)
-        if: matrix.os == 'macos-latest'
-        run: brew install nng
-
-      - name: Install system dependencies (Windows)
-        if: matrix.os == 'windows-latest'
-        run: |
-          vcpkg integrate install
-          vcpkg install nng:x64-windows
-        shell: pwsh
-
       - name: Cache cargo registry
         uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
         with:
@@ -127,5 +92,3 @@ jobs:
 
       - name: Build release
         run: cargo build --release --all
-        env:
-          NNG_LIB_DIR: ${{ matrix.os == 'windows-latest' && 'C:/vcpkg/installed/x64-windows/lib' || '' }}

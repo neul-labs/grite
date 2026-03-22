@@ -96,22 +96,6 @@ jobs:
         with:
           targets: ${{ matrix.target }}
 
-      - name: Install system dependencies (Ubuntu)
-        if: matrix.os == 'ubuntu-latest' && !matrix.cross
-        run: sudo apt-get update && sudo apt-get install -y libnng-dev
-
-      - name: Install system dependencies (macOS)
-        if: matrix.os == 'macos-latest'
-        run: brew install nng
-
-      - name: Install system dependencies (Windows)
-        if: matrix.os == 'windows-latest'
-        run: |
-          vcpkg integrate install
-          vcpkg install nng:x64-windows
-          vcpkg install nng:arm64-windows
-        shell: pwsh
-
       - name: Install cross
         if: matrix.cross
         run: cargo install cross --git https://github.com/cross-rs/cross
@@ -125,8 +109,6 @@ jobs:
       - name: Build native
         if: "!matrix.cross"
         run: cargo build --release --target ${{ matrix.target }} --package grite --package grite-daemon
-        env:
-          NNG_LIB_DIR: ${{ matrix.os == 'windows-latest' && 'C:/vcpkg/installed/x64-windows/lib' || '' }}
 
       - name: Package (Unix)
         if: matrix.os != 'windows-latest'
@@ -254,9 +236,6 @@ jobs:
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
-
-      - name: Install system dependencies
-        run: sudo apt-get update && sudo apt-get install -y libnng-dev
 
       - name: Publish crates
         run: |
@@ -402,8 +381,6 @@ jobs:
               url "https://github.com/neul-labs/grite/releases/download/v${VERSION}/grite-${VERSION}-universal-apple-darwin.tar.gz"
               sha256 "${SHA256}"
             end
-
-            depends_on "nng"
 
             def install
               bin.install "grite"
