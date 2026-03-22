@@ -1,6 +1,6 @@
 #!/bin/bash
 # Grit + Claude Code Demo
-# Shows how grit provides persistent memory for AI coding agents
+# Shows how grite provides persistent memory for AI coding agents
 #
 # Usage:
 #   ./demo.sh          # Interactive mode (step-by-step with pauses)
@@ -57,8 +57,8 @@ check_dependencies() {
     fi
 
     if [ ! -x "$GRIT_BIN" ]; then
-        print_error "grit binary not found at $GRIT_BIN"
-        print_info "Build grit first with: cargo build"
+        print_error "grite binary not found at $GRIT_BIN"
+        print_info "Build grite first with: cargo build"
         print_info "Or set GRIT_BIN environment variable"
         exit 1
     fi
@@ -120,7 +120,7 @@ MDEOF
     run_cmd "$GRIT init"
 
     echo ""
-    print_info "Project created with git and grit initialized"
+    print_info "Project created with git and grite initialized"
 
     wait_for_user
 }
@@ -130,13 +130,13 @@ show_agents_md() {
     print_step "STEP 2: AGENTS.md - Agent Discovery"
 
     print_info "Grit automatically created AGENTS.md for Claude Code to discover."
-    print_info "This file tells AI coding agents how to use grit for memory/tasks."
+    print_info "This file tells AI coding agents how to use grite for memory/tasks."
     echo ""
 
     run_cmd "cat AGENTS.md"
 
     echo ""
-    print_info "Claude Code will read this file and use grit for tasks/memory"
+    print_info "Claude Code will read this file and use grite for tasks/memory"
 
     wait_for_user
 }
@@ -361,12 +361,12 @@ session_resume() {
 run_doctor() {
     print_step "STEP 9: Health Checks"
 
-    print_info "Run grit doctor to check database health:"
+    print_info "Run grite doctor to check database health:"
     run_cmd "$GRIT doctor"
 
     echo ""
     print_info "Doctor checks: git repo, WAL ref, actor config, store integrity, rebuild threshold"
-    print_info "Use 'grit doctor --fix' to auto-repair issues"
+    print_info "Use 'grite doctor --fix' to auto-repair issues"
 
     wait_for_user
 }
@@ -377,14 +377,14 @@ show_summary() {
 
     echo -e "${GREEN}${BOLD}What we demonstrated:${NC}"
     echo ""
-    echo -e "  1. ${BLUE}grit init${NC} creates AGENTS.md for agent discovery"
-    echo -e "  2. Tasks created with ${BLUE}grit issue create --label agent:todo${NC}"
-    echo -e "  3. Progress tracked with ${BLUE}grit issue comment${NC} (checkpoints)"
+    echo -e "  1. ${BLUE}grite init${NC} creates AGENTS.md for agent discovery"
+    echo -e "  2. Tasks created with ${BLUE}grite issue create --label agent:todo${NC}"
+    echo -e "  3. Progress tracked with ${BLUE}grite issue comment${NC} (checkpoints)"
     echo -e "  4. Learnings stored with ${BLUE}--label memory${NC}"
-    echo -e "  5. Dependencies tracked with ${BLUE}grit issue dep${NC} (DAG + topo sort)"
-    echo -e "  6. Codebase indexed with ${BLUE}grit context${NC} (symbols + project)"
-    echo -e "  7. New sessions retrieve context via ${BLUE}grit issue list${NC}"
-    echo -e "  8. Health checks with ${BLUE}grit doctor${NC}"
+    echo -e "  5. Dependencies tracked with ${BLUE}grite issue dep${NC} (DAG + topo sort)"
+    echo -e "  6. Codebase indexed with ${BLUE}grite context${NC} (symbols + project)"
+    echo -e "  7. New sessions retrieve context via ${BLUE}grite issue list${NC}"
+    echo -e "  8. Health checks with ${BLUE}grite doctor${NC}"
     echo ""
     echo -e "${GREEN}${BOLD}Try it yourself:${NC}"
     echo ""
@@ -394,7 +394,7 @@ show_summary() {
     echo -e "${GREEN}${BOLD}Claude Code will:${NC}"
     echo ""
     echo -e "  - Read AGENTS.md automatically"
-    echo -e "  - Use grit for task tracking"
+    echo -e "  - Use grite for task tracking"
     echo -e "  - Store/retrieve memories across sessions"
     echo ""
     echo -e "${GREEN}${BOLD}Demo project location:${NC} $DEMO_DIR"

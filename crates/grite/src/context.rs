@@ -63,7 +63,7 @@ impl std::fmt::Debug for ExecutionMode {
     }
 }
 
-/// Resolved context for a grit command
+/// Resolved context for a grite command
 pub struct GriteContext {
     pub git_dir: PathBuf,
     pub actor_id: String,

@@ -15,4 +15,4 @@ if (Test-Path $installDir) {
   Remove-Item -Path $installDir -Recurse -Force
 }
 
-Write-Host "grit has been uninstalled."
+Write-Host "grite has been uninstalled."

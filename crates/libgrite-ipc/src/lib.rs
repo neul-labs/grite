@@ -1,4 +1,4 @@
-//! IPC types and client for grit daemon communication
+//! IPC types and client for grite daemon communication
 //!
 //! This crate provides:
 //! - Message types for daemon communication (IpcRequest, IpcResponse, IpcCommand)

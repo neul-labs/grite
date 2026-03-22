@@ -13,7 +13,7 @@ use libgrite_core::types::ids::ActorId;
 use crate::wal::WalManager;
 use crate::GitError;
 
-/// Refspec for grit refs
+/// Refspec for grite refs
 pub const GRIT_REFSPEC: &str = "refs/grite/*:refs/grite/*";
 
 /// Result of a pull operation
@@ -59,7 +59,7 @@ impl SyncManager {
         })
     }
 
-    /// Pull grit refs from a remote
+    /// Pull grite refs from a remote
     pub fn pull(&self, remote_name: &str) -> Result<PullResult, GitError> {
         let wal = WalManager::open(&self.git_dir)?;
         let old_head = wal.head()?;
@@ -104,7 +104,7 @@ impl SyncManager {
         })
     }
 
-    /// Push grit refs to a remote
+    /// Push grite refs to a remote
     pub fn push(&self, remote_name: &str) -> Result<PushResult, GitError> {
         let mut remote = self.repo.find_remote(remote_name)?;
         let refspecs = [GRIT_REFSPEC];
