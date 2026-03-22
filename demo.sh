@@ -12,7 +12,7 @@ DEMO_DIR="/tmp/grit-demo"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 GRITE_BIN="${GRITE_BIN:-$SCRIPT_DIR/target/debug/grite}"
 # Use --no-daemon to avoid IPC issues in demo
-GRIT="$GRITE_BIN --no-daemon"
+GRITE="$GRITE_BIN --no-daemon"
 
 # Colors for output
 GREEN='\033[0;32m'
@@ -117,7 +117,7 @@ MDEOF
 
     echo ""
     print_info "Initializing grit..."
-    run_cmd "$GRIT init"
+    run_cmd "$GRITE init"
 
     echo ""
     print_info "Project created with git and grite initialized"
@@ -153,18 +153,18 @@ create_task() {
     echo ""
 
     # Create task and capture the issue ID
-    CREATE_OUTPUT=$($GRIT issue create --title 'Add personalized greeting styles' --body 'Add support for formal, casual, and enthusiastic greeting styles via --style flag' --label agent:todo --json)
+    CREATE_OUTPUT=$($GRITE issue create --title 'Add personalized greeting styles' --body 'Add support for formal, casual, and enthusiastic greeting styles via --style flag' --label agent:todo --json)
     # JSON output has structure: {"schema_version":1,"ok":true,"data":{"issue_id":"...","event_id":"...","wal_head":"..."}}
     TASK_ISSUE_ID=$(echo "$CREATE_OUTPUT" | jq -r '.data.issue_id // .issue_id')
 
-    print_cmd "$GRIT issue create --title 'Add personalized greeting styles' --body '...' --label agent:todo --json"
+    print_cmd "$GRITE issue create --title 'Add personalized greeting styles' --body '...' --label agent:todo --json"
     echo "$CREATE_OUTPUT" | jq '.'
 
     echo ""
     print_info "Created issue: $TASK_ISSUE_ID"
     echo ""
     print_info "Listing all issues:"
-    run_cmd "$GRIT issue list"
+    run_cmd "$GRITE issue list"
 
     wait_for_user
 }
@@ -187,7 +187,7 @@ work_with_checkpoints() {
 
     # Post plan
     print_info "1. Claude posts a plan before starting work:"
-    run_cmd "$GRIT issue comment $ISSUE_ID --body 'Plan: Add --style flag with options: formal, casual, enthusiastic. Will create greet() function with style mapping.'"
+    run_cmd "$GRITE issue comment $ISSUE_ID --body 'Plan: Add --style flag with options: formal, casual, enthusiastic. Will create greet() function with style mapping.'"
 
     echo ""
 
@@ -227,11 +227,11 @@ PYEOF
 
     # Post checkpoint
     print_info "3. Claude posts a checkpoint after completing the change:"
-    run_cmd "$GRIT issue comment $ISSUE_ID --body 'Checkpoint: Added greet() function with 3 styles. Tested: python greet.py World --style formal'"
+    run_cmd "$GRITE issue comment $ISSUE_ID --body 'Checkpoint: Added greet() function with 3 styles. Tested: python greet.py World --style formal'"
 
     echo ""
     print_info "View the issue with all comments:"
-    run_cmd "$GRIT issue show $ISSUE_ID"
+    run_cmd "$GRITE issue show $ISSUE_ID"
 
     wait_for_user
 }
@@ -244,11 +244,11 @@ store_memory() {
     print_info "Memories persist across sessions and help future agents understand the codebase."
     echo ""
 
-    run_cmd "$GRIT issue create --title '[Memory] CLI uses argparse pattern' --body 'This project uses argparse for CLI parsing. Pattern: create ArgumentParser, add_argument() for each flag, then parse_args() and use the args object.' --label memory --json"
+    run_cmd "$GRITE issue create --title '[Memory] CLI uses argparse pattern' --body 'This project uses argparse for CLI parsing. Pattern: create ArgumentParser, add_argument() for each flag, then parse_args() and use the args object.' --label memory --json"
 
     echo ""
     print_info "Memories can be queried with the 'memory' label:"
-    run_cmd "$GRIT issue list --label memory"
+    run_cmd "$GRITE issue list --label memory"
 
     wait_for_user
 }
@@ -263,26 +263,26 @@ demo_dependencies() {
 
     # Create a second task that the first depends on
     print_info "1. Creating a prerequisite task:"
-    PREREQ_OUTPUT=$($GRIT issue create --title 'Add input validation for name arg' --body 'Validate that name is non-empty and contains only valid characters' --label agent:todo --json)
+    PREREQ_OUTPUT=$($GRITE issue create --title 'Add input validation for name arg' --body 'Validate that name is non-empty and contains only valid characters' --label agent:todo --json)
     PREREQ_ID=$(echo "$PREREQ_OUTPUT" | jq -r '.data.issue_id // .issue_id')
-    print_cmd "$GRIT issue create --title 'Add input validation for name arg' --label agent:todo --json"
+    print_cmd "$GRITE issue create --title 'Add input validation for name arg' --label agent:todo --json"
     echo "$PREREQ_OUTPUT" | jq '.'
 
     echo ""
     print_info "2. Adding a dependency: greeting styles depends on input validation:"
-    run_cmd "$GRIT issue dep add $TASK_ISSUE_ID --target $PREREQ_ID --type depends_on"
+    run_cmd "$GRITE issue dep add $TASK_ISSUE_ID --target $PREREQ_ID --type depends_on"
 
     echo ""
     print_info "3. Adding a 'blocks' relationship (validation blocks greeting styles):"
-    run_cmd "$GRIT issue dep add $PREREQ_ID --target $TASK_ISSUE_ID --type blocks"
+    run_cmd "$GRITE issue dep add $PREREQ_ID --target $TASK_ISSUE_ID --type blocks"
 
     echo ""
     print_info "4. Listing dependencies for the greeting styles task:"
-    run_cmd "$GRIT issue dep list $TASK_ISSUE_ID"
+    run_cmd "$GRITE issue dep list $TASK_ISSUE_ID"
 
     echo ""
     print_info "5. Topological order shows the correct execution sequence:"
-    run_cmd "$GRIT issue dep topo --state open"
+    run_cmd "$GRITE issue dep topo --state open"
 
     echo ""
     print_info "Agents use 'dep topo' to determine which task to work on next."
@@ -301,23 +301,23 @@ demo_context() {
 
     # Index the project files
     print_info "1. Indexing project files:"
-    run_cmd "$GRIT context index"
+    run_cmd "$GRITE context index"
 
     echo ""
     print_info "2. Querying for a symbol (the greet function):"
-    run_cmd "$GRIT context query greet"
+    run_cmd "$GRITE context query greet"
 
     echo ""
     print_info "3. Showing context for a specific file:"
-    run_cmd "$GRIT context show greet.py"
+    run_cmd "$GRITE context show greet.py"
 
     echo ""
     print_info "4. Setting project-level context (architecture decisions, conventions):"
-    run_cmd "$GRIT context set 'conventions' 'Use argparse for CLI. Functions return strings, main() prints.'"
+    run_cmd "$GRITE context set 'conventions' 'Use argparse for CLI. Functions return strings, main() prints.'"
 
     echo ""
     print_info "5. Querying project context:"
-    run_cmd "$GRIT context project"
+    run_cmd "$GRITE context project"
 
     echo ""
     print_info "Agents use context to navigate unfamiliar codebases efficiently."
@@ -332,7 +332,7 @@ session_resume() {
 
     # Use the task issue ID from step 3
     print_info "Claude closes the completed task:"
-    run_cmd "$GRIT issue close $TASK_ISSUE_ID"
+    run_cmd "$GRITE issue close $TASK_ISSUE_ID"
 
     echo ""
     echo -e "${CYAN}━━━ Simulating New Session ━━━${NC}"
@@ -341,15 +341,15 @@ session_resume() {
     print_info "from AGENTS.md to restore context:"
     echo ""
 
-    run_cmd "$GRIT sync --pull --json 2>/dev/null || echo '{\"ok\":true,\"message\":\"No remote configured\"}'"
+    run_cmd "$GRITE sync --pull --json 2>/dev/null || echo '{\"ok\":true,\"message\":\"No remote configured\"}'"
 
     echo ""
     print_info "Check for open tasks:"
-    run_cmd "$GRIT issue list --state open --label agent:todo"
+    run_cmd "$GRITE issue list --state open --label agent:todo"
 
     echo ""
     print_info "Retrieve stored memories:"
-    run_cmd "$GRIT issue list --label memory"
+    run_cmd "$GRITE issue list --label memory"
 
     echo ""
     print_info "Claude can see all memories and open tasks from previous sessions!"
@@ -362,7 +362,7 @@ run_doctor() {
     print_step "STEP 9: Health Checks"
 
     print_info "Run grite doctor to check database health:"
-    run_cmd "$GRIT doctor"
+    run_cmd "$GRITE doctor"
 
     echo ""
     print_info "Doctor checks: git repo, WAL ref, actor config, store integrity, rebuild threshold"
