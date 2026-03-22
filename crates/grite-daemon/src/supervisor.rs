@@ -212,6 +212,7 @@ impl Supervisor {
 
         // Main accept loop — each connection gets its own task
         let mut main_shutdown = shutdown_tx.subscribe();
+        let conn_semaphore = Arc::new(tokio::sync::Semaphore::new(256));
         loop {
             tokio::select! {
                 _ = main_shutdown.recv() => {
@@ -221,6 +222,14 @@ impl Supervisor {
                 result = listener.accept() => {
                     match result {
                         Ok((stream, _addr)) => {
+                            let permit = match conn_semaphore.clone().try_acquire_owned() {
+                                Ok(permit) => permit,
+                                Err(_) => {
+                                    warn!("Connection limit reached (256), dropping connection");
+                                    drop(stream);
+                                    continue;
+                                }
+                            };
                             let workers = self.workers.clone();
                             let notify_tx = self.notify_tx.clone();
                             let daemon_id = self.daemon_id.clone();
@@ -249,6 +258,9 @@ impl Supervisor {
                                     shutdown_tx_clone,
                                 )
                                 .await;
+
+                                // Permit is released when dropped
+                                drop(permit);
                             });
                         }
                         Err(e) => {
