@@ -24,7 +24,7 @@ events/YYYY/MM/DD/<chunk>.bin
 
 Chunk files contain a small header and a portable CBOR payload:
 
-- magic: `GRITCHNK`
+- magic: `GRITECNK`
 - version: `u16`
 - codec: `cbor-v1`
 - payload: canonical CBOR array of `Event` records
@@ -81,7 +81,7 @@ events/0000.bin
 events/0001.bin
 ```
 
-Snapshots may contain multiple chunk files. Chunks use the same `GRITCHNK`
+Snapshots may contain multiple chunk files. Chunks use the same `GRITECNK`
 encoding as WAL chunks.
 
 ### Snapshot semantics

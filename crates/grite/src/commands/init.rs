@@ -2,7 +2,7 @@ use libgrite_core::{
     config::{save_repo_config, save_actor_config, actor_dir, RepoConfig},
     types::actor::ActorConfig,
     types::ids::{generate_actor_id, id_to_hex},
-    GritStore, GriteError,
+    GriteStore, GriteError,
 };
 use serde::Serialize;
 use std::fs;
@@ -57,7 +57,7 @@ pub fn run(cli: &Cli, no_agents_md: bool) -> Result<(), GriteError> {
 
     // Initialize empty sled database with lock
     let sled_path = data_dir.join("sled");
-    let _store = GritStore::open_locked(&sled_path)?;
+    let _store = GriteStore::open_locked(&sled_path)?;
 
     // Set repo default
     let repo_config = RepoConfig {

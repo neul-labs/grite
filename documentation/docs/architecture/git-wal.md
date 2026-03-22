@@ -45,12 +45,12 @@ tree/
 
 ## Chunk Format
 
-Events are encoded in chunks using the GRITCHNK format.
+Events are encoded in chunks using the GRITECNK format.
 
 ### Header
 
 ```
-Magic: GRITCHNK (8 bytes)
+Magic: GRITECNK (8 bytes)
 Version: 1 (u8)
 Count: number of events (u32, big-endian)
 ```
@@ -62,7 +62,7 @@ After the header, events are CBOR-encoded and concatenated.
 ### Example
 
 ```
-GRITCHNK\x01\x00\x00\x00\x03   # Header: 3 events
+GRITECNK\x01\x00\x00\x00\x03   # Header: 3 events
 [CBOR event 1]
 [CBOR event 2]
 [CBOR event 3]

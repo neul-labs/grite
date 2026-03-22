@@ -10,7 +10,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
 
 use libgrite_core::types::ids::{hex_to_id, ActorId};
-use libgrite_core::{GriteError, GritStore, LockedStore};
+use libgrite_core::{GriteError, GriteStore, LockedStore};
 use libgrite_core::store::IssueFilter;
 use libgrite_ipc::{DaemonLock, IpcCommand, IpcResponse, Notification};
 use tokio::sync::mpsc;
@@ -74,11 +74,11 @@ impl Worker {
 
         // Parse actor ID
         let actor_id_bytes = hex_to_id(&actor_id)
-            .map_err(|e| DaemonError::Grit(GriteError::InvalidArgs(e.to_string())))?;
+            .map_err(|e| DaemonError::Core(GriteError::InvalidArgs(e.to_string())))?;
 
         // Open store with filesystem lock (blocking with timeout)
         // This ensures exclusive process-level access to the sled database
-        let store = Arc::new(GritStore::open_locked_blocking(
+        let store = Arc::new(GriteStore::open_locked_blocking(
             &sled_path,
             Duration::from_secs(5),
         )?);
@@ -300,9 +300,9 @@ fn execute_command_inner(
 
         IpcCommand::IssueShow { issue_id } => {
             let id = store.resolve_issue_id(issue_id)
-                .map_err(|e| DaemonError::Grit(e))?;
+                .map_err(|e| DaemonError::Core(e))?;
             let p = store.get_issue(&id)?
-                .ok_or_else(|| DaemonError::Grit(GriteError::NotFound(format!("Issue {} not found", issue_id))))?;
+                .ok_or_else(|| DaemonError::Core(GriteError::NotFound(format!("Issue {} not found", issue_id))))?;
 
             let json = serde_json::to_string(&projection_to_json(&p))?;
             Ok(Some(json))
@@ -332,15 +332,15 @@ fn execute_command_inner(
 
         IpcCommand::IssueUpdate { issue_id, title, body } => {
             if title.is_none() && body.is_none() {
-                return Err(DaemonError::Grit(GriteError::InvalidArgs(
+                return Err(DaemonError::Core(GriteError::InvalidArgs(
                     "At least one of title or body must be provided".to_string()
                 )));
             }
 
             let id = hex_to_id(issue_id)
-                .map_err(|e| DaemonError::Grit(GriteError::InvalidArgs(e.to_string())))?;
+                .map_err(|e| DaemonError::Core(GriteError::InvalidArgs(e.to_string())))?;
             store.get_issue(&id)?
-                .ok_or_else(|| DaemonError::Grit(GriteError::NotFound(format!("Issue {} not found", issue_id))))?;
+                .ok_or_else(|| DaemonError::Core(GriteError::NotFound(format!("Issue {} not found", issue_id))))?;
 
             let ts = current_time_ms();
             let kind = EventKind::IssueUpdated {
@@ -362,9 +362,9 @@ fn execute_command_inner(
 
         IpcCommand::IssueComment { issue_id, body } => {
             let id = hex_to_id(issue_id)
-                .map_err(|e| DaemonError::Grit(GriteError::InvalidArgs(e.to_string())))?;
+                .map_err(|e| DaemonError::Core(GriteError::InvalidArgs(e.to_string())))?;
             store.get_issue(&id)?
-                .ok_or_else(|| DaemonError::Grit(GriteError::NotFound(format!("Issue {} not found", issue_id))))?;
+                .ok_or_else(|| DaemonError::Core(GriteError::NotFound(format!("Issue {} not found", issue_id))))?;
 
             let ts = current_time_ms();
             let kind = EventKind::CommentAdded { body: body.clone() };
@@ -383,9 +383,9 @@ fn execute_command_inner(
 
         IpcCommand::IssueClose { issue_id } => {
             let id = hex_to_id(issue_id)
-                .map_err(|e| DaemonError::Grit(GriteError::InvalidArgs(e.to_string())))?;
+                .map_err(|e| DaemonError::Core(GriteError::InvalidArgs(e.to_string())))?;
             store.get_issue(&id)?
-                .ok_or_else(|| DaemonError::Grit(GriteError::NotFound(format!("Issue {} not found", issue_id))))?;
+                .ok_or_else(|| DaemonError::Core(GriteError::NotFound(format!("Issue {} not found", issue_id))))?;
 
             let ts = current_time_ms();
             let kind = EventKind::StateChanged { state: IssueState::Closed };
@@ -406,9 +406,9 @@ fn execute_command_inner(
 
         IpcCommand::IssueReopen { issue_id } => {
             let id = hex_to_id(issue_id)
-                .map_err(|e| DaemonError::Grit(GriteError::InvalidArgs(e.to_string())))?;
+                .map_err(|e| DaemonError::Core(GriteError::InvalidArgs(e.to_string())))?;
             store.get_issue(&id)?
-                .ok_or_else(|| DaemonError::Grit(GriteError::NotFound(format!("Issue {} not found", issue_id))))?;
+                .ok_or_else(|| DaemonError::Core(GriteError::NotFound(format!("Issue {} not found", issue_id))))?;
 
             let ts = current_time_ms();
             let kind = EventKind::StateChanged { state: IssueState::Open };
@@ -429,9 +429,9 @@ fn execute_command_inner(
 
         IpcCommand::IssueLabel { issue_id, add, remove } => {
             let id = hex_to_id(issue_id)
-                .map_err(|e| DaemonError::Grit(GriteError::InvalidArgs(e.to_string())))?;
+                .map_err(|e| DaemonError::Core(GriteError::InvalidArgs(e.to_string())))?;
             store.get_issue(&id)?
-                .ok_or_else(|| DaemonError::Grit(GriteError::NotFound(format!("Issue {} not found", issue_id))))?;
+                .ok_or_else(|| DaemonError::Core(GriteError::NotFound(format!("Issue {} not found", issue_id))))?;
 
             let mut event_ids = Vec::new();
             let ts = current_time_ms();
@@ -463,9 +463,9 @@ fn execute_command_inner(
 
         IpcCommand::IssueAssign { issue_id, add, remove } => {
             let id = hex_to_id(issue_id)
-                .map_err(|e| DaemonError::Grit(GriteError::InvalidArgs(e.to_string())))?;
+                .map_err(|e| DaemonError::Core(GriteError::InvalidArgs(e.to_string())))?;
             store.get_issue(&id)?
-                .ok_or_else(|| DaemonError::Grit(GriteError::NotFound(format!("Issue {} not found", issue_id))))?;
+                .ok_or_else(|| DaemonError::Core(GriteError::NotFound(format!("Issue {} not found", issue_id))))?;
 
             let mut event_ids = Vec::new();
             let ts = current_time_ms();
@@ -497,9 +497,9 @@ fn execute_command_inner(
 
         IpcCommand::IssueLink { issue_id, url, note } => {
             let id = hex_to_id(issue_id)
-                .map_err(|e| DaemonError::Grit(GriteError::InvalidArgs(e.to_string())))?;
+                .map_err(|e| DaemonError::Core(GriteError::InvalidArgs(e.to_string())))?;
             store.get_issue(&id)?
-                .ok_or_else(|| DaemonError::Grit(GriteError::NotFound(format!("Issue {} not found", issue_id))))?;
+                .ok_or_else(|| DaemonError::Core(GriteError::NotFound(format!("Issue {} not found", issue_id))))?;
 
             let ts = current_time_ms();
             let kind = EventKind::LinkAdded {
@@ -521,20 +521,20 @@ fn execute_command_inner(
 
         IpcCommand::IssueAttach { issue_id, file_path } => {
             let id = hex_to_id(issue_id)
-                .map_err(|e| DaemonError::Grit(GriteError::InvalidArgs(e.to_string())))?;
+                .map_err(|e| DaemonError::Core(GriteError::InvalidArgs(e.to_string())))?;
             store.get_issue(&id)?
-                .ok_or_else(|| DaemonError::Grit(GriteError::NotFound(format!("Issue {} not found", issue_id))))?;
+                .ok_or_else(|| DaemonError::Core(GriteError::NotFound(format!("Issue {} not found", issue_id))))?;
 
             let parts: Vec<&str> = file_path.splitn(3, ':').collect();
             if parts.len() != 3 {
-                return Err(DaemonError::Grit(GriteError::InvalidArgs(
+                return Err(DaemonError::Core(GriteError::InvalidArgs(
                     "file_path must be in format 'name:sha256:mime'".to_string()
                 )));
             }
 
             let name = parts[0].to_string();
             let sha256: [u8; 32] = hex_to_id(parts[1])
-                .map_err(|e| DaemonError::Grit(GriteError::InvalidArgs(e.to_string())))?;
+                .map_err(|e| DaemonError::Core(GriteError::InvalidArgs(e.to_string())))?;
             let mime = parts[2].to_string();
 
             let ts = current_time_ms();
@@ -584,7 +584,7 @@ fn execute_command_inner(
                     serde_json::to_string(&export)?
                 }
                 "md" | "markdown" => export_markdown(store, since_opt)?,
-                _ => return Err(DaemonError::Grit(GriteError::InvalidArgs(
+                _ => return Err(DaemonError::Core(GriteError::InvalidArgs(
                     format!("Unknown format: {}", format)
                 ))),
             };
@@ -597,20 +597,20 @@ fn execute_command_inner(
             use libgrite_core::types::ids::id_to_hex;
 
             let id = hex_to_id(issue_id)
-                .map_err(|e| DaemonError::Grit(GriteError::InvalidArgs(e.to_string())))?;
+                .map_err(|e| DaemonError::Core(GriteError::InvalidArgs(e.to_string())))?;
             let target = hex_to_id(target_id)
-                .map_err(|e| DaemonError::Grit(GriteError::InvalidArgs(e.to_string())))?;
+                .map_err(|e| DaemonError::Core(GriteError::InvalidArgs(e.to_string())))?;
             let dep = DependencyType::from_str(dep_type).ok_or_else(|| {
-                DaemonError::Grit(GriteError::InvalidArgs(format!("Invalid dep type: {}", dep_type)))
+                DaemonError::Core(GriteError::InvalidArgs(format!("Invalid dep type: {}", dep_type)))
             })?;
 
             store.get_issue(&id)?
-                .ok_or_else(|| DaemonError::Grit(GriteError::NotFound(format!("Issue {} not found", issue_id))))?;
+                .ok_or_else(|| DaemonError::Core(GriteError::NotFound(format!("Issue {} not found", issue_id))))?;
             store.get_issue(&target)?
-                .ok_or_else(|| DaemonError::Grit(GriteError::NotFound(format!("Target {} not found", target_id))))?;
+                .ok_or_else(|| DaemonError::Core(GriteError::NotFound(format!("Target {} not found", target_id))))?;
 
             if store.would_create_cycle(&id, &target, &dep)? {
-                return Err(DaemonError::Grit(GriteError::InvalidArgs(format!(
+                return Err(DaemonError::Core(GriteError::InvalidArgs(format!(
                     "Adding this dependency would create a cycle in the {} graph", dep.as_str()
                 ))));
             }
@@ -638,11 +638,11 @@ fn execute_command_inner(
             use libgrite_core::types::ids::id_to_hex;
 
             let id = hex_to_id(issue_id)
-                .map_err(|e| DaemonError::Grit(GriteError::InvalidArgs(e.to_string())))?;
+                .map_err(|e| DaemonError::Core(GriteError::InvalidArgs(e.to_string())))?;
             let target = hex_to_id(target_id)
-                .map_err(|e| DaemonError::Grit(GriteError::InvalidArgs(e.to_string())))?;
+                .map_err(|e| DaemonError::Core(GriteError::InvalidArgs(e.to_string())))?;
             let dep = DependencyType::from_str(dep_type).ok_or_else(|| {
-                DaemonError::Grit(GriteError::InvalidArgs(format!("Invalid dep type: {}", dep_type)))
+                DaemonError::Core(GriteError::InvalidArgs(format!("Invalid dep type: {}", dep_type)))
             })?;
 
             let ts = current_time_ms();
@@ -666,7 +666,7 @@ fn execute_command_inner(
             use libgrite_core::types::ids::id_to_hex;
 
             let id = hex_to_id(issue_id)
-                .map_err(|e| DaemonError::Grit(GriteError::InvalidArgs(e.to_string())))?;
+                .map_err(|e| DaemonError::Core(GriteError::InvalidArgs(e.to_string())))?;
             let deps = if *reverse {
                 store.get_dependents(&id)?
             } else {
@@ -789,7 +789,7 @@ fn execute_command_inner(
         }
 
         IpcCommand::SnapshotCreate | IpcCommand::SnapshotList | IpcCommand::SnapshotGc { .. } => {
-            Err(DaemonError::Grit(GriteError::Internal(
+            Err(DaemonError::Core(GriteError::Internal(
                 "Snapshot through daemon not yet implemented - use --no-daemon".to_string()
             )))
         }
@@ -851,9 +851,9 @@ fn error_to_code_message(e: &DaemonError) -> (String, String) {
     use libgrite_ipc::error::codes;
 
     match e {
-        DaemonError::Grit(GriteError::NotFound(_)) => (codes::NOT_FOUND.to_string(), e.to_string()),
-        DaemonError::Grit(GriteError::InvalidArgs(_)) => (codes::INVALID_INPUT.to_string(), e.to_string()),
-        DaemonError::Grit(GriteError::Io(_)) => (codes::IO_ERROR.to_string(), e.to_string()),
+        DaemonError::Core(GriteError::NotFound(_)) => (codes::NOT_FOUND.to_string(), e.to_string()),
+        DaemonError::Core(GriteError::InvalidArgs(_)) => (codes::INVALID_INPUT.to_string(), e.to_string()),
+        DaemonError::Core(GriteError::Io(_)) => (codes::IO_ERROR.to_string(), e.to_string()),
         DaemonError::Git(_) => (codes::GIT_ERROR.to_string(), e.to_string()),
         DaemonError::Ipc(_) | DaemonError::Nng(_) => (codes::IPC_ERROR.to_string(), e.to_string()),
         _ => (codes::INTERNAL.to_string(), e.to_string()),

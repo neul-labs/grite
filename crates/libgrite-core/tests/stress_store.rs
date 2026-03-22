@@ -2,7 +2,7 @@
 //!
 //! These tests verify that store operations handle concurrent access correctly.
 
-use libgrite_core::store::GritStore;
+use libgrite_core::store::GriteStore;
 use libgrite_core::types::event::{Event, EventKind};
 use libgrite_core::types::ids::{generate_actor_id, generate_issue_id};
 use libgrite_core::hash::compute_event_id;
@@ -33,7 +33,7 @@ fn create_comment_event(actor: &[u8; 16], issue_id: &[u8; 16], ts_offset: u64) -
 #[test]
 fn test_concurrent_issue_creation() {
     let dir = tempdir().unwrap();
-    let store = Arc::new(GritStore::open(dir.path()).expect("Failed to open store"));
+    let store = Arc::new(GriteStore::open(dir.path()).expect("Failed to open store"));
 
     let num_threads = 8;
     let issues_per_thread = 50;
@@ -90,7 +90,7 @@ fn test_concurrent_issue_creation() {
 #[test]
 fn test_concurrent_comments_single_issue() {
     let dir = tempdir().unwrap();
-    let store = Arc::new(GritStore::open(dir.path()).expect("Failed to open store"));
+    let store = Arc::new(GriteStore::open(dir.path()).expect("Failed to open store"));
 
     let actor = generate_actor_id();
     let issue_id = generate_issue_id();
@@ -155,7 +155,7 @@ fn test_concurrent_comments_single_issue() {
 #[test]
 fn test_concurrent_read_write() {
     let dir = tempdir().unwrap();
-    let store = Arc::new(GritStore::open(dir.path()).expect("Failed to open store"));
+    let store = Arc::new(GriteStore::open(dir.path()).expect("Failed to open store"));
 
     let actor = generate_actor_id();
     let issue_id = generate_issue_id();
@@ -240,7 +240,7 @@ fn test_concurrent_read_write() {
 #[test]
 fn test_rebuild_during_writes() {
     let dir = tempdir().unwrap();
-    let store = Arc::new(GritStore::open(dir.path()).expect("Failed to open store"));
+    let store = Arc::new(GriteStore::open(dir.path()).expect("Failed to open store"));
 
     // Create several issues first
     let actor = generate_actor_id();

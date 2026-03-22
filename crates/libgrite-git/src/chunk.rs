@@ -1,7 +1,7 @@
 //! CBOR chunk encoding/decoding for portable event storage
 //!
 //! Chunk format:
-//! - Magic: `GRITCHNK` (8 bytes)
+//! - Magic: `GRITECNK` (8 bytes)
 //! - Version: u16 (little-endian)
 //! - Codec length: u8
 //! - Codec: "cbor-v1"
@@ -16,7 +16,7 @@ use libgrite_core::types::ids::{ActorId, EventId, IssueId};
 use crate::GitError;
 
 /// Magic bytes at start of chunk
-pub const CHUNK_MAGIC: &[u8; 8] = b"GRITCHNK";
+pub const CHUNK_MAGIC: &[u8; 8] = b"GRITECNK";
 
 /// Current chunk format version
 pub const CHUNK_VERSION: u16 = 1;

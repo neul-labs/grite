@@ -15,7 +15,7 @@ pub enum DaemonError {
 
     /// Core grite error
     #[error("grite error: {0}")]
-    Grit(#[from] libgrite_core::GriteError),
+    Core(#[from] libgrite_core::GriteError),
 
     /// Git error
     #[error("Git error: {0}")]
