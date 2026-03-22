@@ -116,7 +116,7 @@ MDEOF
     run_cmd "git commit -q -m 'Initial commit'"
 
     echo ""
-    print_info "Initializing grit..."
+    print_info "Initializing grite..."
     run_cmd "$GRITE init"
 
     echo ""
@@ -440,7 +440,7 @@ main() {
     echo -e "${GREEN}"
     cat << 'BANNER'
     ╔════════════════════════════════════════════════════════════╗
-    ║           GRIT + CLAUDE CODE DEMO                          ║
+    ║           GRITE + CLAUDE CODE DEMO                          ║
     ║   Persistent Memory for AI Coding Agents                   ║
     ╚════════════════════════════════════════════════════════════╝
 BANNER

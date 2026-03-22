@@ -118,7 +118,7 @@ fn handle_agents_md(git_dir: &PathBuf) -> Result<(Option<PathBuf>, AgentsMdActio
         })?;
 
         // Check if grite section already exists
-        if content.contains("## Grit") {
+        if content.contains("## Grite") {
             return Ok((Some(agents_md_path), AgentsMdAction::Skipped));
         }
 

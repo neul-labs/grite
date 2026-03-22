@@ -5,5 +5,5 @@ memista.*
 *.env
 ~/
 
-# Grit data (development artifacts)
-.grit/
+# Grite data (development artifacts)
+.grite/
