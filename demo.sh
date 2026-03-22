@@ -82,7 +82,7 @@ setup_demo() {
     # Create sample Python project
     cat > greet.py << 'PYEOF'
 #!/usr/bin/env python3
-"""Simple greeting CLI - Demo project for grit"""
+"""Simple greeting CLI - Demo project for grite"""
 import argparse
 
 def main():
@@ -195,7 +195,7 @@ work_with_checkpoints() {
     print_info "2. Claude modifies the code..."
     cat > greet.py << 'PYEOF'
 #!/usr/bin/env python3
-"""Simple greeting CLI - Demo project for grit"""
+"""Simple greeting CLI - Demo project for grite"""
 import argparse
 
 def greet(name: str, style: str = "casual") -> str:
