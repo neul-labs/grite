@@ -52,16 +52,6 @@ pub enum IpcError {
     /// JSON error
     #[error("JSON error: {0}")]
     Json(#[from] serde_json::Error),
-
-    /// NNG error
-    #[error("NNG error: {0}")]
-    Nng(String),
-}
-
-impl From<nng::Error> for IpcError {
-    fn from(e: nng::Error) -> Self {
-        IpcError::Nng(e.to_string())
-    }
 }
 
 /// Error codes matching docs/cli-json.md

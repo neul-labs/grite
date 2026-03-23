@@ -4,7 +4,7 @@
 //! Commands are processed concurrently using tokio tasks, with sled's
 //! internal MVCC handling concurrent access safely.
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
@@ -241,9 +241,9 @@ impl Worker {
 fn execute_command(
     store: &LockedStore,
     actor_id_bytes: ActorId,
-    sled_path: &PathBuf,
-    data_dir: &PathBuf,
-    git_dir: &PathBuf,
+    sled_path: &Path,
+    data_dir: &Path,
+    git_dir: &Path,
     request_id: &str,
     command: &IpcCommand,
 ) -> IpcResponse {
@@ -262,9 +262,9 @@ fn execute_command(
 fn execute_command_inner(
     store: &LockedStore,
     actor_id_bytes: ActorId,
-    sled_path: &PathBuf,
-    data_dir: &PathBuf,
-    git_dir: &PathBuf,
+    sled_path: &Path,
+    _data_dir: &Path,
+    git_dir: &Path,
     command: &IpcCommand,
 ) -> Result<Option<String>, DaemonError> {
     use libgrite_core::hash::compute_event_id;
@@ -300,7 +300,7 @@ fn execute_command_inner(
 
         IpcCommand::IssueShow { issue_id } => {
             let id = store.resolve_issue_id(issue_id)
-                .map_err(|e| DaemonError::Core(e))?;
+                .map_err(DaemonError::Core)?;
             let p = store.get_issue(&id)?
                 .ok_or_else(|| DaemonError::Core(GriteError::NotFound(format!("Issue {} not found", issue_id))))?;
 
@@ -714,66 +714,46 @@ fn execute_command_inner(
             Ok(Some(json))
         }
 
-        IpcCommand::DaemonStatus => {
-            let lock = DaemonLock::read(data_dir)
-                .map_err(|e| DaemonError::LockFailed(e.to_string()))?;
-
-            let json = match lock {
-                Some(l) => serde_json::to_string(&serde_json::json!({
-                    "running": !l.is_expired(),
-                    "pid": l.pid,
-                    "host_id": l.host_id,
-                    "ipc_endpoint": l.ipc_endpoint,
-                    "started_ts": l.started_ts,
-                    "expires_ts": l.expires_ts,
-                }))?,
-                None => serde_json::to_string(&serde_json::json!({
-                    "running": false,
-                }))?,
-            };
-            Ok(Some(json))
-        }
-
-        IpcCommand::DaemonStop => {
-            Ok(Some(serde_json::json!({"stopping": true}).to_string()))
+        // DaemonStatus and DaemonStop are handled at the supervisor level
+        // in process_request() and never reach the worker.
+        IpcCommand::DaemonStatus | IpcCommand::DaemonStop => {
+            unreachable!("handled by supervisor before routing to worker")
         }
 
         IpcCommand::Sync { remote, pull, push } => {
             let sync_mgr = SyncManager::open(git_dir)?;
 
             // If neither flag is set, do both pull and push
-            let do_pull = *pull || (!*pull && !*push);
-            let do_push = *push || (!*pull && !*push);
+            let do_pull = *pull || !*push;
+            let do_push = *push || !*pull;
 
-            let mut result = serde_json::json!({});
-
-            if do_pull && !do_push {
+            let result = if do_pull && !do_push {
                 // Pull only
                 let pull_result = sync_mgr.pull(remote)?;
                 let wal_head: Option<String> = pull_result.new_wal_head.map(|oid| oid.to_string());
-                result = serde_json::json!({
+                serde_json::json!({
                     "pulled": true,
                     "pushed": false,
                     "pull_events": pull_result.events_pulled,
                     "pull_wal_head": wal_head,
                     "message": pull_result.message,
-                });
+                })
             } else if do_push && !do_pull {
                 // Push only with auto-rebase
                 let push_result = sync_mgr.push_with_rebase(remote, &actor_id_bytes)?;
-                result = serde_json::json!({
+                serde_json::json!({
                     "pulled": false,
                     "pushed": true,
                     "push_success": push_result.success,
                     "push_rebased": push_result.rebased,
                     "push_events_rebased": push_result.events_rebased,
                     "message": push_result.message,
-                });
+                })
             } else {
                 // Full sync: pull then push with auto-rebase
                 let (pull_result, push_result) = sync_mgr.sync_with_rebase(remote, &actor_id_bytes)?;
                 let wal_head: Option<String> = pull_result.new_wal_head.map(|oid| oid.to_string());
-                result = serde_json::json!({
+                serde_json::json!({
                     "pulled": true,
                     "pushed": true,
                     "pull_events": pull_result.events_pulled,
@@ -782,8 +762,8 @@ fn execute_command_inner(
                     "push_rebased": push_result.rebased,
                     "push_events_rebased": push_result.events_rebased,
                     "message": format!("{} / {}", pull_result.message, push_result.message),
-                });
-            }
+                })
+            };
 
             Ok(Some(result.to_string()))
         }
@@ -855,7 +835,7 @@ fn error_to_code_message(e: &DaemonError) -> (String, String) {
         DaemonError::Core(GriteError::InvalidArgs(_)) => (codes::INVALID_INPUT.to_string(), e.to_string()),
         DaemonError::Core(GriteError::Io(_)) => (codes::IO_ERROR.to_string(), e.to_string()),
         DaemonError::Git(_) => (codes::GIT_ERROR.to_string(), e.to_string()),
-        DaemonError::Ipc(_) | DaemonError::Nng(_) => (codes::IPC_ERROR.to_string(), e.to_string()),
+        DaemonError::Ipc(_) => (codes::IPC_ERROR.to_string(), e.to_string()),
         _ => (codes::INTERNAL.to_string(), e.to_string()),
     }
 }

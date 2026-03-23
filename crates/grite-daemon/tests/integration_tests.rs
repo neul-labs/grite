@@ -17,7 +17,7 @@ fn test_daemon_lock_lifecycle() {
         "/tmp/test-repo".to_string(),
         "abc123".to_string(),
         "test-host".to_string(),
-        "ipc:///tmp/test.sock".to_string(),
+        "/tmp/test.sock".to_string(),
     ).unwrap();
 
     // Verify lock file was created
@@ -49,7 +49,7 @@ fn test_daemon_lock_double_acquire_fails() {
         "/tmp/test-repo".to_string(),
         "abc123".to_string(),
         "test-host".to_string(),
-        "ipc:///tmp/test1.sock".to_string(),
+        "/tmp/test1.sock".to_string(),
     ).unwrap();
 
     // Try to acquire second lock - should fail
@@ -58,7 +58,7 @@ fn test_daemon_lock_double_acquire_fails() {
         "/tmp/test-repo".to_string(),
         "abc123".to_string(),
         "other-host".to_string(),
-        "ipc:///tmp/test2.sock".to_string(),
+        "/tmp/test2.sock".to_string(),
     );
 
     assert!(result.is_err());
@@ -76,7 +76,7 @@ fn test_daemon_lock_expired_takeover() {
         "/tmp/test-repo".to_string(),
         "abc123".to_string(),
         "old-host".to_string(),
-        "ipc:///tmp/old.sock".to_string(),
+        "/tmp/old.sock".to_string(),
     );
     // Set expires_ts to past
     lock.expires_ts = lock.started_ts - 1000;
@@ -92,7 +92,7 @@ fn test_daemon_lock_expired_takeover() {
         "/tmp/test-repo".to_string(),
         "abc123".to_string(),
         "new-host".to_string(),
-        "ipc:///tmp/new.sock".to_string(),
+        "/tmp/new.sock".to_string(),
     ).unwrap();
 
     // Verify new lock is in place
@@ -113,7 +113,7 @@ fn test_daemon_lock_heartbeat_refresh() {
         "/tmp/test-repo".to_string(),
         "abc123".to_string(),
         "test-host".to_string(),
-        "ipc:///tmp/test.sock".to_string(),
+        "/tmp/test.sock".to_string(),
     ).unwrap();
 
     let original_expires = lock.expires_ts;

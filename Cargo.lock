@@ -312,15 +312,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c3e64b0cc0439b12df2fa678eae89a1c56a529fd067a9115f7827f1fffd22b32"
 
 [[package]]
-name = "cmake"
-version = "0.1.57"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "75443c44cd6b379beb8c5b45d85d0773baf31cce901fe7bb252f4eff3008ef7d"
-dependencies = [
- "cc",
-]
-
-[[package]]
 name = "colorchoice"
 version = "1.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -759,7 +750,6 @@ dependencies = [
  "libgrite-core",
  "libgrite-git",
  "libgrite-ipc",
- "nng",
  "rkyv",
  "serde",
  "serde_json",
@@ -1120,13 +1110,14 @@ dependencies = [
 name = "libgrite-ipc"
 version = "0.3.0"
 dependencies = [
+ "libc",
  "libgrite-core",
- "nng",
  "rkyv",
  "serde",
  "serde_json",
  "tempfile",
  "thiserror",
+ "tokio",
  "uuid",
 ]
 
@@ -1259,26 +1250,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
-]
-
-[[package]]
-name = "nng"
-version = "1.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "20a18ed7ec1c8ff1658bcfea2ce76dcedf8be21dd9e8dd2e9762ba9632d16203"
-dependencies = [
- "log",
- "nng-sys",
-]
-
-[[package]]
-name = "nng-sys"
-version = "1.4.0-rc.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "50d0e7f39a8fd1792a710da9351320e864dc799cf439960e332c977b2f876da6"
-dependencies = [
- "cmake",
- "version_check",
 ]
 
 [[package]]

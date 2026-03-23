@@ -25,10 +25,6 @@ pub enum DaemonError {
     #[error("IPC error: {0}")]
     Ipc(#[from] libgrite_ipc::IpcError),
 
-    /// NNG error
-    #[error("NNG error: {0}")]
-    Nng(String),
-
     /// IO error
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
@@ -36,11 +32,4 @@ pub enum DaemonError {
     /// JSON error
     #[error("JSON error: {0}")]
     Json(#[from] serde_json::Error),
-
-}
-
-impl From<nng::Error> for DaemonError {
-    fn from(e: nng::Error) -> Self {
-        DaemonError::Nng(e.to_string())
-    }
 }

@@ -127,7 +127,7 @@ mod tests {
 
         let resp = DiscoverResponse::new(
             "daemon-123".to_string(),
-            "ipc:///tmp/grite-daemon.sock".to_string(),
+            "/tmp/grite-daemon.sock".to_string(),
             workers,
         );
 

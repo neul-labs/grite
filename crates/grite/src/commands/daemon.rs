@@ -1,37 +1,25 @@
 //! Daemon management commands
+//!
+//! This module requires Unix (uses Unix domain sockets and signals).
+
+#[cfg(not(unix))]
+compile_error!("daemon commands require a Unix platform");
 
 use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
 use std::thread;
 
 use libgrite_core::GriteError;
-use libgrite_ipc::{DaemonLock, IpcClient};
+use std::os::unix::net::UnixStream;
+
+use libgrite_ipc::DaemonLock;
 
 use crate::cli::{Cli, DaemonCommand};
 use crate::context::GriteContext;
 
 /// Get the default IPC endpoint for the daemon.
-/// Uses user-specific path for security isolation:
-/// - XDG_RUNTIME_DIR if available (Linux with systemd)
-/// - /tmp/grite-daemon-<uid>.sock as fallback on Unix
-/// - /tmp/grite-daemon.sock on non-Unix platforms
 pub fn get_default_daemon_endpoint() -> String {
-    // Prefer XDG_RUNTIME_DIR which is properly secured by systemd
-    if let Ok(runtime_dir) = std::env::var("XDG_RUNTIME_DIR") {
-        return format!("ipc://{}/grite-daemon.sock", runtime_dir);
-    }
-
-    // Fallback: user-specific path in /tmp
-    #[cfg(unix)]
-    {
-        let uid = unsafe { libc::getuid() };
-        return format!("ipc:///tmp/grite-daemon-{}.sock", uid);
-    }
-
-    #[cfg(not(unix))]
-    {
-        "ipc:///tmp/grite-daemon.sock".to_string()
-    }
+    libgrite_ipc::default_socket_path()
 }
 
 pub fn run(cli: &Cli, cmd: DaemonCommand) -> Result<(), GriteError> {
@@ -50,7 +38,7 @@ fn start(cli: &Cli, idle_timeout: u64) -> Result<(), GriteError> {
     if let Ok(Some(lock)) = DaemonLock::read(&ctx.data_dir) {
         if !lock.is_expired() {
             // Try to connect to verify it's actually running
-            if IpcClient::connect(&lock.ipc_endpoint).is_ok() {
+            if UnixStream::connect(&lock.ipc_endpoint).is_ok() {
                 if cli.json {
                     println!("{}", serde_json::json!({
                         "started": false,
@@ -141,7 +129,7 @@ fn wait_for_daemon(endpoint: &str, timeout: Duration) -> Result<bool, GriteError
     let mut delay = Duration::from_millis(50);
 
     while start.elapsed() < timeout {
-        if IpcClient::connect(endpoint).is_ok() {
+        if std::os::unix::net::UnixStream::connect(endpoint).is_ok() {
             return Ok(true);
         }
         thread::sleep(delay);
@@ -158,7 +146,7 @@ pub fn ensure_daemon_running(cli: &Cli) -> Result<Option<String>, GriteError> {
     // Check if daemon is already running
     if let Ok(Some(lock)) = DaemonLock::read(&ctx.data_dir) {
         if !lock.is_expired() {
-            if IpcClient::connect(&lock.ipc_endpoint).is_ok() {
+            if UnixStream::connect(&lock.ipc_endpoint).is_ok() {
                 return Ok(Some(lock.ipc_endpoint));
             }
         }
@@ -264,7 +252,7 @@ fn stop(cli: &Cli) -> Result<(), GriteError> {
 
             // Try to connect and send stop command
             match libgrite_ipc::IpcClient::connect(&lock.ipc_endpoint) {
-                Ok(client) => {
+                Ok(mut client) => {
                     let request = libgrite_ipc::IpcRequest::new(
                         uuid::Uuid::new_v4().to_string(),
                         ctx.repo_root().to_string_lossy().to_string(),
@@ -273,7 +261,7 @@ fn stop(cli: &Cli) -> Result<(), GriteError> {
                         libgrite_ipc::IpcCommand::DaemonStop,
                     );
 
-                    // Send stop command (ignore errors - daemon may close connection)
+                    // Send stop command (ignore errors - daemon may close connection immediately)
                     let _ = client.send(&request);
                 }
                 Err(_) => {
@@ -322,7 +310,11 @@ fn wait_for_daemon_exit(pid: u32, timeout: Duration) {
         // Check if process is still alive
         #[cfg(unix)]
         {
-            let result = unsafe { libc::kill(pid as i32, 0) };
+            let Some(pid_i32) = i32::try_from(pid).ok() else {
+                // PID doesn't fit in i32 — can't be a valid process
+                return;
+            };
+            let result = unsafe { libc::kill(pid_i32, 0) };
             if result != 0 {
                 // Process doesn't exist anymore (ESRCH) or we can't signal it
                 return;

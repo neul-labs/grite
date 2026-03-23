@@ -12,6 +12,10 @@ categories.workspace = true
 description = "Background daemon for grite providing concurrent access and performance"
 readme = "../../README.md"
 
+[lib]
+name = "grite_daemon"
+path = "src/lib.rs"
+
 [[bin]]
 name = "grite-daemon"
 path = "src/main.rs"
@@ -20,7 +24,6 @@ path = "src/main.rs"
 libgrite-core = { path = "../libgrite-core", version = "0.3.0" }
 libgrite-git = { path = "../libgrite-git", version = "0.3.0" }
 libgrite-ipc = { path = "../libgrite-ipc", version = "0.3.0" }
-nng = { workspace = true }
 rkyv = { workspace = true }
 tokio = { workspace = true }
 serde = { workspace = true }
@@ -31,9 +34,6 @@ tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 clap = { workspace = true }
 hex = { workspace = true }
-
-[target.'cfg(unix)'.dependencies]
-libc = "0.2"
 
 [dev-dependencies]
 tempfile = "3.10"
