@@ -7,6 +7,7 @@
 //! - Broadcasts notifications via internal channels
 
 use std::collections::HashMap;
+use std::future::Future;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
@@ -18,11 +19,14 @@ use libgrite_ipc::{
     IpcCommand, Notification, IPC_SCHEMA_VERSION,
 };
 use tokio::net::{UnixListener, UnixStream};
-use tokio::sync::{mpsc, Mutex};
+use tokio::sync::{mpsc, Mutex, Semaphore};
 use tracing::{debug, info, warn};
 
 use crate::error::DaemonError;
 use crate::worker::{Worker, WorkerMessage};
+
+/// Maximum concurrent connections the daemon will handle
+const MAX_CONNECTIONS: usize = 256;
 
 /// Worker handle for communication
 struct WorkerHandle {
@@ -39,38 +43,43 @@ struct WorkerKey {
     actor_id: String,
 }
 
+/// Shared daemon state accessible from all connection tasks.
+///
+/// Wrapped in `Arc` and passed to every spawned connection task,
+/// replacing the previous pattern of cloning 8+ individual values.
+struct DaemonState {
+    daemon_id: String,
+    host_id: String,
+    pid: u32,
+    started_ts: u64,
+    socket_path: String,
+    workers: Mutex<HashMap<WorkerKey, WorkerHandle>>,
+    notify_tx: mpsc::Sender<Notification>,
+    shutdown_tx: tokio::sync::broadcast::Sender<()>,
+    conn_semaphore: Arc<Semaphore>,
+    last_activity_ms: AtomicU64,
+    start_instant: Instant,
+    idle_timeout: Option<Duration>,
+}
+
+impl DaemonState {
+    fn touch_activity(&self) {
+        let elapsed_ms = self.start_instant.elapsed().as_millis() as u64;
+        self.last_activity_ms.store(elapsed_ms, Ordering::Relaxed);
+    }
+}
+
 /// Supervisor manages workers and IPC
 pub struct Supervisor {
-    /// Daemon ID
-    daemon_id: String,
-    /// Host ID
-    host_id: String,
-    /// Process ID
-    pid: u32,
-    /// Unix socket path
-    socket_path: String,
-    /// Workers by (repo_root, actor_id), behind a Mutex for atomic get-or-create
-    workers: Arc<Mutex<HashMap<WorkerKey, WorkerHandle>>>,
-    /// Notification channel
+    state: Arc<DaemonState>,
     notify_rx: mpsc::Receiver<Notification>,
-    /// Notification sender (cloned to workers)
-    notify_tx: mpsc::Sender<Notification>,
-    /// Shutdown signal
-    shutdown_tx: Option<tokio::sync::broadcast::Sender<()>>,
-    /// Idle timeout (None = no auto-shutdown)
-    idle_timeout: Option<Duration>,
-    /// Last activity timestamp (monotonic, as ms since process start)
-    last_activity_ms: Arc<AtomicU64>,
-    /// Process start instant for relative timing
-    start_instant: Instant,
-    /// Wall-clock start time (ms since Unix epoch)
-    started_ts: u64,
 }
 
 impl Supervisor {
     /// Create a new supervisor
     pub fn new(socket_path: String, idle_timeout: Option<Duration>) -> Self {
         let (notify_tx, notify_rx) = mpsc::channel(1000);
+        let (shutdown_tx, _) = tokio::sync::broadcast::channel::<()>(1);
         let start_instant = Instant::now();
 
         let started_ts = SystemTime::now()
@@ -78,105 +87,95 @@ impl Supervisor {
             .unwrap_or_default()
             .as_millis() as u64;
 
-        Self {
+        let state = Arc::new(DaemonState {
             daemon_id: uuid::Uuid::new_v4().to_string(),
             host_id: get_host_id(),
             pid: std::process::id(),
-            socket_path,
-            workers: Arc::new(Mutex::new(HashMap::new())),
-            notify_rx,
-            notify_tx,
-            shutdown_tx: None,
-            idle_timeout,
-            last_activity_ms: Arc::new(AtomicU64::new(0)),
-            start_instant,
             started_ts,
-        }
+            socket_path,
+            workers: Mutex::new(HashMap::new()),
+            notify_tx,
+            shutdown_tx,
+            conn_semaphore: Arc::new(Semaphore::new(MAX_CONNECTIONS)),
+            last_activity_ms: AtomicU64::new(0),
+            start_instant,
+            idle_timeout,
+        });
+
+        Self { state, notify_rx }
     }
 
-    /// Update the last activity timestamp
-    fn touch_activity(&self) {
-        let elapsed_ms = self.start_instant.elapsed().as_millis() as u64;
-        self.last_activity_ms.store(elapsed_ms, Ordering::Relaxed);
-    }
-
-    /// Trigger shutdown signal (for use from signal handlers)
-    pub fn trigger_shutdown(&self) {
-        if let Some(ref tx) = self.shutdown_tx {
-            let _ = tx.send(());
-        }
-    }
-
-    /// Run the supervisor
-    pub async fn run(&mut self) -> Result<(), DaemonError> {
+    /// Run the supervisor until shutdown.
+    ///
+    /// Shutdown is triggered by either:
+    /// - The external `shutdown_signal` future resolving (e.g. SIGTERM)
+    /// - An internal trigger (idle timeout, DaemonStop command)
+    ///
+    /// All cleanup (socket removal, worker shutdown) is handled here.
+    pub async fn run(
+        mut self,
+        shutdown_signal: impl Future<Output = ()> + Send,
+    ) -> Result<(), DaemonError> {
         info!(
-            daemon_id = %self.daemon_id,
-            socket_path = %self.socket_path,
-            idle_timeout_secs = ?self.idle_timeout.map(|d| d.as_secs()),
+            daemon_id = %self.state.daemon_id,
+            socket_path = %self.state.socket_path,
+            idle_timeout_secs = ?self.state.idle_timeout.map(|d| d.as_secs()),
             "Supervisor starting"
         );
 
         // Initialize last activity to now
-        self.touch_activity();
-
-        // Create shutdown channel
-        let (shutdown_tx, _) = tokio::sync::broadcast::channel::<()>(1);
-        self.shutdown_tx = Some(shutdown_tx.clone());
+        self.state.touch_activity();
 
         // Clean up stale socket file, but only if no live supervisor owns it
-        let socket_path = Path::new(&self.socket_path);
+        let socket_path = Path::new(&self.state.socket_path);
         if socket_path.exists() {
             if std::os::unix::net::UnixStream::connect(socket_path).is_ok() {
                 return Err(DaemonError::BindFailed(format!(
                     "Another supervisor is already listening on {}",
-                    self.socket_path,
+                    self.state.socket_path,
                 )));
             }
             std::fs::remove_file(socket_path).map_err(|e| {
                 DaemonError::BindFailed(format!(
                     "Failed to remove stale socket {}: {}",
-                    self.socket_path, e
+                    self.state.socket_path, e
                 ))
             })?;
         }
 
         // Bind Unix listener
-        let listener = UnixListener::bind(&self.socket_path).map_err(|e| {
+        let listener = UnixListener::bind(&self.state.socket_path).map_err(|e| {
             DaemonError::BindFailed(format!(
                 "Failed to bind to {}: {}",
-                self.socket_path, e
+                self.state.socket_path, e
             ))
         })?;
 
-        info!("Listening on {}", self.socket_path);
+        info!("Listening on {}", self.state.socket_path);
 
         // Spawn heartbeat task (also checks idle timeout)
-        let workers_clone = self.workers.clone();
-        let last_activity_ms = self.last_activity_ms.clone();
-        let idle_timeout = self.idle_timeout;
-        let start_instant = self.start_instant;
-        let idle_shutdown_tx = shutdown_tx.clone();
-        let mut heartbeat_shutdown = shutdown_tx.subscribe();
+        let state_hb = self.state.clone();
+        let mut heartbeat_shutdown = self.state.shutdown_tx.subscribe();
         tokio::spawn(async move {
             let mut interval = tokio::time::interval(Duration::from_secs(10));
             loop {
                 tokio::select! {
                     _ = interval.tick() => {
                         // Send heartbeats to workers
-                        let workers = workers_clone.lock().await;
+                        let workers = state_hb.workers.lock().await;
                         for handle in workers.values() {
                             let _ = handle.tx.send(WorkerMessage::Heartbeat).await;
                         }
                         drop(workers);
 
                         // Check idle timeout
-                        if let Some(timeout) = idle_timeout {
-                            let last_ms = last_activity_ms.load(Ordering::Relaxed);
-                            let now_ms = start_instant.elapsed().as_millis() as u64;
+                        if let Some(timeout) = state_hb.idle_timeout {
+                            let last_ms = state_hb.last_activity_ms.load(Ordering::Relaxed);
+                            let now_ms = state_hb.start_instant.elapsed().as_millis() as u64;
                             let idle_ms = now_ms.saturating_sub(last_ms);
                             if idle_ms >= timeout.as_millis() as u64 {
                                 info!("Idle timeout reached ({} ms), shutting down", idle_ms);
-                                let _ = idle_shutdown_tx.send(());
+                                let _ = state_hb.shutdown_tx.send(());
                                 break;
                             }
                         }
@@ -193,7 +192,7 @@ impl Supervisor {
             &mut self.notify_rx,
             mpsc::channel(1).1,
         );
-        let mut notify_shutdown = shutdown_tx.subscribe();
+        let mut notify_shutdown = self.state.shutdown_tx.subscribe();
         tokio::spawn(async move {
             loop {
                 tokio::select! {
@@ -210,56 +209,35 @@ impl Supervisor {
             }
         });
 
-        // Main accept loop — each connection gets its own task
-        let mut main_shutdown = shutdown_tx.subscribe();
-        let conn_semaphore = Arc::new(tokio::sync::Semaphore::new(256));
+        // Main accept loop
+        let mut internal_shutdown = self.state.shutdown_tx.subscribe();
+        tokio::pin!(shutdown_signal);
+
         loop {
             tokio::select! {
-                _ = main_shutdown.recv() => {
-                    info!("Shutdown signal received");
+                _ = &mut shutdown_signal => {
+                    info!("Received shutdown signal");
+                    break;
+                }
+                _ = internal_shutdown.recv() => {
+                    info!("Internal shutdown signal received");
                     break;
                 }
                 result = listener.accept() => {
                     match result {
                         Ok((stream, _addr)) => {
-                            let permit = match conn_semaphore.clone().try_acquire_owned() {
+                            let permit = match self.state.conn_semaphore.clone().try_acquire_owned() {
                                 Ok(permit) => permit,
                                 Err(_) => {
-                                    warn!("Connection limit reached (256), dropping connection");
-                                    drop(stream);
+                                    warn!("Connection limit reached ({}), dropping connection", MAX_CONNECTIONS);
                                     continue;
                                 }
                             };
-                            let workers = self.workers.clone();
-                            let notify_tx = self.notify_tx.clone();
-                            let daemon_id = self.daemon_id.clone();
-                            let host_id = self.host_id.clone();
-                            let pid = self.pid;
-                            let started_ts = self.started_ts;
-                            let ipc_endpoint = self.socket_path.clone();
-                            let shutdown_tx_clone = shutdown_tx.clone();
-                            let last_activity = self.last_activity_ms.clone();
-                            let start = self.start_instant;
-
+                            let state = self.state.clone();
                             tokio::spawn(async move {
-                                // Update activity timestamp
-                                let elapsed_ms = start.elapsed().as_millis() as u64;
-                                last_activity.store(elapsed_ms, Ordering::Relaxed);
-
-                                handle_connection(
-                                    stream,
-                                    workers,
-                                    notify_tx,
-                                    daemon_id,
-                                    host_id,
-                                    pid,
-                                    started_ts,
-                                    ipc_endpoint,
-                                    shutdown_tx_clone,
-                                )
-                                .await;
-
-                                // Permit is released when dropped
+                                state.touch_activity();
+                                handle_connection(stream, &state).await;
+                                state.touch_activity();
                                 drop(permit);
                             });
                         }
@@ -271,54 +249,70 @@ impl Supervisor {
             }
         }
 
-        // Clean up socket file
-        let _ = std::fs::remove_file(&self.socket_path);
+        // === Single cleanup path ===
 
-        // Shutdown all workers
-        self.shutdown_workers().await;
+        // Signal background tasks (heartbeat, notifications) to stop.
+        // This is a no-op if shutdown was already triggered internally
+        // (idle timeout / DaemonStop), since those tasks already received
+        // the broadcast — the second send simply has no receivers.
+        let _ = self.state.shutdown_tx.send(());
+
+        // Clean up socket file
+        let _ = std::fs::remove_file(&self.state.socket_path);
+
+        // Stop accepting new connections so no new tasks can spawn.
+        drop(listener);
+
+        // Wait for all in-flight connection tasks to finish (they each
+        // hold a semaphore permit). This prevents the race where a
+        // connection task inserts a new worker after we drain the map.
+        let _ = tokio::time::timeout(
+            Duration::from_secs(10),
+            self.state.conn_semaphore.acquire_many(MAX_CONNECTIONS as u32),
+        )
+        .await;
+
+        // Now safe to drain — no connection tasks are running
+        shutdown_workers(&self.state).await;
 
         info!("Supervisor stopped");
         Ok(())
     }
+}
 
-    /// Shutdown all workers and wait for them to finish
-    pub async fn shutdown_workers(&self) {
-        let mut workers = self.workers.lock().await;
+/// Drain workers from the map and shut them down.
+///
+/// The mutex is released before sending shutdown messages or awaiting
+/// join handles, preventing deadlocks with in-flight connection tasks
+/// that may be waiting to insert new workers.
+async fn shutdown_workers(state: &DaemonState) {
+    let handles: Vec<WorkerHandle> = {
+        let mut workers = state.workers.lock().await;
+        workers.drain().map(|(_, h)| h).collect()
+    };
+    // Mutex released — in-flight connection tasks can now complete
 
-        // Send shutdown to all workers
-        for handle in workers.values() {
-            let _ = handle.tx.send(WorkerMessage::Shutdown).await;
-        }
+    for handle in &handles {
+        let _ = handle.tx.send(WorkerMessage::Shutdown).await;
+    }
 
-        // Wait for all workers to actually finish (with timeout)
-        for handle in workers.values_mut() {
-            if let Some(jh) = handle.join_handle.take() {
-                match tokio::time::timeout(Duration::from_secs(10), jh).await {
-                    Ok(Ok(())) => {}
-                    Ok(Err(e)) => warn!("Worker task panicked: {}", e),
-                    Err(_) => warn!(
-                        "Worker {}/{} didn't shut down within 10s",
-                        handle.repo_root.display(),
-                        handle.actor_id
-                    ),
-                }
+    for mut handle in handles {
+        if let Some(jh) = handle.join_handle.take() {
+            match tokio::time::timeout(Duration::from_secs(10), jh).await {
+                Ok(Ok(())) => {}
+                Ok(Err(e)) => warn!("Worker task panicked: {}", e),
+                Err(_) => warn!(
+                    "Worker {}/{} didn't shut down within 10s",
+                    handle.repo_root.display(),
+                    handle.actor_id
+                ),
             }
         }
     }
 }
 
 /// Handle a single client connection: read one request, send one response
-async fn handle_connection(
-    mut stream: UnixStream,
-    workers: Arc<Mutex<HashMap<WorkerKey, WorkerHandle>>>,
-    notify_tx: mpsc::Sender<Notification>,
-    daemon_id: String,
-    host_id: String,
-    pid: u32,
-    started_ts: u64,
-    ipc_endpoint: String,
-    shutdown_tx: tokio::sync::broadcast::Sender<()>,
-) {
+async fn handle_connection(mut stream: UnixStream, state: &DaemonState) {
     // Read request with timeout
     let request_bytes = match tokio::time::timeout(
         Duration::from_secs(30),
@@ -337,18 +331,7 @@ async fn handle_connection(
         }
     };
 
-    let response = process_request(
-        &request_bytes,
-        &workers,
-        &notify_tx,
-        &daemon_id,
-        &host_id,
-        pid,
-        started_ts,
-        &ipc_endpoint,
-        &shutdown_tx,
-    )
-    .await;
+    let response = process_request(&request_bytes, state).await;
 
     // Serialize and send response
     match rkyv::to_bytes::<rkyv::rancor::Error>(&response) {
@@ -369,17 +352,7 @@ async fn handle_connection(
 }
 
 /// Process a raw request and return a response
-async fn process_request(
-    raw: &[u8],
-    workers: &Arc<Mutex<HashMap<WorkerKey, WorkerHandle>>>,
-    notify_tx: &mpsc::Sender<Notification>,
-    daemon_id: &str,
-    host_id: &str,
-    pid: u32,
-    started_ts: u64,
-    ipc_endpoint: &str,
-    shutdown_tx: &tokio::sync::broadcast::Sender<()>,
-) -> IpcResponse {
+async fn process_request(raw: &[u8], state: &DaemonState) -> IpcResponse {
     // Deserialize request
     let archived = match rkyv::access::<ArchivedIpcRequest, rkyv::rancor::Error>(raw) {
         Ok(a) => a,
@@ -425,14 +398,14 @@ async fn process_request(
     // Handle daemon-level commands at the supervisor, not in workers
     match &request.command {
         IpcCommand::DaemonStop => {
-            let _ = shutdown_tx.send(());
+            let _ = state.shutdown_tx.send(());
             return IpcResponse::success(
                 request.request_id,
                 Some(serde_json::json!({"stopping": true}).to_string()),
             );
         }
         IpcCommand::DaemonStatus => {
-            let workers_guard = workers.lock().await;
+            let workers_guard = state.workers.lock().await;
             let worker_count = workers_guard.len();
             drop(workers_guard);
 
@@ -441,11 +414,11 @@ async fn process_request(
                 Some(
                     serde_json::json!({
                         "running": true,
-                        "daemon_id": daemon_id,
-                        "pid": pid,
-                        "host_id": host_id,
-                        "ipc_endpoint": ipc_endpoint,
-                        "started_ts": started_ts,
+                        "daemon_id": state.daemon_id,
+                        "pid": state.pid,
+                        "host_id": state.host_id,
+                        "ipc_endpoint": state.socket_path,
+                        "started_ts": state.started_ts,
                         "worker_count": worker_count,
                     })
                     .to_string(),
@@ -456,14 +429,7 @@ async fn process_request(
     }
 
     // Route to worker
-    route_to_worker(
-        request,
-        workers,
-        notify_tx,
-        host_id,
-        ipc_endpoint,
-    )
-    .await
+    route_to_worker(request, state).await
 }
 
 /// Route a request to the appropriate worker, creating one if needed.
@@ -474,13 +440,7 @@ async fn process_request(
 /// Uses double-checked locking: the workers mutex is NOT held during
 /// `Worker::new` (which does blocking sled I/O). If two tasks race to
 /// create the same worker, the loser finds the winner's entry on re-check.
-async fn route_to_worker(
-    request: IpcRequest,
-    workers: &Arc<Mutex<HashMap<WorkerKey, WorkerHandle>>>,
-    notify_tx: &mpsc::Sender<Notification>,
-    host_id: &str,
-    ipc_endpoint: &str,
-) -> IpcResponse {
+async fn route_to_worker(request: IpcRequest, state: &DaemonState) -> IpcResponse {
     let key = WorkerKey {
         repo_root: request.repo_root.clone(),
         actor_id: request.actor_id.clone(),
@@ -488,7 +448,7 @@ async fn route_to_worker(
 
     // Fast path: check for existing live worker (mutex held briefly)
     {
-        let mut workers_guard = workers.lock().await;
+        let mut workers_guard = state.workers.lock().await;
 
         // Remove dead worker handles
         if let Some(handle) = workers_guard.get(&key) {
@@ -514,9 +474,9 @@ async fn route_to_worker(
     let repo_root = PathBuf::from(&request.repo_root);
     let actor_id = request.actor_id.clone();
     let data_dir = PathBuf::from(&request.data_dir);
-    let ntx = notify_tx.clone();
-    let hid = host_id.to_string();
-    let ipc = ipc_endpoint.to_string();
+    let ntx = state.notify_tx.clone();
+    let hid = state.host_id.clone();
+    let ipc = state.socket_path.clone();
 
     let worker_result = tokio::task::spawn_blocking(move || {
         Worker::new(repo_root, actor_id, data_dir, rx, ntx, hid, ipc)
@@ -528,7 +488,7 @@ async fn route_to_worker(
         Ok(Err(e)) => {
             // Creation failed — another task may have won the race.
             // Re-check the map before returning an error.
-            let workers_guard = workers.lock().await;
+            let workers_guard = state.workers.lock().await;
             if let Some(handle) = workers_guard.get(&key) {
                 if !handle.tx.is_closed() {
                     let tx = handle.tx.clone();
@@ -553,7 +513,7 @@ async fn route_to_worker(
 
     // Re-acquire lock and insert (double-check for races)
     {
-        let mut workers_guard = workers.lock().await;
+        let mut workers_guard = state.workers.lock().await;
 
         // Another task may have created a worker for this key while we
         // were blocked. If so, use theirs and drop ours.

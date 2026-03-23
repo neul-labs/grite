@@ -105,8 +105,8 @@ async fn start_supervisor(
 
     let sp = socket_path.clone();
     let handle = tokio::spawn(async move {
-        let mut supervisor = Supervisor::new(sp, None);
-        if let Err(e) = supervisor.run().await {
+        let supervisor = Supervisor::new(sp, None);
+        if let Err(e) = supervisor.run(std::future::pending::<()>()).await {
             eprintln!("Supervisor error: {}", e);
         }
     });

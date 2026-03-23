@@ -79,20 +79,10 @@ async fn main() {
         None
     };
     let endpoint = cli.endpoint.unwrap_or_else(libgrite_ipc::default_socket_path);
-    let mut supervisor = Supervisor::new(endpoint, idle_timeout);
+    let supervisor = Supervisor::new(endpoint, idle_timeout);
 
-    tokio::select! {
-        result = supervisor.run() => {
-            if let Err(e) = result {
-                error!("Supervisor error: {}", e);
-            }
-        }
-        _ = shutdown => {
-            info!("Received shutdown signal");
-            // Trigger graceful shutdown through the supervisor so workers clean up
-            supervisor.trigger_shutdown();
-            supervisor.shutdown_workers().await;
-        }
+    if let Err(e) = supervisor.run(shutdown).await {
+        error!("Supervisor error: {}", e);
     }
 
     // Cleanup PID file
