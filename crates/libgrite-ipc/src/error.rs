@@ -49,6 +49,10 @@ pub enum IpcError {
     #[error("Lock expired")]
     LockExpired,
 
+    /// Client is poisoned (stream has stale data from a previous failed exchange)
+    #[error("Client connection is poisoned after a previous error; reconnect to continue")]
+    ClientPoisoned,
+
     /// IO error
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),

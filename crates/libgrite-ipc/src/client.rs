@@ -14,10 +14,16 @@ use crate::messages::{ArchivedIpcResponse, IpcRequest, IpcResponse};
 use crate::DEFAULT_TIMEOUT_MS;
 
 /// IPC client for daemon communication
+///
+/// A client becomes *poisoned* after a timeout or IO error, because the
+/// underlying stream may contain partial data from the failed exchange.
+/// Poisoned clients reject further `send()` calls with [`IpcError::ClientPoisoned`].
+/// Use [`send_with_retry`](Self::send_with_retry) for automatic reconnection.
 pub struct IpcClient {
     stream: UnixStream,
     endpoint: String,
     timeout_ms: u64,
+    poisoned: bool,
 }
 
 impl IpcClient {
@@ -50,6 +56,7 @@ impl IpcClient {
             stream,
             endpoint: endpoint.to_string(),
             timeout_ms,
+            poisoned: false,
         })
     }
 
@@ -64,7 +71,14 @@ impl IpcClient {
     }
 
     /// Send a request and wait for a response
+    ///
+    /// Returns [`IpcError::ClientPoisoned`] if this client was poisoned by a
+    /// previous timeout or IO error.
     pub fn send(&mut self, request: &IpcRequest) -> Result<IpcResponse, IpcError> {
+        if self.poisoned {
+            return Err(IpcError::ClientPoisoned);
+        }
+
         // Serialize the request
         let bytes = rkyv::to_bytes::<rkyv::rancor::Error>(request)
             .map_err(|e| IpcError::Serialization(e.to_string()))?;
@@ -74,8 +88,10 @@ impl IpcClient {
             if e.kind() == std::io::ErrorKind::TimedOut
                 || e.kind() == std::io::ErrorKind::WouldBlock
             {
+                self.poisoned = true;
                 IpcError::Timeout(self.timeout_ms)
             } else {
+                self.poisoned = true;
                 IpcError::Io(e)
             }
         })?;
@@ -85,8 +101,10 @@ impl IpcClient {
             if e.kind() == std::io::ErrorKind::TimedOut
                 || e.kind() == std::io::ErrorKind::WouldBlock
             {
+                self.poisoned = true;
                 IpcError::Timeout(self.timeout_ms)
             } else {
+                self.poisoned = true;
                 IpcError::Io(e)
             }
         })?;
@@ -126,37 +144,41 @@ impl IpcClient {
     /// Send a request with retries using exponential backoff
     ///
     /// Each retry creates a fresh connection to avoid stale stream state.
+    /// If reconnection fails, that attempt is consumed but the retry loop
+    /// continues (with backoff) rather than silently burning all retries.
     pub fn send_with_retry(
         &mut self,
         request: &IpcRequest,
         max_retries: u32,
     ) -> Result<IpcResponse, IpcError> {
         let mut last_error = None;
-        let mut delay_ms = 100;
+        let mut delay_ms = 100u64;
 
         for attempt in 0..=max_retries {
-            match self.send(request) {
-                Ok(response) => return Ok(response),
-                Err(e) => {
-                    // Only retry on timeout or transient IO errors
-                    match &e {
-                        IpcError::Timeout(_) | IpcError::Io(_) => {
-                            last_error = Some(e);
-                            if attempt < max_retries {
-                                std::thread::sleep(Duration::from_millis(delay_ms));
-                                delay_ms *= 2;
-                                // Reconnect for next attempt
-                                if let Ok(new_client) = IpcClient::connect_with_timeout(
-                                    &self.endpoint,
-                                    self.timeout_ms,
-                                ) {
-                                    self.stream = new_client.stream;
-                                }
-                            }
-                        }
-                        _ => return Err(e),
+            // Reconnect before each retry (not on the first attempt)
+            if attempt > 0 {
+                std::thread::sleep(Duration::from_millis(delay_ms));
+                delay_ms *= 2;
+                match IpcClient::connect_with_timeout(&self.endpoint, self.timeout_ms) {
+                    Ok(new_client) => {
+                        self.stream = new_client.stream;
+                        self.poisoned = false;
+                    }
+                    Err(e) => {
+                        last_error = Some(e);
+                        continue;
                     }
                 }
+            }
+
+            match self.send(request) {
+                Ok(response) => return Ok(response),
+                Err(e) => match &e {
+                    IpcError::Timeout(_) | IpcError::Io(_) | IpcError::ClientPoisoned => {
+                        last_error = Some(e);
+                    }
+                    _ => return Err(e),
+                },
             }
         }
 
