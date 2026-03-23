@@ -22,25 +22,6 @@ Grite is a repo-local, git-backed issue/task system. Unlike traditional issue tr
 Before installing grite, ensure you have:
 
 - **Git 2.38+** - Grite uses git refs for storage
-- **nng library** - Required for IPC (inter-process communication)
-
-### Installing nng
-
-=== "Ubuntu/Debian"
-
-    ```bash
-    sudo apt install libnng-dev
-    ```
-
-=== "macOS"
-
-    ```bash
-    brew install nng
-    ```
-
-=== "Windows"
-
-    The nng library is bundled with pre-built Windows binaries.
 
 ## What's Next?
 

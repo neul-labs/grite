@@ -1,6 +1,6 @@
 //! Discovery protocol types
 //!
-//! Discovery uses NNG SURVEY sockets to find running daemons.
+//! Types for discovering running daemon instances.
 
 use rkyv::{Archive, Deserialize, Serialize};
 

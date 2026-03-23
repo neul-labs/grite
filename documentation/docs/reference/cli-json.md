@@ -522,7 +522,7 @@ Status values: `ok`, `warn`, `error`
   "daemon": {
     "running": true,
     "pid": 12345,
-    "endpoint": "ipc:///tmp/grite-daemon.sock",
+    "endpoint": "/tmp/grite-daemon.sock",
     "workers": [
       {
         "repo_root": "/path/to/repo",

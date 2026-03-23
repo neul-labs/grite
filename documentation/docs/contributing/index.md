@@ -27,19 +27,6 @@ Thank you for your interest in contributing to Grite! This document provides gui
 
 - Rust 1.70+ (stable)
 - Git 2.38+
-- nng library
-
-=== "Ubuntu/Debian"
-
-    ```bash
-    sudo apt install libnng-dev
-    ```
-
-=== "macOS"
-
-    ```bash
-    brew install nng
-    ```
 
 ### Building
 
@@ -122,12 +109,13 @@ Git operations using libgit2:
 
 ### libgrite-ipc
 
-IPC communication using nng:
+IPC communication using tokio Unix sockets:
 
 | Module | Purpose |
 |--------|---------|
 | `messages` | IpcRequest, IpcResponse |
 | `client` | IPC client with retry |
+| `framing` | Length-prefixed message framing |
 | `lock` | DaemonLock for coordination |
 
 ## Design Principles

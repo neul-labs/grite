@@ -65,7 +65,6 @@ cd grite
 This requires:
 
 - Rust 1.75+
-- nng library (see prerequisites below)
 
 ## Prerequisites
 
@@ -76,37 +75,6 @@ Grite requires Git 2.38 or later. Check your version:
 ```bash
 git --version
 ```
-
-### nng Library
-
-The nng (nanomsg-next-gen) library is required for inter-process communication between the CLI and daemon.
-
-=== "Ubuntu/Debian"
-
-    ```bash
-    sudo apt install libnng-dev
-    ```
-
-=== "macOS"
-
-    ```bash
-    brew install nng
-    ```
-
-=== "Windows"
-
-    The nng library is bundled with pre-built Windows binaries. No separate installation needed.
-
-=== "From Source"
-
-    ```bash
-    git clone https://github.com/nanomsg/nng.git
-    cd nng
-    mkdir build && cd build
-    cmake ..
-    make
-    sudo make install
-    ```
 
 ## Verifying Installation
 

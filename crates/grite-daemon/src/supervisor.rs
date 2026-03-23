@@ -4,7 +4,6 @@
 //! - Listens on a Unix socket for commands
 //! - Manages worker lifecycle
 //! - Routes commands to appropriate workers
-//! - Handles discovery requests
 //! - Broadcasts notifications via internal channels
 
 use std::collections::HashMap;

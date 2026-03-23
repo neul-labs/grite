@@ -66,12 +66,13 @@ Git operations using libgit2.
 
 ### libgrite-ipc
 
-Inter-process communication using nng (nanomsg-next-gen).
+Inter-process communication using tokio Unix sockets with length-prefixed framing.
 
 | Module | Purpose |
 |--------|---------|
 | `messages` | `IpcRequest`, `IpcResponse`, `IpcCommand` |
 | `client` | IPC client with retry logic |
+| `framing` | Length-prefixed message framing |
 | `lock` | `DaemonLock` for process coordination |
 | `notifications` | Pub/sub notification types |
 | `discovery` | Daemon discovery protocol |

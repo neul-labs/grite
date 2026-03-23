@@ -90,7 +90,7 @@ The idle timer resets on each command. When timeout is reached:
 
 ### Supervisor
 
-- Listens on IPC socket (`ipc:///tmp/grite-daemon.sock`)
+- Listens on IPC socket (`/tmp/grite-daemon.sock`)
 - Routes requests to appropriate worker
 - Manages worker lifecycle
 - Tracks idle time for auto-shutdown
@@ -143,7 +143,7 @@ Example:
   "repo_root": "/path/to/repo",
   "actor_id": "64d15a2c383e2161772f9cea23e87222",
   "host_id": "hostname",
-  "ipc_endpoint": "ipc:///tmp/grite-daemon.sock",
+  "ipc_endpoint": "/tmp/grite-daemon.sock",
   "lease_ms": 30000,
   "last_heartbeat_ts": 1700000000000,
   "expires_ts": 1700000030000
@@ -168,7 +168,7 @@ $ grite daemon status
 Daemon is running
   PID:            12345
   Host ID:        my-laptop
-  IPC Endpoint:   ipc:///tmp/grite-daemon.sock
+  IPC Endpoint:   /tmp/grite-daemon.sock
   Started:        2024-01-15 10:30:00 UTC
   Expires in:     25s
 ```
@@ -181,7 +181,7 @@ $ grite daemon status --json
   "running": true,
   "pid": 12345,
   "host_id": "my-laptop",
-  "ipc_endpoint": "ipc:///tmp/grite-daemon.sock",
+  "ipc_endpoint": "/tmp/grite-daemon.sock",
   "started_ts": 1705315800000,
   "expires_ts": 1705315830000,
   "time_remaining_ms": 25000
@@ -211,9 +211,10 @@ When auto-spawned, daemon runs with `--log-level info` and stdout/stderr redirec
 
 ## IPC Protocol
 
-- Socket: `ipc:///tmp/grite-daemon.sock`
+- Socket: `/tmp/grite-daemon.sock` (Unix domain socket)
+- Framing: length-prefixed (`u32` BE + payload)
 - Serialization: rkyv (zero-copy)
-- Pattern: REQ/REP (request/response)
+- Concurrency: one task per connection
 
 See [IPC Protocol](ipc.md) for message format details.
 

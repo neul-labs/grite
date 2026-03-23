@@ -2,8 +2,8 @@
 
 This document specifies the daemon IPC message schema used between `grite`
 and `grite-daemon`. The wire format is `rkyv`-serialized structs transported over
-NNG sockets. JSON examples are provided for readability; actual bytes are
-`rkyv`.
+Unix sockets with length-prefixed framing (`u32` BE + payload). JSON examples are
+provided for readability; actual bytes are `rkyv`.
 
 ## Versioning
 
@@ -79,9 +79,9 @@ in `docs/cli-json.md`.
 { "Sync": { "pull": true, "push": true } }
 ```
 
-## Discovery (SURVEY)
+## Discovery
 
-Discovery uses a `SURVEY` socket with a fixed message:
+Discovery uses a simple request on the daemon socket:
 
 ```json
 { "Discover": { "protocol": "grite-ipc", "min_version": 1 } }
@@ -94,7 +94,7 @@ Response:
   "protocol": "grite-ipc",
   "ipc_schema_version": 1,
   "daemon_id": "uuid",
-  "endpoint": "ipc://.../grite-daemon.sock",
+  "endpoint": "/tmp/grite-daemon.sock",
   "workers": [
     { "repo_root": "/path/to/repo", "actor_id": "...", "data_dir": "..." }
   ]
