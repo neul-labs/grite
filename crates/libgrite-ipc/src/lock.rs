@@ -169,11 +169,8 @@ impl DaemonLock {
                 Ok(lock)
             }
             Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {
-                // Another process beat us to it
-                Err(IpcError::LockHeld {
-                    pid: 0,
-                    expires_in_ms: 0,
-                })
+                // Another process beat us to it between our remove and create
+                Err(IpcError::LockRace)
             }
             Err(e) => Err(e.into()),
         }

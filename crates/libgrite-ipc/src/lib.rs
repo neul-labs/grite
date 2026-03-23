@@ -7,7 +7,6 @@
 //! - IPC client for connecting to the daemon
 
 pub mod client;
-pub mod discovery;
 pub mod error;
 pub mod framing;
 pub mod lock;
@@ -15,7 +14,6 @@ pub mod messages;
 pub mod notifications;
 
 pub use client::IpcClient;
-pub use discovery::{DiscoverRequest, DiscoverResponse, WorkerInfo};
 pub use error::IpcError;
 pub use lock::DaemonLock;
 pub use messages::{IpcCommand, IpcRequest, IpcResponse, IpcErrorPayload};
@@ -23,9 +21,6 @@ pub use notifications::Notification;
 
 /// Current IPC schema version
 pub const IPC_SCHEMA_VERSION: u32 = 1;
-
-/// Protocol identifier for discovery
-pub const PROTOCOL_NAME: &str = "grite-ipc";
 
 /// Default request timeout in milliseconds
 pub const DEFAULT_TIMEOUT_MS: u64 = 10_000;

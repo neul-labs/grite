@@ -79,28 +79,6 @@ in `docs/cli-json.md`.
 { "Sync": { "pull": true, "push": true } }
 ```
 
-## Discovery
-
-Discovery uses a simple request on the daemon socket:
-
-```json
-{ "Discover": { "protocol": "grite-ipc", "min_version": 1 } }
-```
-
-Response:
-
-```json
-{
-  "protocol": "grite-ipc",
-  "ipc_schema_version": 1,
-  "daemon_id": "uuid",
-  "endpoint": "/tmp/grite-daemon.sock",
-  "workers": [
-    { "repo_root": "/path/to/repo", "actor_id": "...", "data_dir": "..." }
-  ]
-}
-```
-
 ## Notifications (PUB/SUB)
 
 The daemon emits asynchronous notifications:

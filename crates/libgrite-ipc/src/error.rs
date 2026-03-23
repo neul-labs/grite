@@ -41,6 +41,10 @@ pub enum IpcError {
     #[error("Lock held by process {pid} (expires in {expires_in_ms}ms)")]
     LockHeld { pid: u32, expires_in_ms: u64 },
 
+    /// Lost lock acquisition race (another process acquired it first)
+    #[error("Lock acquisition race lost: another process acquired the lock simultaneously")]
+    LockRace,
+
     /// Lock has expired
     #[error("Lock expired")]
     LockExpired,
