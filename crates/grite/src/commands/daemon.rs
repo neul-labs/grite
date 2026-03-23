@@ -139,23 +139,19 @@ fn wait_for_daemon(endpoint: &str, timeout: Duration) -> Result<bool, GriteError
     Ok(false)
 }
 
-/// Spawn daemon if not running (for auto-spawn from CLI commands)
-pub fn ensure_daemon_running(cli: &Cli) -> Result<Option<String>, GriteError> {
-    let ctx = GriteContext::resolve(cli)?;
+/// Spawn daemon if not running (for auto-spawn from CLI commands).
+///
+/// Checks the global socket directly rather than per-actor lock files,
+/// since a single daemon serves all repos/actors via one socket.
+pub fn ensure_daemon_running(_cli: &Cli) -> Result<Option<String>, GriteError> {
+    let endpoint = get_default_daemon_endpoint();
 
-    // Check if daemon is already running
-    if let Ok(Some(lock)) = DaemonLock::read(&ctx.data_dir) {
-        if !lock.is_expired() {
-            if UnixStream::connect(&lock.ipc_endpoint).is_ok() {
-                return Ok(Some(lock.ipc_endpoint));
-            }
-        }
-        // Stale lock, clean it up
-        let _ = DaemonLock::remove(&ctx.data_dir);
+    // Check if daemon is already listening on the global socket
+    if UnixStream::connect(&endpoint).is_ok() {
+        return Ok(Some(endpoint));
     }
 
     // Spawn daemon with default idle timeout (5 minutes)
-    let endpoint = get_default_daemon_endpoint();
     let idle_timeout = 300; // 5 minutes default
     spawn_daemon(&endpoint, idle_timeout)?;
 

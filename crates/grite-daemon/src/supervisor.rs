@@ -112,9 +112,15 @@ impl Supervisor {
         let (shutdown_tx, _) = tokio::sync::broadcast::channel::<()>(1);
         self.shutdown_tx = Some(shutdown_tx.clone());
 
-        // Clean up stale socket file
+        // Clean up stale socket file, but only if no live supervisor owns it
         let socket_path = Path::new(&self.socket_path);
         if socket_path.exists() {
+            if std::os::unix::net::UnixStream::connect(socket_path).is_ok() {
+                return Err(DaemonError::BindFailed(format!(
+                    "Another supervisor is already listening on {}",
+                    self.socket_path,
+                )));
+            }
             std::fs::remove_file(socket_path).map_err(|e| {
                 DaemonError::BindFailed(format!(
                     "Failed to remove stale socket {}: {}",
@@ -398,7 +404,10 @@ async fn process_request(
     .await
 }
 
-/// Route a request to the appropriate worker, creating one if needed
+/// Route a request to the appropriate worker, creating one if needed.
+///
+/// If the worker's channel is dead (task panicked or exited), the stale
+/// handle is removed and a fresh worker is spawned automatically.
 async fn route_to_worker(
     request: IpcRequest,
     workers: &Arc<Mutex<HashMap<WorkerKey, WorkerHandle>>>,
@@ -415,10 +424,22 @@ async fn route_to_worker(
     let tx = {
         let mut workers_guard = workers.lock().await;
 
+        // Remove dead worker handles so they get recreated below
+        if let Some(handle) = workers_guard.get(&key) {
+            if handle.tx.is_closed() {
+                warn!(
+                    repo = %handle.repo_root.display(),
+                    actor = %handle.actor_id,
+                    "Removing dead worker handle"
+                );
+                workers_guard.remove(&key);
+            }
+        }
+
+        // Get existing or create new worker
         if let Some(handle) = workers_guard.get(&key) {
             handle.tx.clone()
         } else {
-            // Create worker while holding the lock to prevent double-creation
             match create_worker(
                 &mut workers_guard,
                 CreateWorkerParams {
