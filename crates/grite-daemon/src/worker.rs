@@ -170,9 +170,9 @@ impl Worker {
 
                     in_flight.fetch_add(1, Ordering::SeqCst);
 
-                    // Spawn task for concurrent command execution
-                    // sled's MVCC handles concurrent access safely
-                    tokio::spawn(async move {
+                    // Run on the blocking thread pool — sled and git2 do
+                    // synchronous I/O that must not starve the async runtime.
+                    tokio::task::spawn_blocking(move || {
                         let response = execute_command(
                             &store,
                             actor_id_bytes,

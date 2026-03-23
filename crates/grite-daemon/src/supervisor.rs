@@ -458,6 +458,10 @@ async fn process_request(
 ///
 /// If the worker's channel is dead (task panicked or exited), the stale
 /// handle is removed and a fresh worker is spawned automatically.
+///
+/// Uses double-checked locking: the workers mutex is NOT held during
+/// `Worker::new` (which does blocking sled I/O). If two tasks race to
+/// create the same worker, the loser finds the winner's entry on re-check.
 async fn route_to_worker(
     request: IpcRequest,
     workers: &Arc<Mutex<HashMap<WorkerKey, WorkerHandle>>>,
@@ -470,11 +474,11 @@ async fn route_to_worker(
         actor_id: request.actor_id.clone(),
     };
 
-    // Lock the workers map for atomic get-or-create
-    let tx = {
+    // Fast path: check for existing live worker (mutex held briefly)
+    {
         let mut workers_guard = workers.lock().await;
 
-        // Remove dead worker handles so they get recreated below
+        // Remove dead worker handles
         if let Some(handle) = workers_guard.get(&key) {
             if handle.tx.is_closed() {
                 warn!(
@@ -486,80 +490,87 @@ async fn route_to_worker(
             }
         }
 
-        // Get existing or create new worker
         if let Some(handle) = workers_guard.get(&key) {
-            handle.tx.clone()
-        } else {
-            match create_worker(
-                &mut workers_guard,
-                CreateWorkerParams {
-                    key: key.clone(),
-                    repo_root: PathBuf::from(&request.repo_root),
-                    actor_id: request.actor_id.clone(),
-                    data_dir: PathBuf::from(&request.data_dir),
-                    notify_tx: notify_tx.clone(),
-                    host_id: host_id.to_string(),
-                    ipc_endpoint: ipc_endpoint.to_string(),
-                },
-            ) {
-                Ok(tx) => tx,
-                Err(e) => {
-                    return IpcResponse::error(
-                        request.request_id,
-                        "worker_creation_failed".to_string(),
-                        e.to_string(),
-                    );
+            let tx = handle.tx.clone();
+            drop(workers_guard);
+            return send_to_worker(&request, tx).await;
+        }
+    }
+    // Mutex released — slow path: create worker on blocking thread pool.
+    // Worker::new opens the sled store which can block for seconds.
+    let (tx, rx) = mpsc::channel(100);
+    let repo_root = PathBuf::from(&request.repo_root);
+    let actor_id = request.actor_id.clone();
+    let data_dir = PathBuf::from(&request.data_dir);
+    let ntx = notify_tx.clone();
+    let hid = host_id.to_string();
+    let ipc = ipc_endpoint.to_string();
+
+    let worker_result = tokio::task::spawn_blocking(move || {
+        Worker::new(repo_root, actor_id, data_dir, rx, ntx, hid, ipc)
+    })
+    .await;
+
+    let worker = match worker_result {
+        Ok(Ok(w)) => w,
+        Ok(Err(e)) => {
+            // Creation failed — another task may have won the race.
+            // Re-check the map before returning an error.
+            let workers_guard = workers.lock().await;
+            if let Some(handle) = workers_guard.get(&key) {
+                if !handle.tx.is_closed() {
+                    let tx = handle.tx.clone();
+                    drop(workers_guard);
+                    return send_to_worker(&request, tx).await;
                 }
             }
+            return IpcResponse::error(
+                request.request_id,
+                "worker_creation_failed".to_string(),
+                e.to_string(),
+            );
+        }
+        Err(e) => {
+            return IpcResponse::error(
+                request.request_id,
+                "worker_creation_failed".to_string(),
+                format!("Worker creation panicked: {}", e),
+            );
         }
     };
 
-    // Send to worker (lock is released)
+    // Re-acquire lock and insert (double-check for races)
+    {
+        let mut workers_guard = workers.lock().await;
+
+        // Another task may have created a worker for this key while we
+        // were blocked. If so, use theirs and drop ours.
+        if let Some(handle) = workers_guard.get(&key) {
+            if !handle.tx.is_closed() {
+                let tx = handle.tx.clone();
+                drop(workers_guard);
+                // Our worker is dropped here — its sled lock releases on Drop
+                return send_to_worker(&request, tx).await;
+            }
+            workers_guard.remove(&key);
+        }
+
+        let repo_root = worker.repo_root.clone();
+        let actor_id = worker.actor_id.clone();
+        let join_handle = tokio::spawn(worker.run());
+
+        workers_guard.insert(
+            key,
+            WorkerHandle {
+                tx: tx.clone(),
+                join_handle: Some(join_handle),
+                repo_root,
+                actor_id,
+            },
+        );
+    }
+
     send_to_worker(&request, tx).await
-}
-
-/// Parameters for creating a new worker
-struct CreateWorkerParams {
-    key: WorkerKey,
-    repo_root: PathBuf,
-    actor_id: String,
-    data_dir: PathBuf,
-    notify_tx: mpsc::Sender<Notification>,
-    host_id: String,
-    ipc_endpoint: String,
-}
-
-/// Create a new worker and insert it into the workers map.
-///
-/// Must be called while holding the workers lock.
-fn create_worker(
-    workers: &mut HashMap<WorkerKey, WorkerHandle>,
-    params: CreateWorkerParams,
-) -> Result<mpsc::Sender<WorkerMessage>, DaemonError> {
-    let (tx, rx) = mpsc::channel(100);
-    let worker = Worker::new(
-        params.repo_root.clone(),
-        params.actor_id.clone(),
-        params.data_dir,
-        rx,
-        params.notify_tx,
-        params.host_id,
-        params.ipc_endpoint,
-    )?;
-
-    let join_handle = tokio::spawn(worker.run());
-
-    workers.insert(
-        params.key,
-        WorkerHandle {
-            tx: tx.clone(),
-            join_handle: Some(join_handle),
-            repo_root: params.repo_root,
-            actor_id: params.actor_id,
-        },
-    );
-
-    Ok(tx)
 }
 
 /// Send a request to an existing worker and wait for the response
