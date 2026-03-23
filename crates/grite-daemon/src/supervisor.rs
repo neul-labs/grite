@@ -10,7 +10,7 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
-use std::time::{Duration, Instant};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use libgrite_ipc::{
     framing::{read_framed_async, write_framed_async},
@@ -45,6 +45,8 @@ pub struct Supervisor {
     daemon_id: String,
     /// Host ID
     host_id: String,
+    /// Process ID
+    pid: u32,
     /// Unix socket path
     socket_path: String,
     /// Workers by (repo_root, actor_id), behind a Mutex for atomic get-or-create
@@ -61,6 +63,8 @@ pub struct Supervisor {
     last_activity_ms: Arc<AtomicU64>,
     /// Process start instant for relative timing
     start_instant: Instant,
+    /// Wall-clock start time (ms since Unix epoch)
+    started_ts: u64,
 }
 
 impl Supervisor {
@@ -69,9 +73,15 @@ impl Supervisor {
         let (notify_tx, notify_rx) = mpsc::channel(1000);
         let start_instant = Instant::now();
 
+        let started_ts = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis() as u64;
+
         Self {
             daemon_id: uuid::Uuid::new_v4().to_string(),
             host_id: get_host_id(),
+            pid: std::process::id(),
             socket_path,
             workers: Arc::new(Mutex::new(HashMap::new())),
             notify_rx,
@@ -80,6 +90,7 @@ impl Supervisor {
             idle_timeout,
             last_activity_ms: Arc::new(AtomicU64::new(0)),
             start_instant,
+            started_ts,
         }
     }
 
@@ -212,7 +223,10 @@ impl Supervisor {
                         Ok((stream, _addr)) => {
                             let workers = self.workers.clone();
                             let notify_tx = self.notify_tx.clone();
+                            let daemon_id = self.daemon_id.clone();
                             let host_id = self.host_id.clone();
+                            let pid = self.pid;
+                            let started_ts = self.started_ts;
                             let ipc_endpoint = self.socket_path.clone();
                             let shutdown_tx_clone = shutdown_tx.clone();
                             let last_activity = self.last_activity_ms.clone();
@@ -227,7 +241,10 @@ impl Supervisor {
                                     stream,
                                     workers,
                                     notify_tx,
+                                    daemon_id,
                                     host_id,
+                                    pid,
+                                    started_ts,
                                     ipc_endpoint,
                                     shutdown_tx_clone,
                                 )
@@ -283,7 +300,10 @@ async fn handle_connection(
     mut stream: UnixStream,
     workers: Arc<Mutex<HashMap<WorkerKey, WorkerHandle>>>,
     notify_tx: mpsc::Sender<Notification>,
+    daemon_id: String,
     host_id: String,
+    pid: u32,
+    started_ts: u64,
     ipc_endpoint: String,
     shutdown_tx: tokio::sync::broadcast::Sender<()>,
 ) {
@@ -309,7 +329,10 @@ async fn handle_connection(
         &request_bytes,
         &workers,
         &notify_tx,
+        &daemon_id,
         &host_id,
+        pid,
+        started_ts,
         &ipc_endpoint,
         &shutdown_tx,
     )
@@ -338,7 +361,10 @@ async fn process_request(
     raw: &[u8],
     workers: &Arc<Mutex<HashMap<WorkerKey, WorkerHandle>>>,
     notify_tx: &mpsc::Sender<Notification>,
+    daemon_id: &str,
     host_id: &str,
+    pid: u32,
+    started_ts: u64,
     ipc_endpoint: &str,
     shutdown_tx: &tokio::sync::broadcast::Sender<()>,
 ) -> IpcResponse {
@@ -384,13 +410,37 @@ async fn process_request(
         "Handling request"
     );
 
-    // Handle DaemonStop specially
-    if matches!(request.command, IpcCommand::DaemonStop) {
-        let _ = shutdown_tx.send(());
-        return IpcResponse::success(
-            request.request_id,
-            Some(serde_json::json!({"stopping": true}).to_string()),
-        );
+    // Handle daemon-level commands at the supervisor, not in workers
+    match &request.command {
+        IpcCommand::DaemonStop => {
+            let _ = shutdown_tx.send(());
+            return IpcResponse::success(
+                request.request_id,
+                Some(serde_json::json!({"stopping": true}).to_string()),
+            );
+        }
+        IpcCommand::DaemonStatus => {
+            let workers_guard = workers.lock().await;
+            let worker_count = workers_guard.len();
+            drop(workers_guard);
+
+            return IpcResponse::success(
+                request.request_id,
+                Some(
+                    serde_json::json!({
+                        "running": true,
+                        "daemon_id": daemon_id,
+                        "pid": pid,
+                        "host_id": host_id,
+                        "ipc_endpoint": ipc_endpoint,
+                        "started_ts": started_ts,
+                        "worker_count": worker_count,
+                    })
+                    .to_string(),
+                ),
+            );
+        }
+        _ => {}
     }
 
     // Route to worker
