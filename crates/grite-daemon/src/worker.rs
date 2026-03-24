@@ -337,8 +337,8 @@ fn execute_command_inner(
                 )));
             }
 
-            let id = hex_to_id(issue_id)
-                .map_err(|e| DaemonError::Core(GriteError::InvalidArgs(e.to_string())))?;
+            let id = store.resolve_issue_id(issue_id)
+                .map_err(DaemonError::Core)?;
             store.get_issue(&id)?
                 .ok_or_else(|| DaemonError::Core(GriteError::NotFound(format!("Issue {} not found", issue_id))))?;
 
@@ -361,8 +361,8 @@ fn execute_command_inner(
         }
 
         IpcCommand::IssueComment { issue_id, body } => {
-            let id = hex_to_id(issue_id)
-                .map_err(|e| DaemonError::Core(GriteError::InvalidArgs(e.to_string())))?;
+            let id = store.resolve_issue_id(issue_id)
+                .map_err(DaemonError::Core)?;
             store.get_issue(&id)?
                 .ok_or_else(|| DaemonError::Core(GriteError::NotFound(format!("Issue {} not found", issue_id))))?;
 
@@ -382,8 +382,8 @@ fn execute_command_inner(
         }
 
         IpcCommand::IssueClose { issue_id } => {
-            let id = hex_to_id(issue_id)
-                .map_err(|e| DaemonError::Core(GriteError::InvalidArgs(e.to_string())))?;
+            let id = store.resolve_issue_id(issue_id)
+                .map_err(DaemonError::Core)?;
             store.get_issue(&id)?
                 .ok_or_else(|| DaemonError::Core(GriteError::NotFound(format!("Issue {} not found", issue_id))))?;
 
@@ -405,8 +405,8 @@ fn execute_command_inner(
         }
 
         IpcCommand::IssueReopen { issue_id } => {
-            let id = hex_to_id(issue_id)
-                .map_err(|e| DaemonError::Core(GriteError::InvalidArgs(e.to_string())))?;
+            let id = store.resolve_issue_id(issue_id)
+                .map_err(DaemonError::Core)?;
             store.get_issue(&id)?
                 .ok_or_else(|| DaemonError::Core(GriteError::NotFound(format!("Issue {} not found", issue_id))))?;
 
@@ -428,8 +428,8 @@ fn execute_command_inner(
         }
 
         IpcCommand::IssueLabel { issue_id, add, remove } => {
-            let id = hex_to_id(issue_id)
-                .map_err(|e| DaemonError::Core(GriteError::InvalidArgs(e.to_string())))?;
+            let id = store.resolve_issue_id(issue_id)
+                .map_err(DaemonError::Core)?;
             store.get_issue(&id)?
                 .ok_or_else(|| DaemonError::Core(GriteError::NotFound(format!("Issue {} not found", issue_id))))?;
 
@@ -462,8 +462,8 @@ fn execute_command_inner(
         }
 
         IpcCommand::IssueAssign { issue_id, add, remove } => {
-            let id = hex_to_id(issue_id)
-                .map_err(|e| DaemonError::Core(GriteError::InvalidArgs(e.to_string())))?;
+            let id = store.resolve_issue_id(issue_id)
+                .map_err(DaemonError::Core)?;
             store.get_issue(&id)?
                 .ok_or_else(|| DaemonError::Core(GriteError::NotFound(format!("Issue {} not found", issue_id))))?;
 
@@ -496,8 +496,8 @@ fn execute_command_inner(
         }
 
         IpcCommand::IssueLink { issue_id, url, note } => {
-            let id = hex_to_id(issue_id)
-                .map_err(|e| DaemonError::Core(GriteError::InvalidArgs(e.to_string())))?;
+            let id = store.resolve_issue_id(issue_id)
+                .map_err(DaemonError::Core)?;
             store.get_issue(&id)?
                 .ok_or_else(|| DaemonError::Core(GriteError::NotFound(format!("Issue {} not found", issue_id))))?;
 
@@ -520,8 +520,8 @@ fn execute_command_inner(
         }
 
         IpcCommand::IssueAttach { issue_id, file_path } => {
-            let id = hex_to_id(issue_id)
-                .map_err(|e| DaemonError::Core(GriteError::InvalidArgs(e.to_string())))?;
+            let id = store.resolve_issue_id(issue_id)
+                .map_err(DaemonError::Core)?;
             store.get_issue(&id)?
                 .ok_or_else(|| DaemonError::Core(GriteError::NotFound(format!("Issue {} not found", issue_id))))?;
 
@@ -596,10 +596,10 @@ fn execute_command_inner(
             use libgrite_core::types::event::{Event, EventKind, DependencyType};
             use libgrite_core::types::ids::id_to_hex;
 
-            let id = hex_to_id(issue_id)
-                .map_err(|e| DaemonError::Core(GriteError::InvalidArgs(e.to_string())))?;
-            let target = hex_to_id(target_id)
-                .map_err(|e| DaemonError::Core(GriteError::InvalidArgs(e.to_string())))?;
+            let id = store.resolve_issue_id(issue_id)
+                .map_err(DaemonError::Core)?;
+            let target = store.resolve_issue_id(target_id)
+                .map_err(DaemonError::Core)?;
             let dep = DependencyType::from_str(dep_type).ok_or_else(|| {
                 DaemonError::Core(GriteError::InvalidArgs(format!("Invalid dep type: {}", dep_type)))
             })?;
@@ -637,10 +637,10 @@ fn execute_command_inner(
             use libgrite_core::types::event::{Event, EventKind, DependencyType};
             use libgrite_core::types::ids::id_to_hex;
 
-            let id = hex_to_id(issue_id)
-                .map_err(|e| DaemonError::Core(GriteError::InvalidArgs(e.to_string())))?;
-            let target = hex_to_id(target_id)
-                .map_err(|e| DaemonError::Core(GriteError::InvalidArgs(e.to_string())))?;
+            let id = store.resolve_issue_id(issue_id)
+                .map_err(DaemonError::Core)?;
+            let target = store.resolve_issue_id(target_id)
+                .map_err(DaemonError::Core)?;
             let dep = DependencyType::from_str(dep_type).ok_or_else(|| {
                 DaemonError::Core(GriteError::InvalidArgs(format!("Invalid dep type: {}", dep_type)))
             })?;
@@ -665,8 +665,8 @@ fn execute_command_inner(
         IpcCommand::IssueDepList { issue_id, reverse } => {
             use libgrite_core::types::ids::id_to_hex;
 
-            let id = hex_to_id(issue_id)
-                .map_err(|e| DaemonError::Core(GriteError::InvalidArgs(e.to_string())))?;
+            let id = store.resolve_issue_id(issue_id)
+                .map_err(DaemonError::Core)?;
             let deps = if *reverse {
                 store.get_dependents(&id)?
             } else {
