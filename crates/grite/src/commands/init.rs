@@ -1,5 +1,5 @@
 use libgrite_core::{
-    config::{save_repo_config, save_actor_config, load_repo_config, load_actor_config, actor_dir, RepoConfig},
+    config::{save_repo_config, save_actor_config, load_repo_config, load_actor_config, actor_dir, repo_sled_path, RepoConfig},
     types::actor::ActorConfig,
     types::ids::{generate_actor_id, id_to_hex},
     GriteStore, GriteError,
@@ -62,7 +62,7 @@ pub fn run(cli: &Cli, no_agents_md: bool) -> Result<(), GriteError> {
             save_actor_config(&data_dir, &actor_config)?;
 
             // Initialize empty sled database with lock
-            let sled_path = data_dir.join("sled");
+            let sled_path = repo_sled_path(&git_dir);
             let _store = GriteStore::open_locked(&sled_path)?;
 
             let repo_config = RepoConfig {
