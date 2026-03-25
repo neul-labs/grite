@@ -1,14 +1,19 @@
-//! Worker module - handles commands for a single (repo, actor) pair
+//! Worker module - handles commands for a single repo.
 //!
-//! Each worker owns exclusive access to the sled database for its actor.
-//! Commands are processed concurrently using tokio tasks, with sled's
-//! internal MVCC handling concurrent access safely.
+//! Each worker owns exclusive access to the shared sled database for its
+//! repository. Commands are processed concurrently using tokio tasks, with
+//! sled's internal MVCC handling concurrent access safely.
+//!
+//! Actor ID is supplied per-command rather than being fixed at worker
+//! creation time, reflecting the shared-sled model where actor identity
+//! is authorship metadata rather than a storage partition.
 
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
 
+use libgrite_core::config::repo_sled_path;
 use libgrite_core::types::ids::{hex_to_id, ActorId};
 use libgrite_core::{GriteError, GriteStore, LockedStore};
 use libgrite_core::store::IssueFilter;
@@ -23,6 +28,8 @@ pub enum WorkerMessage {
     /// Execute a command
     Command {
         request_id: String,
+        /// Actor ID (hex) for event authorship
+        actor_id: String,
         command: IpcCommand,
         response_tx: tokio::sync::oneshot::Sender<IpcResponse>,
     },
@@ -32,20 +39,16 @@ pub enum WorkerMessage {
     Shutdown,
 }
 
-/// Worker state for a single (repo, actor) pair
+/// Worker state for a single repository
 pub struct Worker {
     /// Repository root path
     pub repo_root: PathBuf,
-    /// Actor ID (hex)
-    pub actor_id: String,
-    /// Actor ID (bytes)
-    actor_id_bytes: ActorId,
-    /// Data directory
-    pub data_dir: PathBuf,
+    /// Git directory (.git or worktree commondir)
+    git_dir: PathBuf,
+    /// Grite data directory (.git/grite) — used for daemon lock
+    grite_dir: PathBuf,
     /// Sled store path
     sled_path: PathBuf,
-    /// Git directory
-    git_dir: PathBuf,
     /// Sled store with filesystem lock (shared for concurrent access)
     store: Arc<LockedStore>,
     /// Channel for receiving messages
@@ -56,25 +59,23 @@ pub struct Worker {
     host_id: String,
     /// IPC endpoint
     ipc_endpoint: String,
+    /// Owner actor ID used when acquiring the daemon lock
+    owner_actor_id: String,
 }
 
 impl Worker {
     /// Create a new worker
     pub fn new(
         repo_root: PathBuf,
-        actor_id: String,
-        data_dir: PathBuf,
+        owner_actor_id: String,
         rx: mpsc::Receiver<WorkerMessage>,
         notify_tx: mpsc::Sender<Notification>,
         host_id: String,
         ipc_endpoint: String,
     ) -> Result<Self, DaemonError> {
         let git_dir = repo_root.join(".git");
-        let sled_path = data_dir.join("sled");
-
-        // Parse actor ID
-        let actor_id_bytes = hex_to_id(&actor_id)
-            .map_err(|e| DaemonError::Core(GriteError::InvalidArgs(e.to_string())))?;
+        let grite_dir = git_dir.join("grite");
+        let sled_path = repo_sled_path(&git_dir);
 
         // Open store with filesystem lock (blocking with timeout)
         // This ensures exclusive process-level access to the sled database
@@ -85,25 +86,24 @@ impl Worker {
 
         Ok(Self {
             repo_root,
-            actor_id,
-            actor_id_bytes,
-            data_dir,
-            sled_path,
             git_dir,
+            grite_dir,
+            sled_path,
             store,
             rx,
             notify_tx,
             host_id,
             ipc_endpoint,
+            owner_actor_id,
         })
     }
 
     /// Acquire the daemon lock
     pub fn acquire_lock(&self) -> Result<DaemonLock, DaemonError> {
         DaemonLock::acquire(
-            &self.data_dir,
+            &self.grite_dir,
             self.repo_root.to_string_lossy().to_string(),
-            self.actor_id.clone(),
+            self.owner_actor_id.clone(),
             self.host_id.clone(),
             self.ipc_endpoint.clone(),
         )
@@ -112,10 +112,10 @@ impl Worker {
 
     /// Refresh the daemon lock heartbeat
     pub fn refresh_lock(&self) -> Result<(), DaemonError> {
-        if let Ok(Some(mut lock)) = DaemonLock::read(&self.data_dir) {
+        if let Ok(Some(mut lock)) = DaemonLock::read(&self.grite_dir) {
             if lock.is_owned_by_current_process() {
                 lock.refresh();
-                lock.write(&self.data_dir)?;
+                lock.write(&self.grite_dir)?;
             }
         }
         Ok(())
@@ -125,7 +125,6 @@ impl Worker {
     pub async fn run(mut self) {
         info!(
             repo = %self.repo_root.display(),
-            actor = %self.actor_id,
             "Worker started"
         );
 
@@ -145,7 +144,7 @@ impl Worker {
             .notify_tx
             .send(Notification::WorkerStarted {
                 repo_root: self.repo_root.to_string_lossy().to_string(),
-                actor_id: self.actor_id.clone(),
+                actor_id: self.owner_actor_id.clone(),
             })
             .await;
 
@@ -157,14 +156,27 @@ impl Worker {
             match msg {
                 WorkerMessage::Command {
                     request_id,
+                    actor_id,
                     command,
                     response_tx,
                 } => {
+                    // Parse actor ID bytes for event authorship
+                    let actor_id_bytes: ActorId = match hex_to_id(&actor_id) {
+                        Ok(b) => b,
+                        Err(e) => {
+                            let resp = IpcResponse::error(
+                                request_id,
+                                "invalid_actor".to_string(),
+                                format!("Invalid actor ID: {}", e),
+                            );
+                            let _ = response_tx.send(resp);
+                            continue;
+                        }
+                    };
+
                     // Clone data needed for the spawned task
                     let store = Arc::clone(&self.store);
-                    let actor_id_bytes = self.actor_id_bytes;
                     let sled_path = self.sled_path.clone();
-                    let data_dir = self.data_dir.clone();
                     let git_dir = self.git_dir.clone();
                     let in_flight = Arc::clone(&in_flight);
 
@@ -177,7 +189,6 @@ impl Worker {
                             &store,
                             actor_id_bytes,
                             &sled_path,
-                            &data_dir,
                             &git_dir,
                             &request_id,
                             &command,
@@ -218,7 +229,7 @@ impl Worker {
     /// Shutdown cleanup
     fn shutdown(&self) {
         // Release lock
-        if let Err(e) = DaemonLock::release(&self.data_dir) {
+        if let Err(e) = DaemonLock::release(&self.grite_dir) {
             warn!("Failed to release lock: {}", e);
         }
 
@@ -229,7 +240,6 @@ impl Worker {
 
         info!(
             repo = %self.repo_root.display(),
-            actor = %self.actor_id,
             "Worker stopped"
         );
     }
@@ -241,13 +251,12 @@ impl Worker {
 fn execute_command(
     store: &LockedStore,
     actor_id_bytes: ActorId,
-    sled_path: &Path,
-    data_dir: &Path,
-    git_dir: &Path,
+    sled_path: &PathBuf,
+    git_dir: &PathBuf,
     request_id: &str,
     command: &IpcCommand,
 ) -> IpcResponse {
-    let result = execute_command_inner(store, actor_id_bytes, sled_path, data_dir, git_dir, command);
+    let result = execute_command_inner(store, actor_id_bytes, sled_path, git_dir, command);
 
     match result {
         Ok(data) => IpcResponse::success(request_id.to_string(), data),
@@ -262,9 +271,8 @@ fn execute_command(
 fn execute_command_inner(
     store: &LockedStore,
     actor_id_bytes: ActorId,
-    sled_path: &Path,
-    _data_dir: &Path,
-    git_dir: &Path,
+    sled_path: &PathBuf,
+    git_dir: &PathBuf,
     command: &IpcCommand,
 ) -> Result<Option<String>, DaemonError> {
     use libgrite_core::hash::compute_event_id;
