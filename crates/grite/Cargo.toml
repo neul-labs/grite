@@ -30,6 +30,8 @@ uuid = { workspace = true }
 sha2 = { workspace = true }
 glob = { workspace = true }
 git2 = { workspace = true }
+comfy-table = { workspace = true }
+regex = { workspace = true }
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"
