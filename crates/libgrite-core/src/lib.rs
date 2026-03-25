@@ -16,6 +16,6 @@ pub use types::event::{Event, EventKind, IssueState};
 pub use types::issue::{IssueProjection, IssueSummary};
 pub use types::actor::ActorConfig;
 pub use store::{GriteStore, LockedStore};
-pub use config::{RepoConfig, load_repo_config, save_repo_config, load_signing_key};
+pub use config::{RepoConfig, load_repo_config, save_repo_config, load_signing_key, repo_sled_path};
 pub use lock::{Lock, LockPolicy, LockCheckResult, LockStatus, resource_hash, DEFAULT_LOCK_TTL_MS};
 pub use signing::{SigningKeyPair, VerificationPolicy, SigningError, verify_signature};
