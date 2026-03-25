@@ -154,14 +154,14 @@ fn output_daemon_data(cli: &Cli, data: &str) -> Result<(), GriteError> {
             if !body.is_empty() {
                 println!("\n{}", body);
             }
+        } else if json.get("path").is_some() {
+            // DB stats response (has "path" field)
+            println!("{}", serde_json::to_string_pretty(&json)?);
         } else if json.get("event_count").is_some() {
-            // Rebuild response
+            // Rebuild response (only has event_count/issue_count, no "path")
             let events = json.get("event_count").and_then(|v| v.as_u64()).unwrap_or(0);
             let issues = json.get("issue_count").and_then(|v| v.as_u64()).unwrap_or(0);
             println!("Rebuilt: {} events, {} issues", events, issues);
-        } else if json.get("path").is_some() {
-            // DB stats response
-            println!("{}", serde_json::to_string_pretty(&json)?);
         } else {
             // Unknown format, just print
             println!("{}", serde_json::to_string_pretty(&json)?);
