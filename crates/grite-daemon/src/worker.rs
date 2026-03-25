@@ -325,6 +325,7 @@ fn execute_command_inner(
             let projection = IssueProjection::from_event(&event)?;
             let mut json_val = projection_to_json(&projection);
             json_val["event_id"] = serde_json::Value::String(id_to_hex(&event_id));
+            json_val["action"] = serde_json::Value::String(libgrite_ipc::issue_action::CREATED.to_string());
             let json = serde_json::to_string(&json_val)?;
             Ok(Some(json))
         }
@@ -398,6 +399,7 @@ fn execute_command_inner(
                 "issue_id": issue_id,
                 "event_id": id_to_hex(&event_id),
                 "state": "closed",
+                "action": libgrite_ipc::issue_action::CLOSED,
             }))?;
             Ok(Some(json))
         }
@@ -420,6 +422,7 @@ fn execute_command_inner(
                 "issue_id": issue_id,
                 "event_id": id_to_hex(&event_id),
                 "state": "open",
+                "action": libgrite_ipc::issue_action::REOPENED,
             }))?;
             Ok(Some(json))
         }
