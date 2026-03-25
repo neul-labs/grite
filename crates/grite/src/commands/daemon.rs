@@ -22,6 +22,23 @@ pub fn get_default_daemon_endpoint() -> String {
     libgrite_ipc::default_socket_path()
 }
 
+/// Check if the daemon is currently running for this repo.
+/// Returns true if daemon is reachable via IPC.
+pub fn is_daemon_running(cli: &Cli) -> bool {
+    let ctx = match GriteContext::resolve(cli) {
+        Ok(ctx) => ctx,
+        Err(_) => return false,
+    };
+
+    let grite_dir = ctx.git_dir.join("grite");
+    let lock = match DaemonLock::read(&grite_dir) {
+        Ok(Some(lock)) if !lock.is_expired() => lock,
+        _ => return false,
+    };
+
+    UnixStream::connect(&lock.ipc_endpoint).is_ok()
+}
+
 pub fn run(cli: &Cli, cmd: DaemonCommand) -> Result<(), GriteError> {
     match cmd {
         DaemonCommand::Start { idle_timeout } => start(cli, idle_timeout),
@@ -32,6 +49,15 @@ pub fn run(cli: &Cli, cmd: DaemonCommand) -> Result<(), GriteError> {
 
 /// Start the daemon in background
 fn start(cli: &Cli, idle_timeout: u64) -> Result<(), GriteError> {
+    start_internal(cli, idle_timeout)
+}
+
+/// Start the daemon (public for use by other commands like doctor).
+pub fn start_daemon(cli: &Cli, idle_timeout: u64) -> Result<(), GriteError> {
+    start_internal(cli, idle_timeout)
+}
+
+fn start_internal(cli: &Cli, idle_timeout: u64) -> Result<(), GriteError> {
     let ctx = GriteContext::resolve(cli)?;
 
     // Check if daemon is already running
@@ -237,6 +263,15 @@ fn output_status_human(cli: &Cli, lock: &Option<DaemonLock>) -> Result<(), Grite
 
 /// Stop the daemon
 fn stop(cli: &Cli) -> Result<(), GriteError> {
+    stop_internal(cli)
+}
+
+/// Stop the daemon (public for use by other commands like doctor).
+pub fn stop_daemon(cli: &Cli) -> Result<(), GriteError> {
+    stop_internal(cli)
+}
+
+fn stop_internal(cli: &Cli) -> Result<(), GriteError> {
     let ctx = GriteContext::resolve(cli)?;
 
     // Read daemon lock to get IPC endpoint
