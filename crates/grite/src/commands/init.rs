@@ -1,12 +1,12 @@
 use libgrite_core::{
-    config::{save_repo_config, save_actor_config, actor_dir, RepoConfig},
+    config::{save_repo_config, save_actor_config, load_repo_config, load_actor_config, actor_dir, RepoConfig},
     types::actor::ActorConfig,
     types::ids::{generate_actor_id, id_to_hex},
     GriteStore, GriteError,
 };
 use serde::Serialize;
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use crate::agents_md::GRITE_AGENTS_SECTION;
 use crate::cli::Cli;
 use crate::context::GriteContext;
@@ -17,6 +17,8 @@ struct InitOutput {
     actor_id: String,
     data_dir: String,
     repo_config: String,
+    /// "created" if a new actor was provisioned, "existing" if one was already present
+    action: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     agents_md_path: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -46,26 +48,34 @@ impl AgentsMdAction {
 pub fn run(cli: &Cli, no_agents_md: bool) -> Result<(), GriteError> {
     let git_dir = GriteContext::find_git_dir()?;
 
-    // Generate new actor
-    let actor_id = generate_actor_id();
-    let actor_id_hex = id_to_hex(&actor_id);
-    let data_dir = actor_dir(&git_dir, &actor_id_hex);
+    let (actor_id_hex, data_dir, is_new) = match find_existing_actor(&git_dir) {
+        Some(existing_id) => {
+            let data_dir = actor_dir(&git_dir, &existing_id);
+            (existing_id, data_dir, false)
+        }
+        None => {
+            let actor_id = generate_actor_id();
+            let actor_id_hex = id_to_hex(&actor_id);
+            let data_dir = actor_dir(&git_dir, &actor_id_hex);
 
-    // Create actor config
-    let actor_config = ActorConfig::new(actor_id, None);
-    save_actor_config(&data_dir, &actor_config)?;
+            let actor_config = ActorConfig::new(actor_id, None);
+            save_actor_config(&data_dir, &actor_config)?;
 
-    // Initialize empty sled database with lock
-    let sled_path = data_dir.join("sled");
-    let _store = GriteStore::open_locked(&sled_path)?;
+            // Initialize empty sled database with lock
+            let sled_path = data_dir.join("sled");
+            let _store = GriteStore::open_locked(&sled_path)?;
 
-    // Set repo default
-    let repo_config = RepoConfig {
-        default_actor: Some(actor_id_hex.clone()),
-        ..Default::default()
+            let repo_config = RepoConfig {
+                default_actor: Some(actor_id_hex.clone()),
+                ..Default::default()
+            };
+            save_repo_config(&git_dir, &repo_config)?;
+
+            (actor_id_hex, data_dir, true)
+        }
     };
+
     let repo_config_path = git_dir.join("grite").join("config.toml");
-    save_repo_config(&git_dir, &repo_config)?;
 
     // Handle AGENTS.md
     let (agents_md_path, agents_md_action) = if no_agents_md {
@@ -78,12 +88,18 @@ pub fn run(cli: &Cli, no_agents_md: bool) -> Result<(), GriteError> {
         actor_id: actor_id_hex.clone(),
         data_dir: data_dir.to_string_lossy().to_string(),
         repo_config: repo_config_path.to_string_lossy().to_string(),
+        action: if is_new { "created" } else { "existing" }.to_string(),
         agents_md_path: agents_md_path.as_ref().map(|p| p.to_string_lossy().to_string()),
         agents_md_action: Some(agents_md_action.as_str().to_string()),
     };
 
     output_success(cli, output);
-    print_human(cli, &format!("Initialized grite with actor {}", &actor_id_hex[..8]));
+
+    if is_new {
+        print_human(cli, &format!("Initialized grite with actor {}", &actor_id_hex[..8]));
+    } else {
+        print_human(cli, &format!("Already initialized with actor {}", &actor_id_hex[..8]));
+    }
 
     // Print AGENTS.md status
     match agents_md_action {
@@ -100,6 +116,17 @@ pub fn run(cli: &Cli, no_agents_md: bool) -> Result<(), GriteError> {
     }
 
     Ok(())
+}
+
+/// Return the existing default actor ID if one is already configured and its
+/// directory is present with a readable config. Returns None if no valid default
+/// actor exists, in which case the caller should provision a new one.
+fn find_existing_actor(git_dir: &Path) -> Option<String> {
+    let repo_config = load_repo_config(git_dir).ok()??;
+    let actor_id = repo_config.default_actor?;
+    let data_dir = actor_dir(git_dir, &actor_id);
+    load_actor_config(&data_dir).ok()?;
+    Some(actor_id)
 }
 
 /// Handle AGENTS.md creation or update
