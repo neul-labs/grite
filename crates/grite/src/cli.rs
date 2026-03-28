@@ -157,11 +157,11 @@ pub enum IssueCommand {
     /// Create a new issue
     Create {
         /// Issue title
-        #[arg(long)]
+        #[arg(long, allow_hyphen_values = true)]
         title: String,
 
         /// Issue body
-        #[arg(long, default_value = "")]
+        #[arg(long, default_value = "", allow_hyphen_values = true)]
         body: String,
 
         /// Labels to add
@@ -192,11 +192,11 @@ pub enum IssueCommand {
         id: String,
 
         /// New title
-        #[arg(long)]
+        #[arg(long, allow_hyphen_values = true)]
         title: Option<String>,
 
         /// New body
-        #[arg(long)]
+        #[arg(long, allow_hyphen_values = true)]
         body: Option<String>,
 
         /// Acquire lock before operation, release after
@@ -210,7 +210,7 @@ pub enum IssueCommand {
         id: String,
 
         /// Comment body
-        #[arg(long)]
+        #[arg(long, allow_hyphen_values = true)]
         body: String,
 
         /// Acquire lock before operation, release after
@@ -343,7 +343,7 @@ pub enum LinkCommand {
         url: String,
 
         /// Optional note
-        #[arg(long)]
+        #[arg(long, allow_hyphen_values = true)]
         note: Option<String>,
 
         /// Acquire lock before operation, release after
