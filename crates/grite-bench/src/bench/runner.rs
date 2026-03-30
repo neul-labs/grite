@@ -112,6 +112,7 @@ impl BenchmarkRunner {
     }
 
     /// Check if paused
+    #[allow(dead_code)]
     pub fn is_paused(&self) -> bool {
         self.pause_flag.load(Ordering::Relaxed)
     }
@@ -124,6 +125,7 @@ impl BenchmarkRunner {
     }
 
     /// Get the total expected operations
+    #[allow(dead_code)]
     pub fn total_operations(&self) -> u64 {
         self.config.scenario.total_operations() as u64
     }
