@@ -75,7 +75,7 @@ grite actor init --label "agent-$(hostname)"
 Or set via environment:
 
 ```bash
-export GRIT_HOME=/path/to/agent/data
+export GRITE_HOME=/path/to/agent/data
 ```
 
 ### Coordinate with Locks

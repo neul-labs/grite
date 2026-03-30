@@ -34,7 +34,7 @@ Configuration file reference:
 
 Environment variable reference:
 
-- `GRIT_HOME`
+- `GRITE_HOME`
 - `RUST_LOG`
 - Precedence rules
 

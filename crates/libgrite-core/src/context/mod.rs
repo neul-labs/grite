@@ -9,7 +9,7 @@ use crate::types::ids::IssueId;
 /// This allows context events to flow through the standard event pipeline.
 pub fn context_issue_id(path: &str) -> IssueId {
     let mut hasher = Blake2b::<U16>::new();
-    hasher.update(b"grit:context:file:");
+    hasher.update(b"grite:context:file:");
     hasher.update(path.as_bytes());
     hasher.finalize().into()
 }

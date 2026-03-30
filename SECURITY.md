@@ -28,9 +28,9 @@ We take security vulnerabilities seriously. If you discover a security issue, pl
 
 ### Security Considerations
 
-Grit stores data in git refs and a local sled database. When using Grit, consider:
+Grite stores data in git refs and a local sled database. When using grite, consider:
 
-- **Git repository access**: Anyone with read access to the git repository can read the Grit event log
+- **Git repository access**: Anyone with read access to the git repository can read the grite event log
 - **Ed25519 signing**: Enable signing for event authenticity verification
 - **Local database**: The sled database is stored in `.git/grite/` and contains materialized views of the event log
 - **Daemon IPC**: The daemon uses local IPC sockets for communication

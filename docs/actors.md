@@ -20,7 +20,7 @@ Actors identify who authored an event and provide per-agent local state isolatio
 
 Actor context for a command is resolved in this order:
 
-1. `--data-dir` or `GRIT_HOME`
+1. `--data-dir` or `GRITE_HOME`
 2. `--actor <id>` (resolves to `.git/grite/actors/<id>/`)
 3. Repo default in `.git/grite/config.toml`
 4. Auto-init a new actor if none exists

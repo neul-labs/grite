@@ -6,7 +6,7 @@ use std::sync::{Arc, Barrier};
 use std::thread;
 use std::time::Duration;
 
-use libgrite_core::store::{GritStore, LockedStore};
+use libgrite_core::store::{GriteStore, LockedStore};
 use libgrite_git::WalManager;
 
 use super::agent::SimulatedAgent;
@@ -248,7 +248,7 @@ fn setup_repository(config: &BenchmarkConfig) -> Result<(PathBuf, LockedStore)> 
 
     // Open locked store
     let sled_path = data_dir.join("sled");
-    let store = GritStore::open_locked_blocking(&sled_path, Duration::from_secs(30))
+    let store = GriteStore::open_locked_blocking(&sled_path, Duration::from_secs(30))
         .map_err(|e| BenchError::Bench(format!("Failed to open store: {}", e)))?;
 
     Ok((git_dir, store))

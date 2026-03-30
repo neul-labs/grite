@@ -49,7 +49,7 @@ pub struct RebuildStats {
     pub issue_count: usize,
 }
 
-/// A GritStore with filesystem-level exclusive lock.
+/// A GriteStore with filesystem-level exclusive lock.
 ///
 /// The lock is held for the lifetime of this struct and automatically
 /// released when dropped. This prevents multiple processes from opening
@@ -58,26 +58,26 @@ pub struct LockedStore {
     /// Lock file handle - flock released on drop
     _lock_file: File,
     /// The underlying store
-    store: GritStore,
+    store: GriteStore,
 }
 
 impl std::fmt::Debug for LockedStore {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("LockedStore")
-            .field("store", &"GritStore { ... }")
+            .field("store", &"GriteStore { ... }")
             .finish()
     }
 }
 
 impl LockedStore {
-    /// Get a reference to the inner GritStore
-    pub fn inner(&self) -> &GritStore {
+    /// Get a reference to the inner GriteStore
+    pub fn inner(&self) -> &GriteStore {
         &self.store
     }
 }
 
 impl std::ops::Deref for LockedStore {
-    type Target = GritStore;
+    type Target = GriteStore;
 
     fn deref(&self) -> &Self::Target {
         &self.store
@@ -91,7 +91,7 @@ impl std::ops::DerefMut for LockedStore {
 }
 
 /// Main storage interface backed by sled
-pub struct GritStore {
+pub struct GriteStore {
     db: sled::Db,
     events: sled::Tree,
     issue_states: sled::Tree,
@@ -105,7 +105,7 @@ pub struct GritStore {
     context_project: sled::Tree,
 }
 
-impl GritStore {
+impl GriteStore {
     /// Open or create a store at the given path
     pub fn open(path: &Path) -> Result<Self, GriteError> {
         let db = sled::open(path)?;
@@ -1039,7 +1039,7 @@ mod tests {
     #[test]
     fn test_store_basic_operations() {
         let dir = tempdir().unwrap();
-        let store = GritStore::open(dir.path()).unwrap();
+        let store = GriteStore::open(dir.path()).unwrap();
 
         let issue_id = generate_issue_id();
         let actor = [1u8; 16];
@@ -1071,7 +1071,7 @@ mod tests {
     #[test]
     fn test_store_list_issues() {
         let dir = tempdir().unwrap();
-        let store = GritStore::open(dir.path()).unwrap();
+        let store = GriteStore::open(dir.path()).unwrap();
 
         let actor = [1u8; 16];
 
@@ -1098,7 +1098,7 @@ mod tests {
     #[test]
     fn test_store_rebuild() {
         let dir = tempdir().unwrap();
-        let store = GritStore::open(dir.path()).unwrap();
+        let store = GriteStore::open(dir.path()).unwrap();
 
         let issue_id = generate_issue_id();
         let actor = [1u8; 16];
@@ -1154,7 +1154,7 @@ mod tests {
         assert!(!lock_path.exists());
 
         // Open locked store
-        let _store = GritStore::open_locked(&store_path).unwrap();
+        let _store = GriteStore::open_locked(&store_path).unwrap();
 
         // Lock file should now exist
         assert!(lock_path.exists());
@@ -1166,10 +1166,10 @@ mod tests {
         let store_path = dir.path().join("sled");
 
         // First open succeeds
-        let _store1 = GritStore::open_locked(&store_path).unwrap();
+        let _store1 = GriteStore::open_locked(&store_path).unwrap();
 
         // Second open should fail with DbBusy
-        let result = GritStore::open_locked(&store_path);
+        let result = GriteStore::open_locked(&store_path);
         assert!(result.is_err());
         match result.unwrap_err() {
             GriteError::DbBusy(msg) => {
@@ -1186,12 +1186,12 @@ mod tests {
 
         // First open
         {
-            let _store = GritStore::open_locked(&store_path).unwrap();
+            let _store = GriteStore::open_locked(&store_path).unwrap();
             // Store is dropped here
         }
 
         // Second open should succeed after drop
-        let _store2 = GritStore::open_locked(&store_path).unwrap();
+        let _store2 = GriteStore::open_locked(&store_path).unwrap();
     }
 
     #[test]
@@ -1200,10 +1200,10 @@ mod tests {
         let store_path = dir.path().join("sled");
 
         // First open succeeds
-        let _store1 = GritStore::open_locked(&store_path).unwrap();
+        let _store1 = GriteStore::open_locked(&store_path).unwrap();
 
         // Blocking open with very short timeout should fail
-        let result = GritStore::open_locked_blocking(&store_path, Duration::from_millis(50));
+        let result = GriteStore::open_locked_blocking(&store_path, Duration::from_millis(50));
         assert!(result.is_err());
         match result.unwrap_err() {
             GriteError::DbBusy(msg) => {
@@ -1218,9 +1218,9 @@ mod tests {
         let dir = tempdir().unwrap();
         let store_path = dir.path().join("sled");
 
-        let store = GritStore::open_locked(&store_path).unwrap();
+        let store = GriteStore::open_locked(&store_path).unwrap();
 
-        // Verify we can access GritStore methods through Deref
+        // Verify we can access GriteStore methods through Deref
         let issue_id = generate_issue_id();
         let actor = [1u8; 16];
         let event = make_event(
@@ -1234,7 +1234,7 @@ mod tests {
             },
         );
 
-        // These calls go through Deref to GritStore
+        // These calls go through Deref to GriteStore
         store.insert_event(&event).unwrap();
         let retrieved = store.get_event(&event.event_id).unwrap();
         assert!(retrieved.is_some());

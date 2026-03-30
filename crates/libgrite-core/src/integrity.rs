@@ -4,7 +4,7 @@
 
 use crate::hash::compute_event_id;
 use crate::signing::verify_signature;
-use crate::store::GritStore;
+use crate::store::GriteStore;
 use crate::types::event::Event;
 use crate::types::ids::{EventId, id_to_hex};
 use crate::GriteError;
@@ -99,7 +99,7 @@ pub fn verify_event_hash(event: &Event) -> Result<(), CorruptionKind> {
 /// - Event IDs match computed hashes
 /// - Parent references point to existing events (optional)
 pub fn check_store_integrity(
-    store: &GritStore,
+    store: &GriteStore,
     verify_parents: bool,
 ) -> Result<IntegrityReport, GriteError> {
     let mut report = IntegrityReport::default();
@@ -154,7 +154,7 @@ pub fn check_store_integrity(
 ///
 /// Requires a function to look up public keys by actor ID.
 pub fn verify_store_signatures<F>(
-    store: &GritStore,
+    store: &GriteStore,
     get_public_key: F,
 ) -> Result<IntegrityReport, GriteError>
 where

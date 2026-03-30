@@ -3,7 +3,7 @@
 use libgrite_core::{
     types::event::Event,
     types::ids::ActorId,
-    GritStore, GriteError,
+    GriteStore, GriteError,
 };
 use libgrite_git::{WalManager, GitError};
 
@@ -22,7 +22,7 @@ pub struct InsertResult {
 /// If WAL append fails, the event is still persisted in sled and
 /// an error is logged but not returned.
 pub fn insert_and_append(
-    store: &GritStore,
+    store: &GriteStore,
     wal: &WalManager,
     actor: &ActorId,
     event: &Event,

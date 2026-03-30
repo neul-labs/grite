@@ -60,7 +60,7 @@
 
 ## Data directory
 
-- `GRIT_HOME` or `--data-dir` sets the local state root for this process
+- `GRITE_HOME` or `--data-dir` sets the local state root for this process
 - Default is `.git/grite/actors/<actor_id>/`
 - Each concurrent agent should use a distinct data dir
 - If a daemon owns the selected data dir, the CLI routes all commands through it and does not open the DB directly
@@ -111,7 +111,7 @@ By default, `grite init` creates or updates an `AGENTS.md` file in the repositor
 
 Actor context for a command is resolved in this order:
 
-1. `--data-dir` or `GRIT_HOME`
+1. `--data-dir` or `GRITE_HOME`
 2. `--actor <id>` (resolves to `.git/grite/actors/<id>/`)
 3. Repo default in `.git/grite/config.toml` (set by `grite actor use`)
 4. Auto-init a new actor if none exists

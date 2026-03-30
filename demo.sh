@@ -1,6 +1,6 @@
 #!/bin/bash
-# Grit + Claude Code Demo
-# Shows how grit provides persistent memory for AI coding agents
+# grite + Claude Code Demo
+# Shows how grite provides persistent memory for AI coding agents
 #
 # Usage:
 #   ./demo.sh          # Interactive mode (step-by-step with pauses)
@@ -8,11 +8,11 @@
 
 set -e
 
-DEMO_DIR="/tmp/grit-demo"
+DEMO_DIR="/tmp/grite-demo"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-GRIT_BIN="${GRIT_BIN:-$SCRIPT_DIR/target/debug/grit}"
+GRITE_BIN="${GRITE_BIN:-$SCRIPT_DIR/target/debug/grite}"
 # Use --no-daemon to avoid IPC issues in demo
-GRIT="$GRIT_BIN --no-daemon"
+GRITE="$GRITE_BIN --no-daemon"
 
 # Colors for output
 GREEN='\033[0;32m'
@@ -56,15 +56,15 @@ check_dependencies() {
         exit 1
     fi
 
-    if [ ! -x "$GRIT_BIN" ]; then
-        print_error "grit binary not found at $GRIT_BIN"
-        print_info "Build grit first with: cargo build"
-        print_info "Or set GRIT_BIN environment variable"
+    if [ ! -x "$GRITE_BIN" ]; then
+        print_error "grite binary not found at $GRITE_BIN"
+        print_info "Build grite first with: cargo build"
+        print_info "Or set GRITE_BIN environment variable"
         exit 1
     fi
 
     # Stop any existing daemon to avoid IPC issues
-    "$GRIT_BIN" daemon stop 2>/dev/null || true
+    "$GRITE_BIN" daemon stop 2>/dev/null || true
 }
 
 # Step 1: Setup project
@@ -82,7 +82,7 @@ setup_demo() {
     # Create sample Python project
     cat > greet.py << 'PYEOF'
 #!/usr/bin/env python3
-"""Simple greeting CLI - Demo project for grit"""
+"""Simple greeting CLI - Demo project for grite"""
 import argparse
 
 def main():
@@ -116,11 +116,11 @@ MDEOF
     run_cmd "git commit -q -m 'Initial commit'"
 
     echo ""
-    print_info "Initializing grit..."
-    run_cmd "$GRIT init"
+    print_info "Initializing grite..."
+    run_cmd "$GRITE init"
 
     echo ""
-    print_info "Project created with git and grit initialized"
+    print_info "Project created with git and grite initialized"
 
     wait_for_user
 }
@@ -129,14 +129,14 @@ MDEOF
 show_agents_md() {
     print_step "STEP 2: AGENTS.md - Agent Discovery"
 
-    print_info "Grit automatically created AGENTS.md for Claude Code to discover."
-    print_info "This file tells AI coding agents how to use grit for memory/tasks."
+    print_info "grite automatically created AGENTS.md for Claude Code to discover."
+    print_info "This file tells AI coding agents how to use grite for memory/tasks."
     echo ""
 
     run_cmd "cat AGENTS.md"
 
     echo ""
-    print_info "Claude Code will read this file and use grit for tasks/memory"
+    print_info "Claude Code will read this file and use grite for tasks/memory"
 
     wait_for_user
 }
@@ -153,18 +153,18 @@ create_task() {
     echo ""
 
     # Create task and capture the issue ID
-    CREATE_OUTPUT=$($GRIT issue create --title 'Add personalized greeting styles' --body 'Add support for formal, casual, and enthusiastic greeting styles via --style flag' --label agent:todo --json)
+    CREATE_OUTPUT=$($GRITE issue create --title 'Add personalized greeting styles' --body 'Add support for formal, casual, and enthusiastic greeting styles via --style flag' --label agent:todo --json)
     # JSON output has structure: {"schema_version":1,"ok":true,"data":{"issue_id":"...","event_id":"...","wal_head":"..."}}
     TASK_ISSUE_ID=$(echo "$CREATE_OUTPUT" | jq -r '.data.issue_id // .issue_id')
 
-    print_cmd "$GRIT issue create --title 'Add personalized greeting styles' --body '...' --label agent:todo --json"
+    print_cmd "$GRITE issue create --title 'Add personalized greeting styles' --body '...' --label agent:todo --json"
     echo "$CREATE_OUTPUT" | jq '.'
 
     echo ""
     print_info "Created issue: $TASK_ISSUE_ID"
     echo ""
     print_info "Listing all issues:"
-    run_cmd "$GRIT issue list"
+    run_cmd "$GRITE issue list"
 
     wait_for_user
 }
@@ -187,7 +187,7 @@ work_with_checkpoints() {
 
     # Post plan
     print_info "1. Claude posts a plan before starting work:"
-    run_cmd "$GRIT issue comment $ISSUE_ID --body 'Plan: Add --style flag with options: formal, casual, enthusiastic. Will create greet() function with style mapping.'"
+    run_cmd "$GRITE issue comment $ISSUE_ID --body 'Plan: Add --style flag with options: formal, casual, enthusiastic. Will create greet() function with style mapping.'"
 
     echo ""
 
@@ -195,7 +195,7 @@ work_with_checkpoints() {
     print_info "2. Claude modifies the code..."
     cat > greet.py << 'PYEOF'
 #!/usr/bin/env python3
-"""Simple greeting CLI - Demo project for grit"""
+"""Simple greeting CLI - Demo project for grite"""
 import argparse
 
 def greet(name: str, style: str = "casual") -> str:
@@ -227,11 +227,11 @@ PYEOF
 
     # Post checkpoint
     print_info "3. Claude posts a checkpoint after completing the change:"
-    run_cmd "$GRIT issue comment $ISSUE_ID --body 'Checkpoint: Added greet() function with 3 styles. Tested: python greet.py World --style formal'"
+    run_cmd "$GRITE issue comment $ISSUE_ID --body 'Checkpoint: Added greet() function with 3 styles. Tested: python greet.py World --style formal'"
 
     echo ""
     print_info "View the issue with all comments:"
-    run_cmd "$GRIT issue show $ISSUE_ID"
+    run_cmd "$GRITE issue show $ISSUE_ID"
 
     wait_for_user
 }
@@ -244,11 +244,11 @@ store_memory() {
     print_info "Memories persist across sessions and help future agents understand the codebase."
     echo ""
 
-    run_cmd "$GRIT issue create --title '[Memory] CLI uses argparse pattern' --body 'This project uses argparse for CLI parsing. Pattern: create ArgumentParser, add_argument() for each flag, then parse_args() and use the args object.' --label memory --json"
+    run_cmd "$GRITE issue create --title '[Memory] CLI uses argparse pattern' --body 'This project uses argparse for CLI parsing. Pattern: create ArgumentParser, add_argument() for each flag, then parse_args() and use the args object.' --label memory --json"
 
     echo ""
     print_info "Memories can be queried with the 'memory' label:"
-    run_cmd "$GRIT issue list --label memory"
+    run_cmd "$GRITE issue list --label memory"
 
     wait_for_user
 }
@@ -257,32 +257,32 @@ store_memory() {
 demo_dependencies() {
     print_step "STEP 6: Dependencies"
 
-    print_info "Grit tracks dependencies between issues with a formal DAG."
+    print_info "grite tracks dependencies between issues with a formal DAG."
     print_info "This lets agents understand task ordering and blockers."
     echo ""
 
     # Create a second task that the first depends on
     print_info "1. Creating a prerequisite task:"
-    PREREQ_OUTPUT=$($GRIT issue create --title 'Add input validation for name arg' --body 'Validate that name is non-empty and contains only valid characters' --label agent:todo --json)
+    PREREQ_OUTPUT=$($GRITE issue create --title 'Add input validation for name arg' --body 'Validate that name is non-empty and contains only valid characters' --label agent:todo --json)
     PREREQ_ID=$(echo "$PREREQ_OUTPUT" | jq -r '.data.issue_id // .issue_id')
-    print_cmd "$GRIT issue create --title 'Add input validation for name arg' --label agent:todo --json"
+    print_cmd "$GRITE issue create --title 'Add input validation for name arg' --label agent:todo --json"
     echo "$PREREQ_OUTPUT" | jq '.'
 
     echo ""
     print_info "2. Adding a dependency: greeting styles depends on input validation:"
-    run_cmd "$GRIT issue dep add $TASK_ISSUE_ID --target $PREREQ_ID --type depends_on"
+    run_cmd "$GRITE issue dep add $TASK_ISSUE_ID --target $PREREQ_ID --type depends_on"
 
     echo ""
     print_info "3. Adding a 'blocks' relationship (validation blocks greeting styles):"
-    run_cmd "$GRIT issue dep add $PREREQ_ID --target $TASK_ISSUE_ID --type blocks"
+    run_cmd "$GRITE issue dep add $PREREQ_ID --target $TASK_ISSUE_ID --type blocks"
 
     echo ""
     print_info "4. Listing dependencies for the greeting styles task:"
-    run_cmd "$GRIT issue dep list $TASK_ISSUE_ID"
+    run_cmd "$GRITE issue dep list $TASK_ISSUE_ID"
 
     echo ""
     print_info "5. Topological order shows the correct execution sequence:"
-    run_cmd "$GRIT issue dep topo --state open"
+    run_cmd "$GRITE issue dep topo --state open"
 
     echo ""
     print_info "Agents use 'dep topo' to determine which task to work on next."
@@ -301,23 +301,23 @@ demo_context() {
 
     # Index the project files
     print_info "1. Indexing project files:"
-    run_cmd "$GRIT context index"
+    run_cmd "$GRITE context index"
 
     echo ""
     print_info "2. Querying for a symbol (the greet function):"
-    run_cmd "$GRIT context query greet"
+    run_cmd "$GRITE context query greet"
 
     echo ""
     print_info "3. Showing context for a specific file:"
-    run_cmd "$GRIT context show greet.py"
+    run_cmd "$GRITE context show greet.py"
 
     echo ""
     print_info "4. Setting project-level context (architecture decisions, conventions):"
-    run_cmd "$GRIT context set 'conventions' 'Use argparse for CLI. Functions return strings, main() prints.'"
+    run_cmd "$GRITE context set 'conventions' 'Use argparse for CLI. Functions return strings, main() prints.'"
 
     echo ""
     print_info "5. Querying project context:"
-    run_cmd "$GRIT context project"
+    run_cmd "$GRITE context project"
 
     echo ""
     print_info "Agents use context to navigate unfamiliar codebases efficiently."
@@ -332,7 +332,7 @@ session_resume() {
 
     # Use the task issue ID from step 3
     print_info "Claude closes the completed task:"
-    run_cmd "$GRIT issue close $TASK_ISSUE_ID"
+    run_cmd "$GRITE issue close $TASK_ISSUE_ID"
 
     echo ""
     echo -e "${CYAN}━━━ Simulating New Session ━━━${NC}"
@@ -341,15 +341,15 @@ session_resume() {
     print_info "from AGENTS.md to restore context:"
     echo ""
 
-    run_cmd "$GRIT sync --pull --json 2>/dev/null || echo '{\"ok\":true,\"message\":\"No remote configured\"}'"
+    run_cmd "$GRITE sync --pull --json 2>/dev/null || echo '{\"ok\":true,\"message\":\"No remote configured\"}'"
 
     echo ""
     print_info "Check for open tasks:"
-    run_cmd "$GRIT issue list --state open --label agent:todo"
+    run_cmd "$GRITE issue list --state open --label agent:todo"
 
     echo ""
     print_info "Retrieve stored memories:"
-    run_cmd "$GRIT issue list --label memory"
+    run_cmd "$GRITE issue list --label memory"
 
     echo ""
     print_info "Claude can see all memories and open tasks from previous sessions!"
@@ -361,12 +361,12 @@ session_resume() {
 run_doctor() {
     print_step "STEP 9: Health Checks"
 
-    print_info "Run grit doctor to check database health:"
-    run_cmd "$GRIT doctor"
+    print_info "Run grite doctor to check database health:"
+    run_cmd "$GRITE doctor"
 
     echo ""
     print_info "Doctor checks: git repo, WAL ref, actor config, store integrity, rebuild threshold"
-    print_info "Use 'grit doctor --fix' to auto-repair issues"
+    print_info "Use 'grite doctor --fix' to auto-repair issues"
 
     wait_for_user
 }
@@ -377,14 +377,14 @@ show_summary() {
 
     echo -e "${GREEN}${BOLD}What we demonstrated:${NC}"
     echo ""
-    echo -e "  1. ${BLUE}grit init${NC} creates AGENTS.md for agent discovery"
-    echo -e "  2. Tasks created with ${BLUE}grit issue create --label agent:todo${NC}"
-    echo -e "  3. Progress tracked with ${BLUE}grit issue comment${NC} (checkpoints)"
+    echo -e "  1. ${BLUE}grite init${NC} creates AGENTS.md for agent discovery"
+    echo -e "  2. Tasks created with ${BLUE}grite issue create --label agent:todo${NC}"
+    echo -e "  3. Progress tracked with ${BLUE}grite issue comment${NC} (checkpoints)"
     echo -e "  4. Learnings stored with ${BLUE}--label memory${NC}"
-    echo -e "  5. Dependencies tracked with ${BLUE}grit issue dep${NC} (DAG + topo sort)"
-    echo -e "  6. Codebase indexed with ${BLUE}grit context${NC} (symbols + project)"
-    echo -e "  7. New sessions retrieve context via ${BLUE}grit issue list${NC}"
-    echo -e "  8. Health checks with ${BLUE}grit doctor${NC}"
+    echo -e "  5. Dependencies tracked with ${BLUE}grite issue dep${NC} (DAG + topo sort)"
+    echo -e "  6. Codebase indexed with ${BLUE}grite context${NC} (symbols + project)"
+    echo -e "  7. New sessions retrieve context via ${BLUE}grite issue list${NC}"
+    echo -e "  8. Health checks with ${BLUE}grite doctor${NC}"
     echo ""
     echo -e "${GREEN}${BOLD}Try it yourself:${NC}"
     echo ""
@@ -394,7 +394,7 @@ show_summary() {
     echo -e "${GREEN}${BOLD}Claude Code will:${NC}"
     echo ""
     echo -e "  - Read AGENTS.md automatically"
-    echo -e "  - Use grit for task tracking"
+    echo -e "  - Use grite for task tracking"
     echo -e "  - Store/retrieve memories across sessions"
     echo ""
     echo -e "${GREEN}${BOLD}Demo project location:${NC} $DEMO_DIR"
@@ -402,7 +402,7 @@ show_summary() {
 }
 
 show_help() {
-    echo "Grit + Claude Code Demo"
+    echo "grite + Claude Code Demo"
     echo ""
     echo "Usage: $0 [OPTIONS]"
     echo ""
@@ -440,7 +440,7 @@ main() {
     echo -e "${GREEN}"
     cat << 'BANNER'
     ╔════════════════════════════════════════════════════════════╗
-    ║           GRIT + CLAUDE CODE DEMO                          ║
+    ║           GRITE + CLAUDE CODE DEMO                          ║
     ║   Persistent Memory for AI Coding Agents                   ║
     ╚════════════════════════════════════════════════════════════╝
 BANNER

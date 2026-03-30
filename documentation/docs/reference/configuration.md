@@ -213,7 +213,7 @@ key_scheme = "ed25519"
 
 For actor selection:
 
-1. `--data-dir` flag or `GRIT_HOME` environment variable
+1. `--data-dir` flag or `GRITE_HOME` environment variable
 2. `--actor` flag
 3. `default_actor` in repository config
 4. Auto-create new actor

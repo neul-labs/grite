@@ -54,7 +54,7 @@ pub fn build_canonical_cbor(
 }
 
 /// Convert EventKind to (tag, payload) for CBOR encoding
-/// This is public so libgrit-git can use it for chunk encoding
+/// This is public so libgrite-git can use it for chunk encoding
 pub fn kind_to_tag_and_payload(kind: &EventKind) -> (u32, ciborium::Value) {
     match kind {
         EventKind::IssueCreated { title, body, labels } => {

@@ -1,6 +1,6 @@
 use thiserror::Error;
 
-/// Main error type for grit operations
+/// Main error type for grite operations
 #[derive(Debug, Error)]
 pub enum GriteError {
     #[error("invalid arguments: {0}")]
@@ -79,32 +79,32 @@ impl GriteError {
         match self {
             GriteError::NotFound(msg) => {
                 if msg.contains("issue") || msg.starts_with("Issue") {
-                    vec!["Run 'grit issue list' to see available issues"]
+                    vec!["Run 'grite issue list' to see available issues"]
                 } else if msg.contains("actor") {
-                    vec!["Run 'grit actor init' to create an actor"]
+                    vec!["Run 'grite actor init' to create an actor"]
                 } else {
                     vec![]
                 }
             }
             GriteError::DbBusy(_) => vec![
-                "Try 'grit --no-daemon <command>' to bypass the daemon",
+                "Try 'grite --no-daemon <command>' to bypass the daemon",
                 "Or wait for the other process to finish",
-                "Or run 'grit daemon stop' to stop the daemon",
+                "Or run 'grite daemon stop' to stop the daemon",
             ],
             GriteError::Sled(_) => vec![
-                "Run 'grit doctor --fix' to rebuild the database",
+                "Run 'grite doctor --fix' to rebuild the database",
                 "If problem persists, check disk space and permissions",
             ],
             GriteError::Ipc(_) => vec![
-                "Run 'grit daemon stop' and retry",
-                "Or use 'grit --no-daemon <command>' to bypass IPC",
+                "Run 'grite daemon stop' and retry",
+                "Or use 'grite --no-daemon <command>' to bypass IPC",
             ],
             GriteError::Conflict(_) => vec![
-                "Run 'grit sync' to pull latest changes",
+                "Run 'grite sync' to pull latest changes",
             ],
             GriteError::IdParse(_) => vec![
                 "IDs should be hex strings (e.g., 'abc123...')",
-                "Use 'grit issue list' to see valid issue IDs",
+                "Use 'grite issue list' to see valid issue IDs",
             ],
             _ => vec![],
         }

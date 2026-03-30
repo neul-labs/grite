@@ -13,9 +13,9 @@ pub enum DaemonError {
     #[error("Failed to acquire lock: {0}")]
     LockFailed(String),
 
-    /// Core grit error
-    #[error("Grit error: {0}")]
-    Grit(#[from] libgrite_core::GriteError),
+    /// Core grite error
+    #[error("grite error: {0}")]
+    Core(#[from] libgrite_core::GriteError),
 
     /// Git error
     #[error("Git error: {0}")]

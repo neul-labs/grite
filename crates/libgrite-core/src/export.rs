@@ -1,6 +1,6 @@
 use serde::Serialize;
 use crate::error::GriteError;
-use crate::store::{GritStore, IssueFilter};
+use crate::store::{GriteStore, IssueFilter};
 use crate::types::event::{Event, EventKind};
 use crate::types::ids::{id_to_hex, EventId};
 use crate::types::issue::IssueSummary;
@@ -197,7 +197,7 @@ pub enum ExportSince {
 }
 
 /// Export to JSON format
-pub fn export_json(store: &GritStore, since: Option<ExportSince>) -> Result<JsonExport, GriteError> {
+pub fn export_json(store: &GriteStore, since: Option<ExportSince>) -> Result<JsonExport, GriteError> {
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap()
@@ -243,10 +243,10 @@ pub fn export_json(store: &GritStore, since: Option<ExportSince>) -> Result<Json
 }
 
 /// Export to Markdown format
-pub fn export_markdown(store: &GritStore, _since: Option<ExportSince>) -> Result<String, GriteError> {
+pub fn export_markdown(store: &GriteStore, _since: Option<ExportSince>) -> Result<String, GriteError> {
     let mut md = String::new();
 
-    md.push_str("# Grit Export\n\n");
+    md.push_str("# grite Export\n\n");
 
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -322,7 +322,7 @@ mod tests {
     #[test]
     fn test_export_json() {
         let dir = tempdir().unwrap();
-        let store = GritStore::open(dir.path()).unwrap();
+        let store = GriteStore::open(dir.path()).unwrap();
 
         let issue_id = generate_issue_id();
         let actor = [1u8; 16];
@@ -345,7 +345,7 @@ mod tests {
     #[test]
     fn test_export_markdown() {
         let dir = tempdir().unwrap();
-        let store = GritStore::open(dir.path()).unwrap();
+        let store = GriteStore::open(dir.path()).unwrap();
 
         let issue_id = generate_issue_id();
         let actor = [1u8; 16];
@@ -359,7 +359,7 @@ mod tests {
         store.insert_event(&event).unwrap();
 
         let md = export_markdown(&store, None).unwrap();
-        assert!(md.contains("# Grit Export"));
+        assert!(md.contains("# grite Export"));
         assert!(md.contains("Test Issue"));
         assert!(md.contains("bug"));
     }

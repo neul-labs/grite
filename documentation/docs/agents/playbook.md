@@ -36,7 +36,7 @@ Options:
 
 ```bash
 # Option 1: Environment variable
-export GRIT_HOME=/path/to/agent/data
+export GRITE_HOME=/path/to/agent/data
 
 # Option 2: Flag
 grite --data-dir /path/to/agent/data issue list --json

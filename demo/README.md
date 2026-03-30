@@ -1,6 +1,6 @@
-# Grit + Claude Code Demo
+# grite + Claude Code Demo
 
-This demo shows how Grit provides persistent memory for AI coding agents like Claude Code.
+This demo shows how grite provides persistent memory for AI coding agents like Claude Code.
 
 ## Quick Start
 
@@ -83,7 +83,7 @@ Claude Code will:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `GRIT_BIN` | `./target/debug/grite` | Path to grite binary |
+| `GRITE_BIN` | `./target/debug/grite` | Path to grite binary |
 
 ## Troubleshooting
 

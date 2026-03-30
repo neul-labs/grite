@@ -1,6 +1,6 @@
-//! Git-backed WAL and sync operations for Grit
+//! Git-backed WAL and sync operations for Grite
 //!
-//! This crate provides Git integration for Grit's event system:
+//! This crate provides Git integration for Grite's event system:
 //! - CBOR chunk encoding/decoding for portable event storage
 //! - WAL (Write-Ahead Log) operations via `refs/grite/wal`
 //! - Snapshot management via `refs/grite/snapshots/<ts>`

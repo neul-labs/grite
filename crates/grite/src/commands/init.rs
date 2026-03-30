@@ -2,12 +2,12 @@ use libgrite_core::{
     config::{save_repo_config, save_actor_config, actor_dir, RepoConfig},
     types::actor::ActorConfig,
     types::ids::{generate_actor_id, id_to_hex},
-    GritStore, GriteError,
+    GriteStore, GriteError,
 };
 use serde::Serialize;
 use std::fs;
 use std::path::PathBuf;
-use crate::agents_md::GRIT_AGENTS_SECTION;
+use crate::agents_md::GRITE_AGENTS_SECTION;
 use crate::cli::Cli;
 use crate::context::GriteContext;
 use crate::output::{output_success, print_human};
@@ -57,7 +57,7 @@ pub fn run(cli: &Cli, no_agents_md: bool) -> Result<(), GriteError> {
 
     // Initialize empty sled database with lock
     let sled_path = data_dir.join("sled");
-    let _store = GritStore::open_locked(&sled_path)?;
+    let _store = GriteStore::open_locked(&sled_path)?;
 
     // Set repo default
     let repo_config = RepoConfig {
@@ -118,15 +118,15 @@ fn handle_agents_md(git_dir: &PathBuf) -> Result<(Option<PathBuf>, AgentsMdActio
         })?;
 
         // Check if grite section already exists
-        if content.contains("## Grit") {
+        if content.contains("## Grite") {
             return Ok((Some(agents_md_path), AgentsMdAction::Skipped));
         }
 
         // Append grite section
         let new_content = if content.ends_with('\n') {
-            format!("{}\n{}", content, GRIT_AGENTS_SECTION)
+            format!("{}\n{}", content, GRITE_AGENTS_SECTION)
         } else {
-            format!("{}\n\n{}", content, GRIT_AGENTS_SECTION)
+            format!("{}\n\n{}", content, GRITE_AGENTS_SECTION)
         };
 
         fs::write(&agents_md_path, new_content).map_err(|e| {
@@ -136,7 +136,7 @@ fn handle_agents_md(git_dir: &PathBuf) -> Result<(Option<PathBuf>, AgentsMdActio
         Ok((Some(agents_md_path), AgentsMdAction::Updated))
     } else {
         // Create new AGENTS.md
-        fs::write(&agents_md_path, GRIT_AGENTS_SECTION).map_err(|e| {
+        fs::write(&agents_md_path, GRITE_AGENTS_SECTION).map_err(|e| {
             GriteError::Internal(format!("Failed to create AGENTS.md: {}", e))
         })?;
 

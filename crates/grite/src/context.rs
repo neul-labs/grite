@@ -8,7 +8,7 @@ use libgrite_core::{
     types::actor::ActorConfig,
     types::event::Event,
     types::ids::{generate_actor_id, id_to_hex},
-    GritStore, LockedStore, GriteError,
+    GriteStore, LockedStore, GriteError,
 };
 use libgrite_git::{WalManager, SnapshotManager, SyncManager, LockManager, GitError};
 use libgrite_ipc::{DaemonLock, IpcClient};
@@ -63,7 +63,7 @@ impl std::fmt::Debug for ExecutionMode {
     }
 }
 
-/// Resolved context for a grit command
+/// Resolved context for a grite command
 pub struct GriteContext {
     pub git_dir: PathBuf,
     pub actor_id: String,
@@ -212,7 +212,7 @@ impl GriteContext {
     /// Returns `GriteError::DbBusy` if another process holds the lock.
     pub fn open_store(&self) -> Result<LockedStore, GriteError> {
         let sled_path = self.data_dir.join("sled");
-        GritStore::open_locked(&sled_path)
+        GriteStore::open_locked(&sled_path)
     }
 
     /// Get the sled database path
