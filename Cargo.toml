@@ -25,7 +25,7 @@ categories = ["command-line-utilities", "development-tools"]
 blake2 = "0.10"
 ciborium = "0.2"
 sled = "0.34"
-git2 = "0.20"
+git2 = { version = "0.20", features = ["vendored-libgit2"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 toml = "0.8"
