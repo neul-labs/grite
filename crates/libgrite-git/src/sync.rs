@@ -106,6 +106,20 @@ impl SyncManager {
 
     /// Push grite refs to a remote
     pub fn push(&self, remote_name: &str) -> Result<PushResult, GitError> {
+        // Check if there are any grite refs to push
+        let has_refs = self.repo.references()?
+            .filter_map(Result::ok)
+            .any(|r| r.name().map_or(false, |n| n.starts_with("refs/grite/")));
+
+        if !has_refs {
+            return Ok(PushResult {
+                success: true,
+                rebased: false,
+                events_rebased: 0,
+                message: "Nothing to push (no grite refs)".to_string(),
+            });
+        }
+
         let mut remote = self.repo.find_remote(remote_name)?;
         let refspecs = [GRITE_REFSPEC];
 
