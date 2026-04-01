@@ -3,8 +3,8 @@
 //! Handles synchronization with remote repositories including
 //! conflict resolution for non-fast-forward pushes.
 
-use std::path::Path;
 use std::cell::RefCell;
+use std::path::Path;
 use std::rc::Rc;
 use git2::{Oid, Repository, FetchOptions, PushOptions, RemoteCallbacks};
 use libgrite_core::types::event::Event;
@@ -68,7 +68,22 @@ impl SyncManager {
         let mut remote = self.repo.find_remote(remote_name)?;
         let refspecs = [GRITE_REFSPEC];
 
+        let config = self.repo.config()?;
         let mut callbacks = RemoteCallbacks::new();
+        callbacks.credentials(move |url, username_from_url, allowed_types| {
+            if allowed_types.contains(git2::CredentialType::SSH_KEY) {
+                return git2::Cred::ssh_key_from_agent(username_from_url.unwrap_or("git"));
+            }
+            if allowed_types.contains(git2::CredentialType::USER_PASS_PLAINTEXT) {
+                if let Ok(cred) = git2::Cred::credential_helper(&config, url, username_from_url) {
+                    return Ok(cred);
+                }
+            }
+            if allowed_types.contains(git2::CredentialType::USERNAME) {
+                return git2::Cred::username(username_from_url.unwrap_or("git"));
+            }
+            Err(git2::Error::from_str("no supported authentication method"))
+        });
         callbacks.transfer_progress(|_stats| true);
 
         let mut fetch_options = FetchOptions::new();
@@ -112,7 +127,22 @@ impl SyncManager {
         let push_error: Rc<RefCell<Option<String>>> = Rc::new(RefCell::new(None));
         let push_error_clone = Rc::clone(&push_error);
 
+        let config = self.repo.config()?;
         let mut callbacks = RemoteCallbacks::new();
+        callbacks.credentials(move |url, username_from_url, allowed_types| {
+            if allowed_types.contains(git2::CredentialType::SSH_KEY) {
+                return git2::Cred::ssh_key_from_agent(username_from_url.unwrap_or("git"));
+            }
+            if allowed_types.contains(git2::CredentialType::USER_PASS_PLAINTEXT) {
+                if let Ok(cred) = git2::Cred::credential_helper(&config, url, username_from_url) {
+                    return Ok(cred);
+                }
+            }
+            if allowed_types.contains(git2::CredentialType::USERNAME) {
+                return git2::Cred::username(username_from_url.unwrap_or("git"));
+            }
+            Err(git2::Error::from_str("no supported authentication method"))
+        });
         callbacks.push_update_reference(move |refname, status| {
             if let Some(msg) = status {
                 *push_error_clone.borrow_mut() = Some(format!("{}: {}", refname, msg));
