@@ -280,7 +280,32 @@ fn execute_command_inner(
     use libgrite_core::types::ids::{generate_issue_id, id_to_hex};
     use libgrite_core::types::issue::IssueProjection;
     use libgrite_core::export::{export_json, export_markdown, ExportSince};
-    use libgrite_git::SyncManager;
+    use libgrite_git::{SyncManager, WalManager};
+
+    // Open WAL (best-effort — sled operations work without it)
+    let wal = WalManager::open(git_dir).ok();
+
+    /// Persist events to both sled store and WAL.
+    /// WAL append is best-effort — failures are logged but don't fail the operation.
+    fn persist_events(
+        store: &LockedStore,
+        wal: Option<&WalManager>,
+        actor_id: &ActorId,
+        events: &[Event],
+    ) -> Result<(), DaemonError> {
+        for event in events {
+            store.insert_event(event)?;
+        }
+        store.flush()?;
+
+        if let Some(w) = wal {
+            if let Err(e) = w.append(actor_id, events) {
+                warn!("Failed to append to WAL: {}", e);
+            }
+        }
+
+        Ok(())
+    }
 
     match command {
         IpcCommand::IssueList { state, label } => {
@@ -327,8 +352,7 @@ fn execute_command_inner(
             let event_id = compute_event_id(&issue_id, &actor_id_bytes, ts, None, &kind);
             let event = Event::new(event_id, issue_id, actor_id_bytes, ts, None, kind);
 
-            store.insert_event(&event)?;
-            store.flush()?;
+            persist_events(&store, wal.as_ref(), &actor_id_bytes, &[event.clone()])?;
 
             let projection = IssueProjection::from_event(&event)?;
             let mut json_val = projection_to_json(&projection);
@@ -358,8 +382,7 @@ fn execute_command_inner(
             let event_id = compute_event_id(&id, &actor_id_bytes, ts, None, &kind);
             let event = Event::new(event_id, id, actor_id_bytes, ts, None, kind);
 
-            store.insert_event(&event)?;
-            store.flush()?;
+            persist_events(&store, wal.as_ref(), &actor_id_bytes, &[event.clone()])?;
 
             let json = serde_json::to_string(&serde_json::json!({
                 "issue_id": issue_id,
@@ -379,8 +402,7 @@ fn execute_command_inner(
             let event_id = compute_event_id(&id, &actor_id_bytes, ts, None, &kind);
             let event = Event::new(event_id, id, actor_id_bytes, ts, None, kind);
 
-            store.insert_event(&event)?;
-            store.flush()?;
+            persist_events(&store, wal.as_ref(), &actor_id_bytes, &[event.clone()])?;
 
             let json = serde_json::to_string(&serde_json::json!({
                 "issue_id": issue_id,
@@ -400,8 +422,7 @@ fn execute_command_inner(
             let event_id = compute_event_id(&id, &actor_id_bytes, ts, None, &kind);
             let event = Event::new(event_id, id, actor_id_bytes, ts, None, kind);
 
-            store.insert_event(&event)?;
-            store.flush()?;
+            persist_events(&store, wal.as_ref(), &actor_id_bytes, &[event.clone()])?;
 
             let json = serde_json::to_string(&serde_json::json!({
                 "issue_id": issue_id,
@@ -423,8 +444,7 @@ fn execute_command_inner(
             let event_id = compute_event_id(&id, &actor_id_bytes, ts, None, &kind);
             let event = Event::new(event_id, id, actor_id_bytes, ts, None, kind);
 
-            store.insert_event(&event)?;
-            store.flush()?;
+            persist_events(&store, wal.as_ref(), &actor_id_bytes, &[event.clone()])?;
 
             let json = serde_json::to_string(&serde_json::json!({
                 "issue_id": issue_id,
@@ -442,25 +462,26 @@ fn execute_command_inner(
                 .ok_or_else(|| DaemonError::Core(GriteError::NotFound(format!("Issue {} not found", issue_id))))?;
 
             let mut event_ids = Vec::new();
+            let mut events = Vec::new();
             let ts = current_time_ms();
 
             for label in add {
                 let kind = EventKind::LabelAdded { label: label.clone() };
                 let event_id = compute_event_id(&id, &actor_id_bytes, ts, None, &kind);
                 let event = Event::new(event_id, id, actor_id_bytes, ts, None, kind);
-                store.insert_event(&event)?;
                 event_ids.push(id_to_hex(&event_id));
+                events.push(event);
             }
 
             for label in remove {
                 let kind = EventKind::LabelRemoved { label: label.clone() };
                 let event_id = compute_event_id(&id, &actor_id_bytes, ts, None, &kind);
                 let event = Event::new(event_id, id, actor_id_bytes, ts, None, kind);
-                store.insert_event(&event)?;
                 event_ids.push(id_to_hex(&event_id));
+                events.push(event);
             }
 
-            store.flush()?;
+            persist_events(&store, wal.as_ref(), &actor_id_bytes, &events)?;
 
             let json = serde_json::to_string(&serde_json::json!({
                 "issue_id": issue_id,
@@ -476,25 +497,26 @@ fn execute_command_inner(
                 .ok_or_else(|| DaemonError::Core(GriteError::NotFound(format!("Issue {} not found", issue_id))))?;
 
             let mut event_ids = Vec::new();
+            let mut events = Vec::new();
             let ts = current_time_ms();
 
             for user in add {
                 let kind = EventKind::AssigneeAdded { user: user.clone() };
                 let event_id = compute_event_id(&id, &actor_id_bytes, ts, None, &kind);
                 let event = Event::new(event_id, id, actor_id_bytes, ts, None, kind);
-                store.insert_event(&event)?;
                 event_ids.push(id_to_hex(&event_id));
+                events.push(event);
             }
 
             for user in remove {
                 let kind = EventKind::AssigneeRemoved { user: user.clone() };
                 let event_id = compute_event_id(&id, &actor_id_bytes, ts, None, &kind);
                 let event = Event::new(event_id, id, actor_id_bytes, ts, None, kind);
-                store.insert_event(&event)?;
                 event_ids.push(id_to_hex(&event_id));
+                events.push(event);
             }
 
-            store.flush()?;
+            persist_events(&store, wal.as_ref(), &actor_id_bytes, &events)?;
 
             let json = serde_json::to_string(&serde_json::json!({
                 "issue_id": issue_id,
@@ -517,8 +539,7 @@ fn execute_command_inner(
             let event_id = compute_event_id(&id, &actor_id_bytes, ts, None, &kind);
             let event = Event::new(event_id, id, actor_id_bytes, ts, None, kind);
 
-            store.insert_event(&event)?;
-            store.flush()?;
+            persist_events(&store, wal.as_ref(), &actor_id_bytes, &[event.clone()])?;
 
             let json = serde_json::to_string(&serde_json::json!({
                 "issue_id": issue_id,
@@ -550,8 +571,7 @@ fn execute_command_inner(
             let event_id = compute_event_id(&id, &actor_id_bytes, ts, None, &kind);
             let event = Event::new(event_id, id, actor_id_bytes, ts, None, kind);
 
-            store.insert_event(&event)?;
-            store.flush()?;
+            persist_events(&store, wal.as_ref(), &actor_id_bytes, &[event.clone()])?;
 
             let json = serde_json::to_string(&serde_json::json!({
                 "issue_id": issue_id,
@@ -627,8 +647,7 @@ fn execute_command_inner(
             let kind = EventKind::DependencyAdded { target, dep_type: dep };
             let event_id = compute_event_id(&id, &actor_id_bytes, ts, None, &kind);
             let event = Event::new(event_id, id, actor_id_bytes, ts, None, kind);
-            store.insert_event(&event)?;
-            store.flush()?;
+            persist_events(&store, wal.as_ref(), &actor_id_bytes, &[event.clone()])?;
 
             let json = serde_json::to_string(&serde_json::json!({
                 "event_id": id_to_hex(&event_id),
@@ -657,8 +676,7 @@ fn execute_command_inner(
             let kind = EventKind::DependencyRemoved { target, dep_type: dep };
             let event_id = compute_event_id(&id, &actor_id_bytes, ts, None, &kind);
             let event = Event::new(event_id, id, actor_id_bytes, ts, None, kind);
-            store.insert_event(&event)?;
-            store.flush()?;
+            persist_events(&store, wal.as_ref(), &actor_id_bytes, &[event.clone()])?;
 
             let json = serde_json::to_string(&serde_json::json!({
                 "event_id": id_to_hex(&event_id),
