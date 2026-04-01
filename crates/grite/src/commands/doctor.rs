@@ -87,7 +87,8 @@ pub fn run(cli: &Cli, fix: bool) -> Result<(), GriteError> {
     checks.push(check_git_repo(cli));
 
     // Check 2: WAL ref
-    checks.push(check_wal_ref(cli));
+    let (wal_check, needs_wal_backfill) = check_wal_ref(cli);
+    checks.push(wal_check);
 
     // Check 3: Actor config
     checks.push(check_actor_config(cli));
@@ -109,6 +110,23 @@ pub fn run(cli: &Cli, fix: bool) -> Result<(), GriteError> {
             if let Ok(store) = ctx.open_store() {
                 if store.rebuild().is_ok() {
                     applied.push("rebuild".to_string());
+                }
+            }
+        }
+    }
+
+    if fix && needs_wal_backfill {
+        match fix_wal_backfill(cli) {
+            Ok(count) if count > 0 => {
+                applied.push(format!("backfilled {} event(s) to WAL", count));
+                if let Some(c) = checks.iter_mut().find(|c| c.id == "wal_ref") {
+                    *c = CheckResult::ok("wal_ref", &format!("WAL backfilled with {} event(s)", count));
+                }
+            }
+            Ok(_) => {}
+            Err(e) => {
+                if let Some(c) = checks.iter_mut().find(|c| c.id == "wal_ref") {
+                    *c = CheckResult::error("wal_ref", &format!("WAL backfill failed: {}", e), vec![]);
                 }
             }
         }
@@ -194,14 +212,17 @@ fn check_git_repo(cli: &Cli) -> CheckResult {
     }
 }
 
-fn check_wal_ref(cli: &Cli) -> CheckResult {
+fn check_wal_ref(cli: &Cli) -> (CheckResult, bool) {
     let ctx = match GriteContext::resolve(cli) {
         Ok(ctx) => ctx,
         Err(_) => {
-            return CheckResult::warn(
-                "wal_ref",
-                "Cannot check WAL - no context",
-                vec!["Fix git_repo first"],
+            return (
+                CheckResult::warn(
+                    "wal_ref",
+                    "Cannot check WAL - no context",
+                    vec!["Fix git_repo first"],
+                ),
+                false,
             )
         }
     };
@@ -209,18 +230,44 @@ fn check_wal_ref(cli: &Cli) -> CheckResult {
     let git_dir = ctx.repo_root().join(".git");
     match WalManager::open(&git_dir) {
         Ok(wal) => match wal.head() {
-            Ok(Some(_)) => CheckResult::ok("wal_ref", "WAL ref exists and is readable"),
-            Ok(None) => CheckResult::ok("wal_ref", "WAL ref not yet created (empty)"),
-            Err(e) => CheckResult::error(
-                "wal_ref",
-                &format!("WAL ref is corrupted: {}", e),
-                vec!["Run 'grite doctor --fix' to rebuild"],
+            Ok(Some(_)) => (CheckResult::ok("wal_ref", "WAL ref exists and is readable"), false),
+            Ok(None) => {
+                // WAL is empty — check if sled has events that need backfilling
+                let sled_events = ctx.open_store()
+                    .ok()
+                    .and_then(|s| s.get_all_events().ok())
+                    .map(|e| e.len())
+                    .unwrap_or(0);
+
+                if sled_events > 0 {
+                    (
+                        CheckResult::warn(
+                            "wal_ref",
+                            &format!("WAL ref empty but sled has {} event(s)", sled_events),
+                            vec!["Run 'grite doctor --fix' to backfill WAL from sled"],
+                        ),
+                        true,
+                    )
+                } else {
+                    (CheckResult::ok("wal_ref", "WAL ref not yet created (empty)"), false)
+                }
+            }
+            Err(e) => (
+                CheckResult::error(
+                    "wal_ref",
+                    &format!("WAL ref is corrupted: {}", e),
+                    vec!["Run 'grite doctor --fix' to rebuild"],
+                ),
+                false,
             ),
         },
-        Err(e) => CheckResult::error(
-            "wal_ref",
-            &format!("Cannot open WAL manager: {}", e),
-            vec!["Check git repository integrity"],
+        Err(e) => (
+            CheckResult::error(
+                "wal_ref",
+                &format!("Cannot open WAL manager: {}", e),
+                vec!["Check git repository integrity"],
+            ),
+            false,
         ),
     }
 }
@@ -593,4 +640,33 @@ fn fix_legacy_actor_sleds(cli: &Cli) -> Result<(usize, usize), GriteError> {
     }
 
     Ok((merged, cleaned))
+}
+
+/// Backfill WAL from sled events.
+/// Returns the number of events written to the WAL.
+fn fix_wal_backfill(cli: &Cli) -> Result<usize, GriteError> {
+    let ctx = GriteContext::resolve(cli)?;
+    let store = ctx.open_store()?;
+    let mut events = store.get_all_events()?;
+
+    if events.is_empty() {
+        return Ok(0);
+    }
+
+    let git_dir = ctx.repo_root().join(".git");
+    let wal = WalManager::open(&git_dir)
+        .map_err(|e| GriteError::Internal(format!("Cannot open WAL: {}", e)))?;
+
+    let actor_id: libgrite_core::types::ids::ActorId = hex::decode(&ctx.actor_id)
+        .map_err(|e| GriteError::Internal(format!("Invalid actor ID: {}", e)))?
+        .try_into()
+        .map_err(|_| GriteError::Internal("Actor ID must be 16 bytes".to_string()))?;
+
+    // Sort by timestamp for consistent ordering
+    events.sort_by_key(|e| e.ts_unix_ms);
+
+    wal.append(&actor_id, &events)
+        .map_err(|e| GriteError::Internal(format!("WAL append failed: {}", e)))?;
+
+    Ok(events.len())
 }
