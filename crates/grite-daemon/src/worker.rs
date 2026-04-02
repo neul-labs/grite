@@ -753,6 +753,23 @@ fn execute_command_inner(
             let do_pull = *pull || !*push;
             let do_push = *push || !*pull;
 
+            // Auto-backfill WAL from sled if WAL is empty
+            if do_push {
+                if let Some(w) = wal.as_ref() {
+                    if w.head().unwrap_or(None).is_none() {
+                        let events = store.get_all_events().unwrap_or_default();
+                        if !events.is_empty() {
+                            let mut sorted = events;
+                            sorted.sort_by_key(|e| e.ts_unix_ms);
+                            match w.append(&actor_id_bytes, &sorted) {
+                                Ok(_) => info!("Auto-backfilled WAL with {} events", sorted.len()),
+                                Err(e) => warn!("WAL backfill failed: {}", e),
+                            }
+                        }
+                    }
+                }
+            }
+
             let result = if do_pull && !do_push {
                 // Pull only
                 let pull_result = sync_mgr.pull(remote)?;
