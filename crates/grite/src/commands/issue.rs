@@ -124,6 +124,7 @@ struct IssueSummaryJson {
     state: String,
     labels: Vec<String>,
     assignees: Vec<String>,
+    created_ts: u64,
     updated_ts: u64,
     comment_count: usize,
 }
@@ -136,6 +137,7 @@ impl From<&IssueSummary> for IssueSummaryJson {
             state: format!("{:?}", s.state).to_lowercase(),
             labels: s.labels.clone(),
             assignees: s.assignees.clone(),
+            created_ts: s.created_ts,
             updated_ts: s.updated_ts,
             comment_count: s.comment_count,
         }
