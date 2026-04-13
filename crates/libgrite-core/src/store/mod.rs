@@ -472,8 +472,8 @@ impl GriteStore {
             summaries.push(IssueSummary::from(&proj));
         }
 
-        // Sort by issue_id (lexicographic)
-        summaries.sort_by(|a, b| a.issue_id.cmp(&b.issue_id));
+        // Sort by creation time (oldest first)
+        summaries.sort_by_key(|s| s.created_ts);
 
         Ok(summaries)
     }

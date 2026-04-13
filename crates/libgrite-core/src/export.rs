@@ -31,6 +31,7 @@ pub struct IssueSummaryJson {
     pub state: String,
     pub labels: Vec<String>,
     pub assignees: Vec<String>,
+    pub created_ts: u64,
     pub updated_ts: u64,
     pub comment_count: usize,
 }
@@ -43,6 +44,7 @@ impl From<&IssueSummary> for IssueSummaryJson {
             state: format!("{:?}", s.state).to_lowercase(),
             labels: s.labels.clone(),
             assignees: s.assignees.clone(),
+            created_ts: s.created_ts,
             updated_ts: s.updated_ts,
             comment_count: s.comment_count,
         }

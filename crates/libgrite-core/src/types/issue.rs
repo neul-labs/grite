@@ -126,6 +126,7 @@ pub struct IssueSummary {
     pub state: IssueState,
     pub labels: Vec<String>,
     pub assignees: Vec<String>,
+    pub created_ts: u64,
     pub updated_ts: u64,
     pub comment_count: usize,
 }
@@ -138,6 +139,7 @@ impl From<&IssueProjection> for IssueSummary {
             state: proj.state,
             labels: proj.labels.iter().cloned().collect(),
             assignees: proj.assignees.iter().cloned().collect(),
+            created_ts: proj.created_ts,
             updated_ts: proj.updated_ts,
             comment_count: proj.comments.len(),
         }

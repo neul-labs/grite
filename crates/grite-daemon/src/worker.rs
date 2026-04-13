@@ -324,6 +324,7 @@ fn execute_command_inner(
                 "state": format!("{:?}", s.state).to_lowercase(),
                 "labels": s.labels,
                 "assignees": s.assignees,
+                "created_ts": s.created_ts,
                 "updated_ts": s.updated_ts,
                 "comment_count": s.comment_count,
             })).collect();
