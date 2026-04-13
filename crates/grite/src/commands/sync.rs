@@ -2,6 +2,7 @@
 
 use libgrite_core::{GriteError, lock::LockCheckResult};
 use libgrite_core::types::ids::ActorId;
+use libgrite_git::WalManager;
 use serde::Serialize;
 use crate::cli::Cli;
 use crate::context::GriteContext;
@@ -53,6 +54,7 @@ struct PushOutput {
     success: bool,
     rebased: bool,
     events_rebased: usize,
+    backfilled: usize,
     message: String,
 }
 
@@ -73,6 +75,11 @@ pub fn run(cli: &Cli, remote: String, pull_only: bool, push_only: bool) -> Resul
     // Check locks for push operations
     if do_push {
         check_push_lock(cli, &ctx)?;
+
+        // Auto-backfill WAL from sled if WAL is empty
+        if let Some(count) = backfill_wal_if_needed(&ctx, &actor_id)? {
+            print_human(cli, &format!("Backfilled WAL with {} event(s) from local store", count));
+        }
     }
 
     if do_pull && !do_push {
@@ -114,6 +121,7 @@ pub fn run(cli: &Cli, remote: String, pull_only: bool, push_only: bool) -> Resul
             success: result.success,
             rebased: result.rebased,
             events_rebased: result.events_rebased,
+            backfilled: 0,
             message: result.message,
         });
     } else {
@@ -152,4 +160,38 @@ pub fn run(cli: &Cli, remote: String, pull_only: bool, push_only: bool) -> Resul
     }
 
     Ok(())
+}
+
+
+/// Backfill WAL from sled events if WAL is empty.
+// Needed before push/sync.
+// Returns number of events backfilled, or None if WAL was already populated.
+// or None if no events to backfill.
+fn backfill_wal_if_needed(
+    ctx: &GriteContext,
+    actor_id: &ActorId,
+) -> Result<Option<usize>, GriteError> {
+    let git_dir = ctx.repo_root().join(".git");
+    let wal = WalManager::open(&git_dir)
+        .map_err(|e| GriteError::Internal(e.to_string()))?;
+
+    if wal.head().map_err(|e| GriteError::Internal(e.to_string()))?.is_some() {
+        return Ok(None);
+    }
+
+    let store = libgrite_core::GriteStore::open(&ctx.sled_path())
+        .map_err(|e| GriteError::Internal(e.to_string()))?;
+    let events = store.get_all_events()?;
+
+    if events.is_empty() {
+        return Ok(None);
+    }
+
+    let mut sorted = events;
+    sorted.sort_by_key(|e| e.ts_unix_ms);
+
+    wal.append(actor_id, &sorted)
+        .map_err(|e| GriteError::Internal(e.to_string()))?;
+
+    Ok(Some(sorted.len()))
 }

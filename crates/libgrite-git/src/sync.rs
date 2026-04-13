@@ -121,8 +121,25 @@ impl SyncManager {
 
     /// Push grite refs to a remote
     pub fn push(&self, remote_name: &str) -> Result<PushResult, GitError> {
+        // Enumerate concrete grite refs (libgit2 push doesn't expand globs)
+        let refspecs: Vec<String> = self.repo.references()?
+            .filter_map(Result::ok)
+            .filter_map(|r| r.name().map(|n| n.to_string()))
+            .filter(|n| n.starts_with("refs/grite/"))
+            .map(|n| format!("{}:{}", n, n))
+            .collect();
+
+        if refspecs.is_empty() {
+            return Ok(PushResult {
+                success: true,
+                rebased: false,
+                events_rebased: 0,
+                message: "Nothing to push (no grite refs)".to_string(),
+            });
+        }
+
         let mut remote = self.repo.find_remote(remote_name)?;
-        let refspecs = [GRITE_REFSPEC];
+        let refspec_strs: Vec<&str> = refspecs.iter().map(|s| s.as_str()).collect();
 
         let push_error: Rc<RefCell<Option<String>>> = Rc::new(RefCell::new(None));
         let push_error_clone = Rc::clone(&push_error);
@@ -153,7 +170,7 @@ impl SyncManager {
         let mut push_options = PushOptions::new();
         push_options.remote_callbacks(callbacks);
 
-        remote.push(&refspecs, Some(&mut push_options))?;
+        remote.push(&refspec_strs, Some(&mut push_options))?;
 
         // Now check if there was an error
         let error = push_error.borrow().clone();
