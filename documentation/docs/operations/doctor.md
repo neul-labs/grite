@@ -50,6 +50,7 @@ If remote sync is needed, the remediation plan explicitly lists `grite sync --pu
 | `actor_config` | Actor is properly configured | No |
 | `store_integrity` | Event hashes match | Yes (rebuild) |
 | `rebuild_threshold` | Events since last rebuild | Yes (rebuild) |
+| `legacy_actor_sleds` | Per-actor sleds with unmerged events | Yes (merge + rebuild) |
 
 ### git_repo
 
@@ -108,6 +109,16 @@ Checks if rebuild is recommended based on:
 - Too long since last rebuild
 
 **Resolution:** Run `grite rebuild` for better performance.
+
+### legacy_actor_sleds
+
+Checks for per-actor sled databases left over from before the shared-sled migration. These are directories at `.git/grite/actors/<id>/sled/` containing events not yet present in the shared store at `.git/grite/sled/`.
+
+**Warnings:**
+
+- One or more legacy sleds found with unmerged events
+
+**Resolution:** `grite doctor --fix` merges all unmerged events into the shared store and rebuilds projections. The legacy sled directories can be deleted afterwards.
 
 ## JSON Output
 

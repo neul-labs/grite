@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use git2::Repository;
 use libgrite_core::{
-    config::{load_repo_config, save_repo_config, load_actor_config, save_actor_config, actor_dir, list_actors, RepoConfig, load_signing_key},
+    config::{load_repo_config, save_repo_config, load_actor_config, save_actor_config, actor_dir, list_actors, RepoConfig, load_signing_key, repo_sled_path},
     lock::{LockPolicy, LockCheckResult},
     signing::SigningKeyPair,
     types::actor::ActorConfig,
@@ -211,13 +211,12 @@ impl GriteContext {
     ///
     /// Returns `GriteError::DbBusy` if another process holds the lock.
     pub fn open_store(&self) -> Result<LockedStore, GriteError> {
-        let sled_path = self.data_dir.join("sled");
-        GriteStore::open_locked(&sled_path)
+        GriteStore::open_locked(&repo_sled_path(&self.git_dir))
     }
 
     /// Get the sled database path
     pub fn sled_path(&self) -> PathBuf {
-        self.data_dir.join("sled")
+        repo_sled_path(&self.git_dir)
     }
 
     /// Open the WAL manager
@@ -317,7 +316,7 @@ impl GriteContext {
         }
 
         // 2. Check for daemon lock
-        match DaemonLock::read(&self.data_dir) {
+        match DaemonLock::read(&self.git_dir.join("grite")) {
             Ok(Some(lock)) => {
                 // 3. Check if lock is still valid
                 if lock.is_expired() {

@@ -15,12 +15,12 @@ Grite stores data in two locations:
 .git/
 ├── grite/
 │   ├── config.toml                    # Repository configuration
+│   ├── sled/                          # Shared materialized view database
+│   ├── sled.lock                      # Filesystem lock for shared sled
+│   ├── daemon.lock                    # Daemon ownership marker
 │   └── actors/
 │       └── <actor_id>/
-│           ├── config.toml            # Actor configuration
-│           ├── sled/                  # Materialized view database
-│           ├── sled.lock              # Filesystem lock
-│           ├── daemon.lock            # Daemon ownership marker
+│           ├── config.toml            # Actor identity and settings
 │           └── keys/
 │               └── signing.key        # Ed25519 private key (optional)
 │
@@ -55,33 +55,11 @@ max_age_days = 7
 | `snapshot.max_events` | Snapshot threshold (event count) |
 | `snapshot.max_age_days` | Snapshot threshold (age) |
 
-## Actor Files
+## Repository Files
 
-Each actor has an isolated directory under `.git/grite/actors/<actor_id>/`.
+### .git/grite/sled/
 
-### config.toml
-
-Actor identity and settings.
-
-```toml
-actor_id = "64d15a2c383e2161772f9cea23e87222"
-label = "work-laptop"
-created_ts = 1700000000000
-public_key = "3d4017c3e843895a92b70aa74d1b7ebc9c982ccf2ec4968cc0cd55f12af4660c"
-key_scheme = "ed25519"
-```
-
-| Field | Description |
-|-------|-------------|
-| `actor_id` | Actor identifier (required) |
-| `label` | Human-friendly name (optional) |
-| `created_ts` | Creation timestamp (optional) |
-| `public_key` | Ed25519 public key (optional) |
-| `key_scheme` | Signature scheme (optional) |
-
-### sled/
-
-The sled embedded database containing the materialized view.
+The shared sled embedded database containing the materialized view for the entire repository. All actors share a single database — actor identity is recorded on each event, not used as a storage partition.
 
 Internal structure (managed by sled):
 
@@ -92,19 +70,19 @@ sled/
 └── db
 ```
 
-This is expendable and can be rebuilt from the WAL.
+This is expendable and can be rebuilt from the WAL at any time.
 
-### sled.lock
+### .git/grite/sled.lock
 
-Filesystem lock (`flock`) for exclusive database access.
+Filesystem lock (`flock`) for exclusive access to the shared sled database.
 
 - CLI acquires this lock before opening sled
 - Daemon holds it for its lifetime
 - Prevents concurrent access corruption
 
-### daemon.lock
+### .git/grite/daemon.lock
 
-JSON file indicating daemon ownership.
+JSON file indicating daemon ownership. Located at the repository level (one daemon per repo, not per actor).
 
 ```json
 {
@@ -125,12 +103,36 @@ JSON file indicating daemon ownership.
 | `pid` | Daemon process ID |
 | `started_ts` | Daemon start time |
 | `repo_root` | Repository path |
-| `actor_id` | Actor this daemon serves |
+| `actor_id` | Actor that started this daemon |
 | `host_id` | Host identifier |
 | `ipc_endpoint` | IPC socket path |
 | `lease_ms` | Lease duration |
 | `last_heartbeat_ts` | Last heartbeat time |
 | `expires_ts` | Lease expiration time |
+
+## Actor Files
+
+Each actor has a directory under `.git/grite/actors/<actor_id>/` containing only identity and key material. Actors no longer own separate databases.
+
+### config.toml
+
+Actor identity and settings.
+
+```toml
+actor_id = "64d15a2c383e2161772f9cea23e87222"
+label = "work-laptop"
+created_ts = 1700000000000
+public_key = "3d4017c3e843895a92b70aa74d1b7ebc9c982ccf2ec4968cc0cd55f12af4660c"
+key_scheme = "ed25519"
+```
+
+| Field | Description |
+|-------|-------------|
+| `actor_id` | Actor identifier (required) |
+| `label` | Human-friendly name (optional) |
+| `created_ts` | Creation timestamp (optional) |
+| `public_key` | Ed25519 public key (optional) |
+| `key_scheme` | Signature scheme (optional) |
 
 ### keys/signing.key
 
@@ -219,7 +221,7 @@ grite rebuild
 For a fresh start:
 
 ```bash
-rm -rf .git/grite/actors/<actor_id>/sled
+rm -rf .git/grite/sled
 grite rebuild
 ```
 
@@ -239,24 +241,23 @@ grite lock gc
 
 ## Multi-Actor Scenarios
 
-Each actor has isolated storage:
+All actors share a single sled database. Actor identity is an authorship field on each event, not a storage partition:
 
 ```
-.git/grite/actors/
-├── actor-a/
-│   ├── config.toml
-│   ├── sled/
-│   └── ...
-├── actor-b/
-│   ├── config.toml
-│   ├── sled/
-│   └── ...
-└── actor-c/
-    └── ...
+.git/grite/
+├── sled/          # One shared database for all actors
+├── daemon.lock    # One daemon per repository
+└── actors/
+    ├── actor-a/
+    │   └── config.toml
+    ├── actor-b/
+    │   └── config.toml
+    └── actor-c/
+        └── config.toml
 ```
 
-- Each has its own materialized view
-- No conflicts between concurrent actors
+- All events from all actors land in the shared sled
+- No rebuild needed when switching between actors
 - Shared WAL in git refs
 
 ## Backup Considerations
@@ -294,6 +295,18 @@ grite export --format json
 # Signing key should be owner-only
 chmod 600 .git/grite/actors/*/keys/signing.key
 ```
+
+## Migration from Per-Actor Sleds
+
+Older versions of grite stored each actor's events in its own sled at `.git/grite/actors/<id>/sled/`. These are now legacy artifacts. To migrate:
+
+```bash
+grite doctor
+# If legacy_actor_sleds shows unmerged events:
+grite doctor --fix
+```
+
+`grite doctor --fix` reads all per-actor sleds, merges any events not already in the shared store, rebuilds projections, then the old sleds can be safely deleted.
 
 ## Next Steps
 

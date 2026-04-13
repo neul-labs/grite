@@ -22,6 +22,23 @@ pub fn get_default_daemon_endpoint() -> String {
     libgrite_ipc::default_socket_path()
 }
 
+/// Check if the daemon is currently running for this repo.
+/// Returns true if daemon is reachable via IPC.
+pub fn is_daemon_running(cli: &Cli) -> bool {
+    let ctx = match GriteContext::resolve(cli) {
+        Ok(ctx) => ctx,
+        Err(_) => return false,
+    };
+
+    let grite_dir = ctx.git_dir.join("grite");
+    let lock = match DaemonLock::read(&grite_dir) {
+        Ok(Some(lock)) if !lock.is_expired() => lock,
+        _ => return false,
+    };
+
+    UnixStream::connect(&lock.ipc_endpoint).is_ok()
+}
+
 pub fn run(cli: &Cli, cmd: DaemonCommand) -> Result<(), GriteError> {
     match cmd {
         DaemonCommand::Start { idle_timeout } => start(cli, idle_timeout),
@@ -32,10 +49,20 @@ pub fn run(cli: &Cli, cmd: DaemonCommand) -> Result<(), GriteError> {
 
 /// Start the daemon in background
 fn start(cli: &Cli, idle_timeout: u64) -> Result<(), GriteError> {
+    start_internal(cli, idle_timeout)
+}
+
+/// Start the daemon (public for use by other commands like doctor).
+pub fn start_daemon(cli: &Cli, idle_timeout: u64) -> Result<(), GriteError> {
+    start_internal(cli, idle_timeout)
+}
+
+fn start_internal(cli: &Cli, idle_timeout: u64) -> Result<(), GriteError> {
     let ctx = GriteContext::resolve(cli)?;
 
     // Check if daemon is already running
-    if let Ok(Some(lock)) = DaemonLock::read(&ctx.data_dir) {
+    let grite_dir = ctx.git_dir.join("grite");
+    if let Ok(Some(lock)) = DaemonLock::read(&grite_dir) {
         if !lock.is_expired() {
             // Try to connect to verify it's actually running
             if UnixStream::connect(&lock.ipc_endpoint).is_ok() {
@@ -53,7 +80,7 @@ fn start(cli: &Cli, idle_timeout: u64) -> Result<(), GriteError> {
             }
         }
         // Stale lock, clean it up
-        let _ = DaemonLock::remove(&ctx.data_dir);
+        let _ = DaemonLock::remove(&grite_dir);
     }
 
     // Spawn grite-daemon in background
@@ -168,7 +195,7 @@ fn status(cli: &Cli) -> Result<(), GriteError> {
     let ctx = GriteContext::resolve(cli)?;
 
     // Read daemon lock
-    let lock = DaemonLock::read(&ctx.data_dir)
+    let lock = DaemonLock::read(&ctx.git_dir.join("grite"))
         .map_err(|e| GriteError::Internal(format!("Failed to read daemon lock: {}", e)))?;
 
     if cli.json {
@@ -236,10 +263,20 @@ fn output_status_human(cli: &Cli, lock: &Option<DaemonLock>) -> Result<(), Grite
 
 /// Stop the daemon
 fn stop(cli: &Cli) -> Result<(), GriteError> {
+    stop_internal(cli)
+}
+
+/// Stop the daemon (public for use by other commands like doctor).
+pub fn stop_daemon(cli: &Cli) -> Result<(), GriteError> {
+    stop_internal(cli)
+}
+
+fn stop_internal(cli: &Cli) -> Result<(), GriteError> {
     let ctx = GriteContext::resolve(cli)?;
 
     // Read daemon lock to get IPC endpoint
-    let lock = DaemonLock::read(&ctx.data_dir)
+    let grite_dir = ctx.git_dir.join("grite");
+    let lock = DaemonLock::read(&grite_dir)
         .map_err(|e| GriteError::Internal(format!("Failed to read daemon lock: {}", e)))?;
 
     match lock {
@@ -263,7 +300,7 @@ fn stop(cli: &Cli) -> Result<(), GriteError> {
                 Err(_) => {
                     // Can't connect - daemon may already be dead
                     // Clean up stale lock file
-                    let _ = DaemonLock::remove(&ctx.data_dir);
+                    let _ = DaemonLock::remove(&grite_dir);
                     if cli.json {
                         println!("{}", serde_json::json!({"stopped": false, "reason": "Daemon not reachable, cleaned up stale lock"}));
                     } else if !cli.quiet {
@@ -277,7 +314,7 @@ fn stop(cli: &Cli) -> Result<(), GriteError> {
             wait_for_daemon_exit(pid, Duration::from_secs(10));
 
             // Clean up stale lock file if it still exists
-            let _ = DaemonLock::remove(&ctx.data_dir);
+            let _ = DaemonLock::remove(&grite_dir);
 
             if cli.json {
                 println!("{}", serde_json::json!({"stopped": true}));

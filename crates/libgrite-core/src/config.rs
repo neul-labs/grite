@@ -143,6 +143,14 @@ pub fn actor_sled_path(git_dir: &Path, actor_id: &str) -> std::path::PathBuf {
     actor_dir(git_dir, actor_id).join("sled")
 }
 
+/// Get the shared sled database path for the repository (.git/grite/sled).
+///
+/// In the shared-sled model all actors in a repository use a single sled
+/// database rather than per-actor databases.
+pub fn repo_sled_path(git_dir: &Path) -> std::path::PathBuf {
+    git_dir.join("grite").join("sled")
+}
+
 /// Get the signing key path for an actor
 pub fn actor_signing_key_path(git_dir: &Path, actor_id: &str) -> std::path::PathBuf {
     actor_dir(git_dir, actor_id).join("signing_key")

@@ -33,14 +33,12 @@ struct WorkerHandle {
     tx: mpsc::Sender<WorkerMessage>,
     join_handle: Option<tokio::task::JoinHandle<()>>,
     repo_root: PathBuf,
-    actor_id: String,
 }
 
-/// Key for worker lookup
+/// Key for worker lookup — one worker per repository
 #[derive(Hash, Eq, PartialEq, Clone)]
 struct WorkerKey {
     repo_root: String,
-    actor_id: String,
 }
 
 /// Shared daemon state accessible from all connection tasks.
@@ -302,9 +300,8 @@ async fn shutdown_workers(state: &DaemonState) {
                 Ok(Ok(())) => {}
                 Ok(Err(e)) => warn!("Worker task panicked: {}", e),
                 Err(_) => warn!(
-                    "Worker {}/{} didn't shut down within 10s",
-                    handle.repo_root.display(),
-                    handle.actor_id
+                    "Worker {} didn't shut down within 10s",
+                    handle.repo_root.display()
                 ),
             }
         }
@@ -443,7 +440,6 @@ async fn process_request(raw: &[u8], state: &DaemonState) -> IpcResponse {
 async fn route_to_worker(request: IpcRequest, state: &DaemonState) -> IpcResponse {
     let key = WorkerKey {
         repo_root: request.repo_root.clone(),
-        actor_id: request.actor_id.clone(),
     };
 
     // Fast path: check for existing live worker (mutex held briefly)
@@ -455,7 +451,6 @@ async fn route_to_worker(request: IpcRequest, state: &DaemonState) -> IpcRespons
             if handle.tx.is_closed() {
                 warn!(
                     repo = %handle.repo_root.display(),
-                    actor = %handle.actor_id,
                     "Removing dead worker handle"
                 );
                 workers_guard.remove(&key);
@@ -473,13 +468,12 @@ async fn route_to_worker(request: IpcRequest, state: &DaemonState) -> IpcRespons
     let (tx, rx) = mpsc::channel(100);
     let repo_root = PathBuf::from(&request.repo_root);
     let actor_id = request.actor_id.clone();
-    let data_dir = PathBuf::from(&request.data_dir);
     let ntx = state.notify_tx.clone();
     let hid = state.host_id.clone();
     let ipc = state.socket_path.clone();
 
     let worker_result = tokio::task::spawn_blocking(move || {
-        Worker::new(repo_root, actor_id, data_dir, rx, ntx, hid, ipc)
+        Worker::new(repo_root, actor_id, rx, ntx, hid, ipc)
     })
     .await;
 
@@ -528,7 +522,6 @@ async fn route_to_worker(request: IpcRequest, state: &DaemonState) -> IpcRespons
         }
 
         let repo_root = worker.repo_root.clone();
-        let actor_id = worker.actor_id.clone();
         let join_handle = tokio::spawn(worker.run());
 
         workers_guard.insert(
@@ -537,7 +530,6 @@ async fn route_to_worker(request: IpcRequest, state: &DaemonState) -> IpcRespons
                 tx: tx.clone(),
                 join_handle: Some(join_handle),
                 repo_root,
-                actor_id,
             },
         );
     }
@@ -553,6 +545,7 @@ async fn send_to_worker(
     let (response_tx, response_rx) = tokio::sync::oneshot::channel();
     let msg = WorkerMessage::Command {
         request_id: request.request_id.clone(),
+        actor_id: request.actor_id.clone(),
         command: request.command.clone(),
         response_tx,
     };
