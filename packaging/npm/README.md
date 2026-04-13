@@ -30,19 +30,6 @@ grite issue close <issue-id>
 ## Requirements
 
 - Git 2.38+
-- nng library (for IPC)
-
-### Installing nng
-
-**macOS:**
-```bash
-brew install nng
-```
-
-**Ubuntu/Debian:**
-```bash
-sudo apt-get install libnng-dev
-```
 
 ## Documentation
 

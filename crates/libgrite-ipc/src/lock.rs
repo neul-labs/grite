@@ -26,7 +26,7 @@ pub struct DaemonLock {
     pub actor_id: String,
     /// Stable host identifier
     pub host_id: String,
-    /// IPC endpoint (e.g., "ipc:///tmp/grite-daemon.sock")
+    /// Unix socket path (e.g., "/tmp/grite-daemon.sock")
     pub ipc_endpoint: String,
     /// Lease duration in milliseconds
     pub lease_ms: u64,
@@ -79,12 +79,7 @@ impl DaemonLock {
 
     /// Remaining time until expiration in milliseconds
     pub fn time_remaining_ms(&self) -> u64 {
-        let now = current_time_ms();
-        if now >= self.expires_ts {
-            0
-        } else {
-            self.expires_ts - now
-        }
+        self.expires_ts.saturating_sub(current_time_ms())
     }
 
     /// Refresh the heartbeat and extend the lease
@@ -174,11 +169,8 @@ impl DaemonLock {
                 Ok(lock)
             }
             Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {
-                // Another process beat us to it
-                Err(IpcError::LockHeld {
-                    pid: 0,
-                    expires_in_ms: 0,
-                })
+                // Another process beat us to it between our remove and create
+                Err(IpcError::LockRace)
             }
             Err(e) => Err(e.into()),
         }
@@ -199,7 +191,7 @@ impl DaemonLock {
 fn current_time_ms() -> u64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
-        .unwrap()
+        .unwrap_or_default()
         .as_millis() as u64
 }
 
@@ -215,7 +207,7 @@ mod tests {
             "/repo".to_string(),
             "actor123".to_string(),
             "host456".to_string(),
-            "ipc:///tmp/test.sock".to_string(),
+            "/tmp/test.sock".to_string(),
         );
 
         assert_eq!(lock.pid, 1234);
@@ -231,7 +223,7 @@ mod tests {
             "/repo".to_string(),
             "actor".to_string(),
             "host".to_string(),
-            "ipc:///tmp/test.sock".to_string(),
+            "/tmp/test.sock".to_string(),
         );
 
         // Set expiration to the past
@@ -253,7 +245,7 @@ mod tests {
             "/repo".to_string(),
             "actor123".to_string(),
             "host456".to_string(),
-            "ipc:///tmp/test.sock".to_string(),
+            "/tmp/test.sock".to_string(),
         );
 
         // Write
@@ -276,7 +268,7 @@ mod tests {
             "/repo".to_string(),
             "actor".to_string(),
             "host".to_string(),
-            "ipc:///tmp/test.sock".to_string(),
+            "/tmp/test.sock".to_string(),
         )
         .unwrap();
 
@@ -300,7 +292,7 @@ mod tests {
             "/repo".to_string(),
             "actor".to_string(),
             "host".to_string(),
-            "ipc:///tmp/old.sock".to_string(),
+            "/tmp/old.sock".to_string(),
         );
         old_lock.expires_ts = 0; // Expired
         old_lock.write(data_dir).unwrap();
@@ -311,7 +303,7 @@ mod tests {
             "/repo".to_string(),
             "actor".to_string(),
             "host".to_string(),
-            "ipc:///tmp/new.sock".to_string(),
+            "/tmp/new.sock".to_string(),
         )
         .unwrap();
 
@@ -325,7 +317,7 @@ mod tests {
             "/repo".to_string(),
             "actor".to_string(),
             "host".to_string(),
-            "ipc:///tmp/test.sock".to_string(),
+            "/tmp/test.sock".to_string(),
         )
         .with_lease(60_000); // 60 seconds
 

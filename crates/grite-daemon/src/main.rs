@@ -6,44 +6,18 @@
 //! - Pub/sub notifications
 //! - Background sync operations
 
-mod error;
-mod supervisor;
-mod worker;
-
 use std::path::PathBuf;
 use std::time::Duration;
 
 use clap::Parser;
+use grite_daemon::supervisor::Supervisor;
 use tracing::{error, info};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
-
-use supervisor::Supervisor;
-
-/// Get the default IPC endpoint for the daemon.
-/// Uses user-specific path for security isolation.
-fn get_default_daemon_endpoint() -> String {
-    // Prefer XDG_RUNTIME_DIR which is properly secured by systemd
-    if let Ok(runtime_dir) = std::env::var("XDG_RUNTIME_DIR") {
-        return format!("ipc://{}/grite-daemon.sock", runtime_dir);
-    }
-
-    // Fallback: user-specific path in /tmp
-    #[cfg(unix)]
-    {
-        let uid = unsafe { libc::getuid() };
-        return format!("ipc:///tmp/grite-daemon-{}.sock", uid);
-    }
-
-    #[cfg(not(unix))]
-    {
-        "ipc:///tmp/grite-daemon.sock".to_string()
-    }
-}
 
 #[derive(Parser)]
 #[command(name = "grite-daemon", about = "Grite daemon", version)]
 struct Cli {
-    /// IPC endpoint (e.g., ipc:///tmp/grite-daemon.sock)
+    /// Unix socket path (e.g., /tmp/grite-daemon.sock)
     #[arg(long)]
     endpoint: Option<String>,
 
@@ -104,21 +78,11 @@ async fn main() {
     } else {
         None
     };
-    let endpoint = cli.endpoint.unwrap_or_else(get_default_daemon_endpoint);
-    let mut supervisor = Supervisor::new(endpoint, idle_timeout);
+    let endpoint = cli.endpoint.unwrap_or_else(libgrite_ipc::default_socket_path);
+    let supervisor = Supervisor::new(endpoint, idle_timeout);
 
-    tokio::select! {
-        result = supervisor.run() => {
-            if let Err(e) = result {
-                error!("Supervisor error: {}", e);
-            }
-        }
-        _ = shutdown => {
-            info!("Received shutdown signal");
-            // Trigger graceful shutdown through the supervisor so workers clean up
-            supervisor.trigger_shutdown();
-            supervisor.shutdown_workers().await;
-        }
+    if let Err(e) = supervisor.run(shutdown).await {
+        error!("Supervisor error: {}", e);
     }
 
     // Cleanup PID file
@@ -130,28 +94,26 @@ async fn main() {
 }
 
 /// Set up signal handlers for graceful shutdown
-fn setup_signal_handlers() -> impl std::future::Future<Output = ()> {
-    async {
-        let ctrl_c = async {
-            tokio::signal::ctrl_c()
-                .await
-                .expect("Failed to install Ctrl+C handler");
-        };
+async fn setup_signal_handlers() {
+    let ctrl_c = async {
+        tokio::signal::ctrl_c()
+            .await
+            .expect("Failed to install Ctrl+C handler");
+    };
 
-        #[cfg(unix)]
-        let terminate = async {
-            tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
-                .expect("Failed to install signal handler")
-                .recv()
-                .await;
-        };
+    #[cfg(unix)]
+    let terminate = async {
+        tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
+            .expect("Failed to install signal handler")
+            .recv()
+            .await;
+    };
 
-        #[cfg(not(unix))]
-        let terminate = std::future::pending::<()>();
+    #[cfg(not(unix))]
+    let terminate = std::future::pending::<()>();
 
-        tokio::select! {
-            _ = ctrl_c => {}
-            _ = terminate => {}
-        }
+    tokio::select! {
+        _ = ctrl_c => {}
+        _ = terminate => {}
     }
 }

@@ -22,7 +22,7 @@
 ### Milestone 3: Daemon and IPC
 
 - [x] Daemon supervisor/worker architecture
-- [x] IPC via nng (REQ/REP pattern)
+- [x] IPC via tokio Unix sockets
 - [x] CLI routes commands through daemon if present
 - [x] Daemon ownership lock with lease/heartbeat
 - [x] Multi-repo, multi-actor workers

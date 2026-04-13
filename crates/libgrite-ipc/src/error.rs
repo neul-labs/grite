@@ -41,9 +41,17 @@ pub enum IpcError {
     #[error("Lock held by process {pid} (expires in {expires_in_ms}ms)")]
     LockHeld { pid: u32, expires_in_ms: u64 },
 
+    /// Lost lock acquisition race (another process acquired it first)
+    #[error("Lock acquisition race lost: another process acquired the lock simultaneously")]
+    LockRace,
+
     /// Lock has expired
     #[error("Lock expired")]
     LockExpired,
+
+    /// Client is poisoned (stream has stale data from a previous failed exchange)
+    #[error("Client connection is poisoned after a previous error; reconnect to continue")]
+    ClientPoisoned,
 
     /// IO error
     #[error("IO error: {0}")]
@@ -52,16 +60,6 @@ pub enum IpcError {
     /// JSON error
     #[error("JSON error: {0}")]
     Json(#[from] serde_json::Error),
-
-    /// NNG error
-    #[error("NNG error: {0}")]
-    Nng(String),
-}
-
-impl From<nng::Error> for IpcError {
-    fn from(e: nng::Error) -> Self {
-        IpcError::Nng(e.to_string())
-    }
 }
 
 /// Error codes matching docs/cli-json.md

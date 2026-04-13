@@ -97,7 +97,7 @@ pip install grite-cli               # Python
 choco install grite                 # Windows
 ```
 
-**Prerequisites:** Git 2.38+ and nng library (`apt install libnng-dev` / `brew install nng` — bundled on Windows).
+**Prerequisites:** Git 2.38+.
 
 ## Quick Start
 

@@ -18,17 +18,6 @@ Thank you for your interest in contributing to Grite! This document provides gui
 
 - Rust 1.70+ (stable)
 - Git 2.38+
-- nng library
-
-On Ubuntu/Debian:
-```bash
-sudo apt install libnng-dev
-```
-
-On macOS:
-```bash
-brew install nng
-```
 
 ### Building
 

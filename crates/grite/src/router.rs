@@ -39,8 +39,8 @@ pub fn route_command(
             if !cli.no_daemon {
                 if let Ok(Some(endpoint)) = ensure_daemon_running(cli) {
                     // Daemon started, try to connect and route through it
-                    if let Ok(client) = IpcClient::connect(&endpoint) {
-                        let response = send_to_daemon(ctx, &client, command)?;
+                    if let Ok(mut client) = IpcClient::connect(&endpoint) {
+                        let response = send_to_daemon(ctx, &mut client, command)?;
                         return Ok(RouteResult::DaemonResponse(response));
                     }
                 }
@@ -48,8 +48,8 @@ pub fn route_command(
             // Fall back to local execution
             Ok(RouteResult::Local)
         }
-        ExecutionMode::Daemon { client, endpoint: _ } => {
-            let response = send_to_daemon(ctx, &client, command)?;
+        ExecutionMode::Daemon { mut client, endpoint: _ } => {
+            let response = send_to_daemon(ctx, &mut client, command)?;
             Ok(RouteResult::DaemonResponse(response))
         }
         ExecutionMode::Blocked { lock } => {
@@ -64,7 +64,7 @@ pub fn route_command(
 /// Send a command to the daemon
 fn send_to_daemon(
     ctx: &GriteContext,
-    client: &IpcClient,
+    client: &mut IpcClient,
     command: IpcCommand,
 ) -> Result<IpcResponse, GriteError> {
     let request = IpcRequest::new(

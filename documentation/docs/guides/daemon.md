@@ -55,7 +55,7 @@ Output:
 Daemon is running
   PID:            12345
   Host ID:        my-laptop
-  IPC Endpoint:   ipc:///tmp/grite-daemon.sock
+  IPC Endpoint:   /tmp/grite-daemon.sock
   Started:        2024-01-15 10:30:00 UTC
   Expires in:     4m 30s
 ```
@@ -188,7 +188,7 @@ grite daemon status --json
     "daemon": {
       "running": true,
       "pid": 12345,
-      "endpoint": "ipc:///tmp/grite-daemon.sock",
+      "endpoint": "/tmp/grite-daemon.sock",
       "workers": [
         {
           "repo_root": "/path/to/repo",

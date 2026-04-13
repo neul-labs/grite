@@ -44,7 +44,7 @@ pub fn run(cli: &Cli, use_snapshot: bool) -> Result<(), GriteError> {
 
 /// Send rebuild command through the daemon's IPC with a long timeout.
 fn rebuild_via_daemon(cli: &Cli, ctx: &GriteContext, endpoint: &str) -> Result<(), GriteError> {
-    let client = IpcClient::connect_with_timeout(endpoint, REBUILD_TIMEOUT_MS)
+    let mut client = IpcClient::connect_with_timeout(endpoint, REBUILD_TIMEOUT_MS)
         .map_err(|e| GriteError::Internal(format!("Failed to connect to daemon: {}", e)))?;
 
     let request = IpcRequest::new(
