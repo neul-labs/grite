@@ -11,7 +11,7 @@ use libgrite_git;
 use serde::Serialize;
 use crate::cli::{Cli, IssueCommand, LabelCommand, AssigneeCommand, LinkCommand, AttachmentCommand};
 use crate::context::GriteContext;
-use crate::output::output_success;
+use crate::output::{format_issue_table, output_success, IssueRow};
 use crate::event_helper::insert_and_append;
 
 /// Check lock for an issue operation
@@ -248,7 +248,20 @@ fn run_list(cli: &Cli, state: Option<String>, label: Option<String>) -> Result<(
     let total = issues.len();
     let issue_jsons: Vec<IssueSummaryJson> = issues.iter().map(IssueSummaryJson::from).collect();
 
-    output_success(cli, IssueListOutput { issues: issue_jsons, total });
+    if cli.json {
+        output_success(cli, IssueListOutput { issues: issue_jsons, total });
+    } else if !cli.quiet {
+        let rows: Vec<IssueRow> = issues
+            .iter()
+            .map(|i| IssueRow {
+                id: id_to_hex(&i.issue_id),
+                state: format!("{:?}", i.state).to_lowercase(),
+                title: i.title.clone(),
+                created_ts: i.created_ts,
+            })
+            .collect();
+        println!("{}", format_issue_table(&rows));
+    }
 
     Ok(())
 }

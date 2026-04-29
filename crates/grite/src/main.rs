@@ -128,12 +128,22 @@ fn output_daemon_data(cli: &Cli, data: &str) -> Result<(), GriteError> {
         if let Some(issues) = json.get("issues") {
             // Issue list response
             if let Some(arr) = issues.as_array() {
-                for issue in arr {
-                    let id = issue.get("issue_id").and_then(|v| v.as_str()).unwrap_or("?");
-                    let state = issue.get("state").and_then(|v| v.as_str()).unwrap_or("?");
-                    let title = issue.get("title").and_then(|v| v.as_str()).unwrap_or("?");
-                    println!("{} [{}] {}", &id[..8.min(id.len())], state, title);
-                }
+                let rows: Vec<output::IssueRow> = arr
+                    .iter()
+                    .map(|issue| {
+                        let id = issue.get("issue_id").and_then(|v| v.as_str()).unwrap_or("?");
+                        let state = issue.get("state").and_then(|v| v.as_str()).unwrap_or("?");
+                        let title = issue.get("title").and_then(|v| v.as_str()).unwrap_or("?");
+                        let created_ts = issue.get("created_ts").and_then(|v| v.as_u64()).unwrap_or(0);
+                        output::IssueRow {
+                            id: id.to_string(),
+                            state: state.to_string(),
+                            title: title.to_string(),
+                            created_ts,
+                        }
+                    })
+                    .collect();
+                println!("{}", output::format_issue_table(&rows));
             }
         } else if let Some(action) = json.get("action").and_then(|v| v.as_str()) {
             let issue_id = json.get("issue_id").and_then(|v| v.as_str()).unwrap_or("?");
