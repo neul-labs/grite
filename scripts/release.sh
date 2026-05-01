@@ -188,9 +188,9 @@ update_file() {
         echo "[DRY-RUN] $file: replace '$pattern' with '$replacement'"
     else
         if [[ "$OSTYPE" == "darwin"* ]]; then
-            sed -i '' -E "s/${pattern}/${replacement}/g" "$file"
+            sed -i '' -E "s#${pattern}#${replacement}#g" "$file"
         else
-            sed -i -E "s/${pattern}/${replacement}/g" "$file"
+            sed -i -E "s#${pattern}#${replacement}#g" "$file"
         fi
     fi
 }

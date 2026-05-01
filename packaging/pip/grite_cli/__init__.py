@@ -4,7 +4,7 @@ grite-cli: Git-backed issue tracking for coding agents and humans
 This package provides a wrapper around the grite binary.
 """
 
-__version__ = "0.3.0"
+__version__ = "0.4.0"
 
 import os
 import sys
