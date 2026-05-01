@@ -87,13 +87,13 @@ fn do_rebuild(
     if use_snapshot {
         // Snapshot-based rebuild: load from latest snapshot
         let snap_mgr = SnapshotManager::open(git_dir)
-            .map_err(|e| GriteError::Internal(e.to_string()))?;
+            ?;
         let wal_mgr = WalManager::open(git_dir)
-            .map_err(|e| GriteError::Internal(e.to_string()))?;
+            ?;
 
         // Get latest snapshot
         let snapshots = snap_mgr.list()
-            .map_err(|e| GriteError::Internal(e.to_string()))?;
+            ?;
 
         if snapshots.is_empty() {
             print_human(cli, "No snapshots found, falling back to full rebuild");
@@ -112,7 +112,7 @@ fn do_rebuild(
 
         // Read snapshot events
         let snapshot_events = snap_mgr.read(latest.oid)
-            .map_err(|e| GriteError::Internal(e.to_string()))?;
+            ?;
 
         let snap_count = snapshot_events.len();
 

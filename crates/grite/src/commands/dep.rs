@@ -31,14 +31,14 @@ fn parse_dep_type(s: &str) -> Result<DependencyType, GriteError> {
 fn current_ts() -> u64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
+        .unwrap_or_default()
         .as_millis() as u64
 }
 
 fn run_add(cli: &Cli, id: String, target: String, dep_type_str: String) -> Result<(), GriteError> {
     let ctx = GriteContext::resolve(cli)?;
     let store = ctx.open_store()?;
-    let wal = ctx.open_wal().map_err(|e| GriteError::Internal(e.to_string()))?;
+    let wal = ctx.open_wal()?;
 
     let issue_id = parse_issue_id(&id).map_err(|e| GriteError::InvalidArgs(format!("Invalid issue ID: {}", e)))?;
     let target_id = parse_issue_id(&target).map_err(|e| GriteError::InvalidArgs(format!("Invalid target ID: {}", e)))?;
@@ -88,7 +88,7 @@ fn run_add(cli: &Cli, id: String, target: String, dep_type_str: String) -> Resul
 fn run_remove(cli: &Cli, id: String, target: String, dep_type_str: String) -> Result<(), GriteError> {
     let ctx = GriteContext::resolve(cli)?;
     let store = ctx.open_store()?;
-    let wal = ctx.open_wal().map_err(|e| GriteError::Internal(e.to_string()))?;
+    let wal = ctx.open_wal()?;
 
     let issue_id = parse_issue_id(&id).map_err(|e| GriteError::InvalidArgs(format!("Invalid issue ID: {}", e)))?;
     let target_id = parse_issue_id(&target).map_err(|e| GriteError::InvalidArgs(format!("Invalid target ID: {}", e)))?;

@@ -23,6 +23,7 @@ use tokio::sync::{mpsc, Mutex, Semaphore};
 use tracing::{debug, info, warn};
 
 use crate::error::DaemonError;
+use crate::state::{AtomicSupervisorState, SupervisorState};
 use crate::worker::{Worker, WorkerMessage};
 
 /// Maximum concurrent connections the daemon will handle
@@ -33,6 +34,7 @@ struct WorkerHandle {
     tx: mpsc::Sender<WorkerMessage>,
     join_handle: Option<tokio::task::JoinHandle<()>>,
     repo_root: PathBuf,
+    state: Option<Arc<crate::state::AtomicWorkerState>>,
 }
 
 /// Key for worker lookup — one worker per repository
@@ -58,6 +60,7 @@ struct DaemonState {
     last_activity_ms: AtomicU64,
     start_instant: Instant,
     idle_timeout: Option<Duration>,
+    supervisor_state: AtomicSupervisorState,
 }
 
 impl DaemonState {
@@ -98,6 +101,7 @@ impl Supervisor {
             last_activity_ms: AtomicU64::new(0),
             start_instant,
             idle_timeout,
+            supervisor_state: AtomicSupervisorState::new(SupervisorState::Starting),
         });
 
         Self { state, notify_rx }
@@ -150,6 +154,10 @@ impl Supervisor {
         })?;
 
         info!("Listening on {}", self.state.socket_path);
+        self.state
+            .supervisor_state
+            .transition(SupervisorState::Running, Ordering::SeqCst)
+            .ok();
 
         // Spawn heartbeat task (also checks idle timeout)
         let state_hb = self.state.clone();
@@ -248,6 +256,10 @@ impl Supervisor {
         }
 
         // === Single cleanup path ===
+        self.state
+            .supervisor_state
+            .transition(SupervisorState::ShuttingDown, Ordering::SeqCst)
+            .ok();
 
         // Signal background tasks (heartbeat, notifications) to stop.
         // This is a no-op if shutdown was already triggered internally
@@ -272,6 +284,11 @@ impl Supervisor {
 
         // Now safe to drain — no connection tasks are running
         shutdown_workers(&self.state).await;
+
+        self.state
+            .supervisor_state
+            .transition(SupervisorState::Stopped, Ordering::SeqCst)
+            .ok();
 
         info!("Supervisor stopped");
         Ok(())
@@ -406,6 +423,7 @@ async fn process_request(raw: &[u8], state: &DaemonState) -> IpcResponse {
             let worker_count = workers_guard.len();
             drop(workers_guard);
 
+            let supervisor_state = format!("{:?}", state.supervisor_state.load(Ordering::SeqCst));
             return IpcResponse::success(
                 request.request_id,
                 Some(
@@ -417,6 +435,7 @@ async fn process_request(raw: &[u8], state: &DaemonState) -> IpcResponse {
                         "ipc_endpoint": state.socket_path,
                         "started_ts": state.started_ts,
                         "worker_count": worker_count,
+                        "state": supervisor_state,
                     })
                     .to_string(),
                 ),
@@ -522,6 +541,7 @@ async fn route_to_worker(request: IpcRequest, state: &DaemonState) -> IpcRespons
         }
 
         let repo_root = worker.repo_root.clone();
+        let worker_state = Some(worker.state.clone());
         let join_handle = tokio::spawn(worker.run());
 
         workers_guard.insert(
@@ -530,6 +550,7 @@ async fn route_to_worker(request: IpcRequest, state: &DaemonState) -> IpcRespons
                 tx: tx.clone(),
                 join_handle: Some(join_handle),
                 repo_root,
+                state: worker_state,
             },
         );
     }

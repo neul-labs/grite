@@ -259,10 +259,10 @@ impl GriteContext {
         }
 
         let lock_manager = self.open_lock_manager()
-            .map_err(|e| GriteError::Internal(e.to_string()))?;
+            ?;
 
         let result = lock_manager.check_conflicts(resource, &self.actor_id, policy)
-            .map_err(|e| GriteError::Internal(e.to_string()))?;
+            ?;
 
         if let LockCheckResult::Blocked(ref conflicts) = result {
             let conflict_desc: Vec<String> = conflicts.iter()

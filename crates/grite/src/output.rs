@@ -33,10 +33,16 @@ pub fn output_success<T: Serialize>(cli: &Cli, data: T) {
             data: Some(data),
             error: None,
         };
-        println!("{}", serde_json::to_string_pretty(&response).unwrap());
+        match serde_json::to_string_pretty(&response) {
+            Ok(json) => println!("{}", json),
+            Err(e) => eprintln!("error: failed to serialize response: {}", e),
+        }
     } else if !cli.quiet {
         // For human output, serialize to JSON and print nicely
-        println!("{}", serde_json::to_string_pretty(&data).unwrap());
+        match serde_json::to_string_pretty(&data) {
+            Ok(json) => println!("{}", json),
+            Err(e) => eprintln!("error: failed to serialize output: {}", e),
+        }
     }
 }
 
@@ -61,7 +67,10 @@ pub fn output_error(cli: &Cli, err: &GriteError) {
                 details,
             }),
         };
-        eprintln!("{}", serde_json::to_string_pretty(&response).unwrap());
+        match serde_json::to_string_pretty(&response) {
+            Ok(json) => eprintln!("{}", json),
+            Err(e) => eprintln!("error: failed to serialize error response: {}", e),
+        }
     } else {
         eprintln!("error: {}", err);
         // Print suggestions for human-readable output

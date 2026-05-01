@@ -202,7 +202,7 @@ pub enum ExportSince {
 pub fn export_json(store: &GriteStore, since: Option<ExportSince>) -> Result<JsonExport, GriteError> {
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
+        .unwrap_or_default()
         .as_millis() as u64;
 
     // Get all issues
@@ -252,7 +252,7 @@ pub fn export_markdown(store: &GriteStore, _since: Option<ExportSince>) -> Resul
 
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
+        .unwrap_or_default()
         .as_millis() as u64;
     md.push_str(&format!("Generated: {}\n\n", now));
 

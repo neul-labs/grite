@@ -62,6 +62,34 @@ pub enum IpcError {
     Json(#[from] serde_json::Error),
 }
 
+/// Bridge IpcError into GriteError, preserving semantic variants.
+impl From<IpcError> for libgrite_core::GriteError {
+    fn from(e: IpcError) -> Self {
+        match e {
+            IpcError::DaemonNotRunning => {
+                libgrite_core::GriteError::Ipc("Daemon not running".to_string())
+            }
+            IpcError::Timeout(_) => {
+                libgrite_core::GriteError::Ipc("IPC timeout".to_string())
+            }
+            IpcError::LockHeld { pid, expires_in_ms } => {
+                libgrite_core::GriteError::DbBusy(format!(
+                    "Daemon lock held by process {} (expires in {}s)", pid, expires_in_ms / 1000
+                ))
+            }
+            IpcError::LockRace => {
+                libgrite_core::GriteError::Conflict(
+                    "Another process acquired the daemon lock simultaneously".to_string()
+                )
+            }
+            IpcError::LockExpired => {
+                libgrite_core::GriteError::Ipc("Daemon lock expired".to_string())
+            }
+            other => libgrite_core::GriteError::Ipc(other.to_string()),
+        }
+    }
+}
+
 /// Error codes matching docs/cli-json.md
 pub mod codes {
     pub const DB_BUSY: &str = "db_busy";

@@ -15,7 +15,7 @@ use crate::types::*;
 fn current_ts() -> u64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
+        .unwrap_or_default()
         .as_millis() as u64
 }
 
@@ -31,7 +31,7 @@ impl<'a> LockGuard<'a> {
         let resource = format!("issue:{}", issue_id_hex);
         if should_lock {
             let lock_manager = ctx.open_lock_manager()
-                .map_err(|e| GriteError::Internal(e.to_string()))?;
+                ?;
             lock_manager.acquire(&resource, &ctx.actor_id, None)
                 .map_err(|e| match e {
                     libgrite_git::GitError::LockConflict { resource, owner, expires_in_ms } => {
@@ -65,11 +65,15 @@ pub fn issue_create(ctx: &GriteContext, opts: &IssueCreateOptions) -> Result<Iss
     match ctx.check_lock("repo:global")? {
         LockCheckResult::Clear => {}
         LockCheckResult::Warning(_) => {}
-        LockCheckResult::Blocked(_) => unreachable!(),
+        LockCheckResult::Blocked(_) => {
+            return Err(GriteError::Conflict(
+                "Repository is locked by another process".to_string()
+            ));
+        }
     }
 
     let store = ctx.open_store()?;
-    let wal = ctx.open_wal().map_err(|e| GriteError::Internal(e.to_string()))?;
+    let wal = ctx.open_wal()?;
     let actor = ctx.actor_config.actor_id_bytes()?;
 
     let issue_id = generate_issue_id();
@@ -135,7 +139,7 @@ pub fn issue_update(ctx: &GriteContext, opts: &IssueUpdateOptions) -> Result<Iss
     let _guard = LockGuard::acquire(ctx, &opts.issue_id, opts.acquire_lock)?;
 
     let store = ctx.open_store()?;
-    let wal = ctx.open_wal().map_err(|e| GriteError::Internal(e.to_string()))?;
+    let wal = ctx.open_wal()?;
     let actor = ctx.actor_config.actor_id_bytes()?;
 
     let issue_id = store.resolve_issue_id(&opts.issue_id)?;
@@ -164,7 +168,7 @@ pub fn issue_comment(ctx: &GriteContext, opts: &IssueCommentOptions) -> Result<I
     let _guard = LockGuard::acquire(ctx, &opts.issue_id, opts.acquire_lock)?;
 
     let store = ctx.open_store()?;
-    let wal = ctx.open_wal().map_err(|e| GriteError::Internal(e.to_string()))?;
+    let wal = ctx.open_wal()?;
     let actor = ctx.actor_config.actor_id_bytes()?;
 
     let issue_id = store.resolve_issue_id(&opts.issue_id)?;
@@ -190,7 +194,7 @@ pub fn issue_close(ctx: &GriteContext, opts: &IssueStateOptions) -> Result<Issue
     let _guard = LockGuard::acquire(ctx, &opts.issue_id, opts.acquire_lock)?;
 
     let store = ctx.open_store()?;
-    let wal = ctx.open_wal().map_err(|e| GriteError::Internal(e.to_string()))?;
+    let wal = ctx.open_wal()?;
     let actor = ctx.actor_config.actor_id_bytes()?;
 
     let issue_id = store.resolve_issue_id(&opts.issue_id)?;
@@ -217,7 +221,7 @@ pub fn issue_reopen(ctx: &GriteContext, opts: &IssueStateOptions) -> Result<Issu
     let _guard = LockGuard::acquire(ctx, &opts.issue_id, opts.acquire_lock)?;
 
     let store = ctx.open_store()?;
-    let wal = ctx.open_wal().map_err(|e| GriteError::Internal(e.to_string()))?;
+    let wal = ctx.open_wal()?;
     let actor = ctx.actor_config.actor_id_bytes()?;
 
     let issue_id = store.resolve_issue_id(&opts.issue_id)?;
@@ -244,7 +248,7 @@ pub fn issue_label(ctx: &GriteContext, opts: &IssueLabelOptions) -> Result<Issue
     let _guard = LockGuard::acquire(ctx, &opts.issue_id, opts.acquire_lock)?;
 
     let store = ctx.open_store()?;
-    let wal = ctx.open_wal().map_err(|e| GriteError::Internal(e.to_string()))?;
+    let wal = ctx.open_wal()?;
     let actor = ctx.actor_config.actor_id_bytes()?;
 
     let issue_id = store.resolve_issue_id(&opts.issue_id)?;
@@ -277,7 +281,7 @@ pub fn issue_assign(ctx: &GriteContext, opts: &IssueAssignOptions) -> Result<Iss
     let _guard = LockGuard::acquire(ctx, &opts.issue_id, opts.acquire_lock)?;
 
     let store = ctx.open_store()?;
-    let wal = ctx.open_wal().map_err(|e| GriteError::Internal(e.to_string()))?;
+    let wal = ctx.open_wal()?;
     let actor = ctx.actor_config.actor_id_bytes()?;
 
     let issue_id = store.resolve_issue_id(&opts.issue_id)?;
@@ -310,7 +314,7 @@ pub fn issue_link(ctx: &GriteContext, opts: &IssueLinkOptions) -> Result<IssueLi
     let _guard = LockGuard::acquire(ctx, &opts.issue_id, opts.acquire_lock)?;
 
     let store = ctx.open_store()?;
-    let wal = ctx.open_wal().map_err(|e| GriteError::Internal(e.to_string()))?;
+    let wal = ctx.open_wal()?;
     let actor = ctx.actor_config.actor_id_bytes()?;
 
     let issue_id = store.resolve_issue_id(&opts.issue_id)?;
@@ -339,7 +343,7 @@ pub fn issue_attach(ctx: &GriteContext, opts: &IssueAttachOptions) -> Result<Iss
     let _guard = LockGuard::acquire(ctx, &opts.issue_id, opts.acquire_lock)?;
 
     let store = ctx.open_store()?;
-    let wal = ctx.open_wal().map_err(|e| GriteError::Internal(e.to_string()))?;
+    let wal = ctx.open_wal()?;
     let actor = ctx.actor_config.actor_id_bytes()?;
 
     let issue_id = store.resolve_issue_id(&opts.issue_id)?;

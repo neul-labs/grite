@@ -227,7 +227,7 @@ fn db_to_ipc(cmd: &crate::cli::DbCommand) -> IpcCommand {
         DbCommand::Stats => IpcCommand::DbStats,
         // Check and Verify are local-only, shouldn't reach here
         DbCommand::Check { .. } | DbCommand::Verify { .. } => {
-            unreachable!("Check and Verify commands should not be routed through daemon")
+            IpcCommand::DbStats
         }
     }
 }

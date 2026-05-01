@@ -32,4 +32,8 @@ pub enum DaemonError {
     /// JSON error
     #[error("JSON error: {0}")]
     Json(#[from] serde_json::Error),
+
+    /// Invalid state transition
+    #[error("Invalid state transition from {from} to {to}")]
+    InvalidStateTransition { from: String, to: String },
 }

@@ -42,15 +42,15 @@ pub fn run(cli: &Cli, cmd: SnapshotCommand) -> Result<(), GriteError> {
 
 fn run_create(cli: &Cli) -> Result<(), GriteError> {
     let ctx = GriteContext::resolve(cli)?;
-    let wal = ctx.open_wal().map_err(|e| GriteError::Internal(e.to_string()))?;
-    let snapshot_mgr = ctx.open_snapshot().map_err(|e| GriteError::Internal(e.to_string()))?;
+    let wal = ctx.open_wal()?;
+    let snapshot_mgr = ctx.open_snapshot()?;
 
     // Get current WAL head
-    let wal_head = wal.head().map_err(|e| GriteError::Internal(e.to_string()))?
+    let wal_head = wal.head()?
         .ok_or_else(|| GriteError::NotFound("No WAL commits found".to_string()))?;
 
     // Read all events from WAL
-    let events = wal.read_all().map_err(|e| GriteError::Internal(e.to_string()))?;
+    let events = wal.read_all()?;
 
     if events.is_empty() {
         return Err(GriteError::InvalidArgs("No events to snapshot".to_string()));
@@ -58,7 +58,7 @@ fn run_create(cli: &Cli) -> Result<(), GriteError> {
 
     // Create snapshot
     let oid = snapshot_mgr.create(wal_head, &events)
-        .map_err(|e| GriteError::Internal(e.to_string()))?;
+        ?;
 
     output_success(cli, SnapshotCreateOutput {
         oid: oid.to_string(),
@@ -71,9 +71,9 @@ fn run_create(cli: &Cli) -> Result<(), GriteError> {
 
 fn run_list(cli: &Cli) -> Result<(), GriteError> {
     let ctx = GriteContext::resolve(cli)?;
-    let snapshot_mgr = ctx.open_snapshot().map_err(|e| GriteError::Internal(e.to_string()))?;
+    let snapshot_mgr = ctx.open_snapshot()?;
 
-    let snapshots = snapshot_mgr.list().map_err(|e| GriteError::Internal(e.to_string()))?;
+    let snapshots = snapshot_mgr.list()?;
     let total = snapshots.len();
 
     let snapshot_infos: Vec<SnapshotInfo> = snapshots.into_iter()
@@ -94,9 +94,9 @@ fn run_list(cli: &Cli) -> Result<(), GriteError> {
 
 fn run_gc(cli: &Cli, keep: usize) -> Result<(), GriteError> {
     let ctx = GriteContext::resolve(cli)?;
-    let snapshot_mgr = ctx.open_snapshot().map_err(|e| GriteError::Internal(e.to_string()))?;
+    let snapshot_mgr = ctx.open_snapshot()?;
 
-    let stats = snapshot_mgr.gc(keep).map_err(|e| GriteError::Internal(e.to_string()))?;
+    let stats = snapshot_mgr.gc(keep)?;
 
     output_success(cli, SnapshotGcOutput {
         deleted: stats.deleted,

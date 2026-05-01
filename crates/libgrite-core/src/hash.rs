@@ -49,7 +49,9 @@ pub fn build_canonical_cbor(
     ]);
 
     let mut buf = Vec::new();
-    ciborium::into_writer(&array, &mut buf).expect("CBOR serialization should not fail");
+    // ciborium::into_writer only fails for types we never use (NaN, infinite floats, etc.).
+    // Our Value types are integers, bytes, text, arrays, and null — all guaranteed to serialize.
+    ciborium::into_writer(&array, &mut buf).expect("CBOR serialization of known-safe types should not fail");
     buf
 }
 

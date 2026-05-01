@@ -25,7 +25,7 @@ impl ActorConfig {
     pub fn new(actor_id: ActorId, label: Option<String>) -> Self {
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
+            .unwrap_or_default()
             .as_millis() as u64;
 
         Self {

@@ -66,7 +66,7 @@ fn run_acquire(cli: &Cli, resource: String, ttl_seconds: u64) -> Result<(), Grit
     let ctx = GriteContext::resolve(cli)?;
     let git_dir = ctx.repo_root().join(".git");
     let manager = LockManager::open(&git_dir)
-        .map_err(|e| GriteError::Internal(e.to_string()))?;
+        ?;
 
     let ttl_ms = ttl_seconds * 1000;
     let lock = manager.acquire(&resource, &ctx.actor_id, Some(ttl_ms))
@@ -95,7 +95,7 @@ fn run_release(cli: &Cli, resource: String) -> Result<(), GriteError> {
     let ctx = GriteContext::resolve(cli)?;
     let git_dir = ctx.repo_root().join(".git");
     let manager = LockManager::open(&git_dir)
-        .map_err(|e| GriteError::Internal(e.to_string()))?;
+        ?;
 
     manager.release(&resource, &ctx.actor_id)
         .map_err(|e| match e {
@@ -120,7 +120,7 @@ fn run_renew(cli: &Cli, resource: String, ttl_seconds: u64) -> Result<(), GriteE
     let ctx = GriteContext::resolve(cli)?;
     let git_dir = ctx.repo_root().join(".git");
     let manager = LockManager::open(&git_dir)
-        .map_err(|e| GriteError::Internal(e.to_string()))?;
+        ?;
 
     let ttl_ms = ttl_seconds * 1000;
     let lock = manager.renew(&resource, &ctx.actor_id, Some(ttl_ms))
@@ -148,10 +148,10 @@ fn run_status(cli: &Cli) -> Result<(), GriteError> {
     let ctx = GriteContext::resolve(cli)?;
     let git_dir = ctx.repo_root().join(".git");
     let manager = LockManager::open(&git_dir)
-        .map_err(|e| GriteError::Internal(e.to_string()))?;
+        ?;
 
     let locks = manager.list_locks()
-        .map_err(|e| GriteError::Internal(e.to_string()))?;
+        ?;
 
     let lock_infos: Vec<LockInfo> = locks.iter().map(|lock| {
         LockInfo {
@@ -177,10 +177,10 @@ fn run_gc(cli: &Cli) -> Result<(), GriteError> {
     let ctx = GriteContext::resolve(cli)?;
     let git_dir = ctx.repo_root().join(".git");
     let manager = LockManager::open(&git_dir)
-        .map_err(|e| GriteError::Internal(e.to_string()))?;
+        ?;
 
     let stats = manager.gc()
-        .map_err(|e| GriteError::Internal(e.to_string()))?;
+        ?;
 
     output_success(cli, LockGcOutput {
         removed: stats.removed,

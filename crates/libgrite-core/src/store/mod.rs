@@ -546,7 +546,7 @@ impl GriteStore {
         // Update rebuild timestamp and reset counter
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
+            .unwrap_or_default()
             .as_millis() as u64;
         self.metadata.insert("last_rebuild_ts", &now.to_le_bytes())?;
         self.metadata.insert("events_since_rebuild", &0u64.to_le_bytes())?;
@@ -599,7 +599,7 @@ impl GriteStore {
         // Update rebuild timestamp and reset counter
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
+            .unwrap_or_default()
             .as_millis() as u64;
         self.metadata.insert("last_rebuild_ts", &now.to_le_bytes())?;
         self.metadata.insert("events_since_rebuild", &0u64.to_le_bytes())?;
@@ -631,7 +631,7 @@ impl GriteStore {
         // Calculate days since last rebuild
         let now_ms = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
+            .unwrap_or_default()
             .as_millis() as u64;
 
         let days_since_rebuild = last_rebuild_ts.map(|ts| {

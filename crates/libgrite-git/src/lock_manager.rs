@@ -10,6 +10,14 @@ use libgrite_core::{Lock, LockPolicy, LockCheckResult, resource_hash, DEFAULT_LO
 
 use crate::GitError;
 
+/// Internal error for lock acquire fast-path
+enum LockAcquireError {
+    /// Ref already exists
+    Exists,
+    /// Git error
+    Git(GitError),
+}
+
 /// Statistics from lock garbage collection
 #[derive(Debug, Clone, Default)]
 pub struct LockGcStats {
@@ -34,33 +42,82 @@ impl LockManager {
     /// Acquire a lock on a resource
     ///
     /// Returns the lock if acquired, or an error if a conflicting lock exists
-    pub fn acquire(&self, resource: &str, owner: &str, ttl_ms: Option<u64>) -> Result<Lock, GitError> {
+    pub fn acquire(
+        &self,
+        resource: &str,
+        owner: &str,
+        ttl_ms: Option<u64>,
+    ) -> Result<Lock, GitError> {
         let ttl = ttl_ms.unwrap_or(DEFAULT_LOCK_TTL_MS);
         let ref_name = lock_ref_name(resource);
+        let lock = Lock::new(owner.to_string(), resource.to_string(), ttl);
 
-        // Check if lock already exists
-        if let Some(existing) = self.read_lock(resource)? {
-            if !existing.is_expired() {
-                if existing.owner == owner {
-                    // Already owned by this actor - renew it
-                    return self.renew(resource, owner, Some(ttl));
-                } else {
-                    let expires_in_ms = existing.time_remaining_ms();
-                    return Err(GitError::LockConflict {
-                        resource: resource.to_string(),
-                        owner: existing.owner,
-                        expires_in_ms,
-                    });
+        // Try atomic create-if-not-exists (fast path)
+        match self.try_create_lock(&ref_name, &lock) {
+            Ok(()) => return Ok(lock),
+            Err(LockAcquireError::Exists) => {
+                // Slow path: read existing, handle expired / owned-by-us
+                if let Some(existing) = self.read_lock(resource)? {
+                    if !existing.is_expired() {
+                        if existing.owner == owner {
+                            // Already owned by this actor - return as-is
+                            return Ok(existing);
+                        } else {
+                            let expires_in_ms = existing.time_remaining_ms();
+                            return Err(GitError::LockConflict {
+                                resource: resource.to_string(),
+                                owner: existing.owner,
+                                expires_in_ms,
+                            });
+                        }
+                    }
+                    // Lock is expired - delete and retry
+                    self.delete_ref(&ref_name)?;
+                    match self.try_create_lock(&ref_name, &lock) {
+                        Ok(()) => return Ok(lock),
+                        Err(LockAcquireError::Exists) => {
+                            if let Some(other) = self.read_lock(resource)? {
+                                if !other.is_expired() {
+                                    return Err(GitError::LockConflict {
+                                        resource: resource.to_string(),
+                                        owner: other.owner.clone(),
+                                        expires_in_ms: other.time_remaining_ms(),
+                                    });
+                                }
+                            }
+                            return Err(GitError::LockConflict {
+                                resource: resource.to_string(),
+                                owner: "unknown".to_string(),
+                                expires_in_ms: 0,
+                            });
+                        }
+                        Err(LockAcquireError::Git(e)) => return Err(e),
+                    }
+                }
+                // Race: lock was deleted between read and delete
+                match self.try_create_lock(&ref_name, &lock) {
+                    Ok(()) => return Ok(lock),
+                    Err(LockAcquireError::Exists) => {
+                        if let Some(other) = self.read_lock(resource)? {
+                            if !other.is_expired() {
+                                return Err(GitError::LockConflict {
+                                    resource: resource.to_string(),
+                                    owner: other.owner.clone(),
+                                    expires_in_ms: other.time_remaining_ms(),
+                                });
+                            }
+                        }
+                        return Err(GitError::LockConflict {
+                            resource: resource.to_string(),
+                            owner: "unknown".to_string(),
+                            expires_in_ms: 0,
+                        });
+                    }
+                    Err(LockAcquireError::Git(e)) => return Err(e),
                 }
             }
-            // Lock is expired, we can take it
+            Err(LockAcquireError::Git(e)) => return Err(e),
         }
-
-        // Create new lock
-        let lock = Lock::new(owner.to_string(), resource.to_string(), ttl);
-        self.write_lock(&ref_name, &lock)?;
-
-        Ok(lock)
     }
 
     /// Release a lock
@@ -209,8 +266,23 @@ impl LockManager {
         Ok(Some(lock))
     }
 
-    /// Write lock to a ref
-    fn write_lock(&self, ref_name: &str, lock: &Lock) -> Result<(), GitError> {
+    /// Try to create a lock ref atomically (fail if it already exists).
+    fn try_create_lock(&self, ref_name: &str, lock: &Lock) -> Result<(), LockAcquireError> {
+        let commit_oid = match self.write_lock_commit(lock) {
+            Ok(oid) => oid,
+            Err(e) => return Err(LockAcquireError::Git(e.into())),
+        };
+        match self.repo.reference(ref_name, commit_oid, false, "lock acquire") {
+            Ok(_) => Ok(()),
+            Err(e) if e.code() == git2::ErrorCode::Exists => Err(LockAcquireError::Exists),
+            Err(e) => Err(LockAcquireError::Git(e.into())),
+        }
+    }
+
+    /// Create the commit for a lock and return its OID (does not update any ref).
+    fn write_lock_commit(&self,
+        lock: &Lock,
+    ) -> Result<git2::Oid, GitError> {
         let json = serde_json::to_string_pretty(lock)
             .map_err(|e| GitError::ParseError(e.to_string()))?;
 
@@ -227,15 +299,14 @@ impl LockManager {
         let sig = Signature::now("grite", "grit@localhost")?;
         let message = format!("Lock: {}", lock.resource);
 
-        // Get parent commit if ref exists
-        let parent = self.repo.find_reference(ref_name)
+        let parent = self.repo.find_reference(&lock_ref_name(&lock.resource))
             .ok()
             .and_then(|r| r.peel_to_commit().ok());
 
         let parents: Vec<&git2::Commit> = parent.iter().collect();
 
-        let _commit_id = self.repo.commit(
-            Some(ref_name),
+        let commit_oid = self.repo.commit(
+            None,
             &sig,
             &sig,
             &message,
@@ -243,6 +314,13 @@ impl LockManager {
             &parents,
         )?;
 
+        Ok(commit_oid)
+    }
+
+    /// Write lock to a ref (overwrites existing).
+    fn write_lock(&self, ref_name: &str, lock: &Lock) -> Result<(), GitError> {
+        let commit_oid = self.write_lock_commit(lock)?;
+        self.repo.reference(ref_name, commit_oid, true, "lock update")?;
         Ok(())
     }
 

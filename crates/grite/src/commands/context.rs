@@ -27,14 +27,14 @@ pub fn run(cli: &Cli, cmd: ContextCommand) -> Result<(), GriteError> {
 fn current_ts() -> u64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
+        .unwrap_or_default()
         .as_millis() as u64
 }
 
 fn run_index(cli: &Cli, paths: Vec<String>, force: bool, pattern: Option<String>) -> Result<(), GriteError> {
     let ctx = GriteContext::resolve(cli)?;
     let store = ctx.open_store()?;
-    let wal = ctx.open_wal().map_err(|e| GriteError::Internal(e.to_string()))?;
+    let wal = ctx.open_wal()?;
 
     let actor_id_bytes = libgrite_core::types::ids::hex_to_id::<16>(&ctx.actor_id)
         .map_err(|e| GriteError::InvalidArgs(format!("Invalid actor ID: {}", e)))?;
@@ -194,7 +194,7 @@ fn run_project(cli: &Cli, key: Option<String>) -> Result<(), GriteError> {
 fn run_set(cli: &Cli, key: String, value: String) -> Result<(), GriteError> {
     let ctx = GriteContext::resolve(cli)?;
     let store = ctx.open_store()?;
-    let wal = ctx.open_wal().map_err(|e| GriteError::Internal(e.to_string()))?;
+    let wal = ctx.open_wal()?;
 
     let actor_id_bytes = libgrite_core::types::ids::hex_to_id::<16>(&ctx.actor_id)
         .map_err(|e| GriteError::InvalidArgs(format!("Invalid actor ID: {}", e)))?;

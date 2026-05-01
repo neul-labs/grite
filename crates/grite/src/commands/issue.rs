@@ -35,10 +35,9 @@ fn check_issue_lock(cli: &Cli, ctx: &GriteContext, issue_id_hex: &str) -> Result
             }
             Ok(())
         }
-        LockCheckResult::Blocked(_) => {
-            // This case is handled by ctx.check_lock returning Err
-            unreachable!()
-        }
+        LockCheckResult::Blocked(_) => Err(GriteError::Conflict(
+            "Repository is locked by another process".to_string()
+        )),
     }
 }
 
@@ -59,7 +58,9 @@ fn check_repo_lock(cli: &Cli, ctx: &GriteContext) -> Result<(), GriteError> {
             }
             Ok(())
         }
-        LockCheckResult::Blocked(_) => unreachable!(),
+        LockCheckResult::Blocked(_) => Err(GriteError::Conflict(
+            "Repository is locked by another process".to_string()
+        )),
     }
 }
 
@@ -76,7 +77,7 @@ impl<'a> LockGuard<'a> {
         let resource = format!("issue:{}", issue_id_hex);
         if should_lock {
             let lock_manager = ctx.open_lock_manager()
-                .map_err(|e| GriteError::Internal(e.to_string()))?;
+                ?;
             lock_manager.acquire(&resource, &ctx.actor_id, None)
                 .map_err(|e| match e {
                     libgrite_git::GitError::LockConflict { resource, owner, expires_in_ms } => {
@@ -195,7 +196,7 @@ pub fn run(cli: &Cli, cmd: IssueCommand) -> Result<(), GriteError> {
 fn current_ts() -> u64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
+        .unwrap_or_default()
         .as_millis() as u64
 }
 
@@ -206,7 +207,7 @@ fn run_create(cli: &Cli, title: String, body: String, labels: Vec<String>) -> Re
     check_repo_lock(cli, &ctx)?;
 
     let store = ctx.open_store()?;
-    let wal = ctx.open_wal().map_err(|e| GriteError::Internal(e.to_string()))?;
+    let wal = ctx.open_wal()?;
     let actor = ctx.actor_config.actor_id_bytes()?;
 
     let issue_id = generate_issue_id();
@@ -310,7 +311,7 @@ fn run_update(cli: &Cli, id: String, title: Option<String>, body: Option<String>
     }
 
     let store = ctx.open_store()?;
-    let wal = ctx.open_wal().map_err(|e| GriteError::Internal(e.to_string()))?;
+    let wal = ctx.open_wal()?;
     let actor = ctx.actor_config.actor_id_bytes()?;
 
     let issue_id = store.resolve_issue_id(&id)?;
@@ -346,7 +347,7 @@ fn run_comment(cli: &Cli, id: String, body: String, lock: bool) -> Result<(), Gr
     }
 
     let store = ctx.open_store()?;
-    let wal = ctx.open_wal().map_err(|e| GriteError::Internal(e.to_string()))?;
+    let wal = ctx.open_wal()?;
     let actor = ctx.actor_config.actor_id_bytes()?;
 
     let issue_id = store.resolve_issue_id(&id)?;
@@ -382,7 +383,7 @@ fn run_close(cli: &Cli, id: String, lock: bool) -> Result<(), GriteError> {
     }
 
     let store = ctx.open_store()?;
-    let wal = ctx.open_wal().map_err(|e| GriteError::Internal(e.to_string()))?;
+    let wal = ctx.open_wal()?;
     let actor = ctx.actor_config.actor_id_bytes()?;
 
     let issue_id = store.resolve_issue_id(&id)?;
@@ -419,7 +420,7 @@ fn run_reopen(cli: &Cli, id: String, lock: bool) -> Result<(), GriteError> {
     }
 
     let store = ctx.open_store()?;
-    let wal = ctx.open_wal().map_err(|e| GriteError::Internal(e.to_string()))?;
+    let wal = ctx.open_wal()?;
     let actor = ctx.actor_config.actor_id_bytes()?;
 
     let issue_id = store.resolve_issue_id(&id)?;
@@ -455,7 +456,7 @@ fn run_label(cli: &Cli, cmd: LabelCommand) -> Result<(), GriteError> {
                 check_issue_lock(cli, &ctx, &id)?;
             }
             let store = ctx.open_store()?;
-            let wal = ctx.open_wal().map_err(|e| GriteError::Internal(e.to_string()))?;
+            let wal = ctx.open_wal()?;
             let actor = ctx.actor_config.actor_id_bytes()?;
 
             let issue_id = store.resolve_issue_id(&id)?;
@@ -483,7 +484,7 @@ fn run_label(cli: &Cli, cmd: LabelCommand) -> Result<(), GriteError> {
                 check_issue_lock(cli, &ctx, &id)?;
             }
             let store = ctx.open_store()?;
-            let wal = ctx.open_wal().map_err(|e| GriteError::Internal(e.to_string()))?;
+            let wal = ctx.open_wal()?;
             let actor = ctx.actor_config.actor_id_bytes()?;
 
             let issue_id = store.resolve_issue_id(&id)?;
@@ -517,7 +518,7 @@ fn run_assignee(cli: &Cli, cmd: AssigneeCommand) -> Result<(), GriteError> {
                 check_issue_lock(cli, &ctx, &id)?;
             }
             let store = ctx.open_store()?;
-            let wal = ctx.open_wal().map_err(|e| GriteError::Internal(e.to_string()))?;
+            let wal = ctx.open_wal()?;
             let actor = ctx.actor_config.actor_id_bytes()?;
 
             let issue_id = store.resolve_issue_id(&id)?;
@@ -545,7 +546,7 @@ fn run_assignee(cli: &Cli, cmd: AssigneeCommand) -> Result<(), GriteError> {
                 check_issue_lock(cli, &ctx, &id)?;
             }
             let store = ctx.open_store()?;
-            let wal = ctx.open_wal().map_err(|e| GriteError::Internal(e.to_string()))?;
+            let wal = ctx.open_wal()?;
             let actor = ctx.actor_config.actor_id_bytes()?;
 
             let issue_id = store.resolve_issue_id(&id)?;
@@ -579,7 +580,7 @@ fn run_link(cli: &Cli, cmd: LinkCommand) -> Result<(), GriteError> {
                 check_issue_lock(cli, &ctx, &id)?;
             }
             let store = ctx.open_store()?;
-            let wal = ctx.open_wal().map_err(|e| GriteError::Internal(e.to_string()))?;
+            let wal = ctx.open_wal()?;
             let actor = ctx.actor_config.actor_id_bytes()?;
 
             let issue_id = store.resolve_issue_id(&id)?;
@@ -613,7 +614,7 @@ fn run_attachment(cli: &Cli, cmd: AttachmentCommand) -> Result<(), GriteError> {
                 check_issue_lock(cli, &ctx, &id)?;
             }
             let store = ctx.open_store()?;
-            let wal = ctx.open_wal().map_err(|e| GriteError::Internal(e.to_string()))?;
+            let wal = ctx.open_wal()?;
             let actor = ctx.actor_config.actor_id_bytes()?;
 
             let issue_id = store.resolve_issue_id(&id)?;

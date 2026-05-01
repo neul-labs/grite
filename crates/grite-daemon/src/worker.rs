@@ -22,6 +22,7 @@ use tokio::sync::mpsc;
 use tracing::{debug, error, info, warn};
 
 use crate::error::DaemonError;
+use crate::state::{AtomicWorkerState, WorkerState};
 
 /// Message sent to a worker
 pub enum WorkerMessage {
@@ -61,6 +62,8 @@ pub struct Worker {
     ipc_endpoint: String,
     /// Owner actor ID used when acquiring the daemon lock
     owner_actor_id: String,
+    /// Current lifecycle state
+    pub state: Arc<AtomicWorkerState>,
 }
 
 impl Worker {
@@ -79,10 +82,14 @@ impl Worker {
 
         // Open store with filesystem lock (blocking with timeout)
         // This ensures exclusive process-level access to the sled database
+        let state = Arc::new(AtomicWorkerState::new(WorkerState::Initializing));
+
         let store = Arc::new(GriteStore::open_locked_blocking(
             &sled_path,
             Duration::from_secs(5),
         )?);
+
+        state.store(WorkerState::Idle, Ordering::SeqCst);
 
         Ok(Self {
             repo_root,
@@ -95,6 +102,7 @@ impl Worker {
             host_id,
             ipc_endpoint,
             owner_actor_id,
+            state,
         })
     }
 
@@ -150,6 +158,7 @@ impl Worker {
 
         // Track in-flight commands so we can wait for them on shutdown
         let in_flight = Arc::new(AtomicUsize::new(0));
+        let worker_state = Arc::clone(&self.state);
 
         // Event loop - commands are spawned as concurrent tasks
         while let Some(msg) = self.rx.recv().await {
@@ -179,22 +188,40 @@ impl Worker {
                     let sled_path = self.sled_path.clone();
                     let git_dir = self.git_dir.clone();
                     let in_flight = Arc::clone(&in_flight);
+                    let state = Arc::clone(&worker_state);
 
+                    let was_idle = in_flight.load(Ordering::SeqCst) == 0;
                     in_flight.fetch_add(1, Ordering::SeqCst);
+                    if was_idle {
+                        state.store(WorkerState::Busy, Ordering::SeqCst);
+                    }
 
                     // Run on the blocking thread pool — sled and git2 do
                     // synchronous I/O that must not starve the async runtime.
                     tokio::task::spawn_blocking(move || {
-                        let response = execute_command(
-                            &store,
-                            actor_id_bytes,
-                            &sled_path,
-                            &git_dir,
-                            &request_id,
-                            &command,
-                        );
+                        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                            execute_command(
+                                &store,
+                                actor_id_bytes,
+                                &sled_path,
+                                &git_dir,
+                                &request_id,
+                                &command,
+                            )
+                        }));
+                        let response = match result {
+                            Ok(resp) => resp,
+                            Err(_) => IpcResponse::error(
+                                request_id,
+                                "panic".to_string(),
+                                "Command handler panicked".to_string(),
+                            ),
+                        };
                         let _ = response_tx.send(response);
-                        in_flight.fetch_sub(1, Ordering::SeqCst);
+                        let remaining = in_flight.fetch_sub(1, Ordering::SeqCst);
+                        if remaining == 1 {
+                            state.store(WorkerState::Idle, Ordering::SeqCst);
+                        }
                     });
                 }
                 WorkerMessage::Heartbeat => {
@@ -203,6 +230,7 @@ impl Worker {
                     }
                 }
                 WorkerMessage::Shutdown => {
+                    worker_state.store(WorkerState::ShuttingDown, Ordering::SeqCst);
                     info!("Worker shutdown requested");
                     break;
                 }
@@ -224,6 +252,7 @@ impl Worker {
 
         // Cleanup
         self.shutdown();
+        self.state.store(WorkerState::Stopped, Ordering::SeqCst);
     }
 
     /// Shutdown cleanup
@@ -283,7 +312,13 @@ fn execute_command_inner(
     use libgrite_git::{SyncManager, WalManager};
 
     // Open WAL (best-effort — sled operations work without it)
-    let wal = WalManager::open(git_dir).ok();
+    let wal = match WalManager::open(git_dir) {
+        Ok(w) => Some(w),
+        Err(e) => {
+            warn!("WAL open failed (sled-only mode): {}", e);
+            None
+        }
+    };
 
     /// Persist events to both sled store and WAL.
     /// WAL append is best-effort — failures are logged but don't fail the operation.
@@ -699,15 +734,21 @@ fn execute_command_inner(
             } else {
                 store.get_dependencies(&id)?
             };
-            let dep_list: Vec<serde_json::Value> = deps.iter().map(|(target, dep_type)| {
-                let title = store.get_issue(target).ok().flatten()
-                    .map(|p| p.title.clone()).unwrap_or_else(|| "?".to_string());
-                serde_json::json!({
-                    "issue_id": id_to_hex(target),
-                    "dep_type": dep_type.as_str(),
-                    "title": title,
+            let dep_list: Vec<serde_json::Value> = deps
+                .iter()
+                .map(|(target, dep_type)| {
+                    let title = match store.get_issue(target) {
+                        Ok(Some(p)) => p.title.clone(),
+                        Ok(None) => "?".to_string(),
+                        Err(e) => return Err(DaemonError::Core(e)),
+                    };
+                    Ok(serde_json::json!({
+                        "issue_id": id_to_hex(target),
+                        "dep_type": dep_type.as_str(),
+                        "title": title,
+                    }))
                 })
-            }).collect();
+                .collect::<Result<Vec<_>, DaemonError>>()?;
             let json = serde_json::to_string(&serde_json::json!({
                 "issue_id": issue_id,
                 "direction": if *reverse { "dependents" } else { "dependencies" },
@@ -744,7 +785,9 @@ fn execute_command_inner(
         // DaemonStatus and DaemonStop are handled at the supervisor level
         // in process_request() and never reach the worker.
         IpcCommand::DaemonStatus | IpcCommand::DaemonStop => {
-            unreachable!("handled by supervisor before routing to worker")
+            Err(DaemonError::Core(GriteError::Internal(
+                "supervisor-only command received by worker".to_string()
+            )))
         }
 
         IpcCommand::Sync { remote, pull, push } => {

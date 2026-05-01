@@ -21,6 +21,7 @@
 //! ```
 
 pub mod error;
+pub mod state;
 pub mod supervisor;
 pub mod worker;
 pub mod signals;

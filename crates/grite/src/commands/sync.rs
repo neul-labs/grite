@@ -25,7 +25,9 @@ fn check_push_lock(cli: &Cli, ctx: &GriteContext) -> Result<(), GriteError> {
             }
             Ok(())
         }
-        LockCheckResult::Blocked(_) => unreachable!(),
+        LockCheckResult::Blocked(_) => Err(GriteError::Conflict(
+            "Repository is locked by another process".to_string()
+        )),
     }
 }
 
@@ -60,7 +62,7 @@ struct PushOutput {
 
 pub fn run(cli: &Cli, remote: String, pull_only: bool, push_only: bool) -> Result<(), GriteError> {
     let ctx = GriteContext::resolve(cli)?;
-    let sync_mgr = ctx.open_sync().map_err(|e| GriteError::Internal(e.to_string()))?;
+    let sync_mgr = ctx.open_sync()?;
 
     // Parse actor_id for push operations that may need rebase
     let actor_id: ActorId = hex::decode(&ctx.actor_id)
@@ -84,7 +86,7 @@ pub fn run(cli: &Cli, remote: String, pull_only: bool, push_only: bool) -> Resul
 
     if do_pull && !do_push {
         // Pull only
-        let result = sync_mgr.pull(&remote).map_err(|e| GriteError::Internal(e.to_string()))?;
+        let result = sync_mgr.pull(&remote)?;
 
         // Human-readable output
         if result.events_pulled > 0 {
@@ -102,7 +104,7 @@ pub fn run(cli: &Cli, remote: String, pull_only: bool, push_only: bool) -> Resul
     } else if do_push && !do_pull {
         // Push only with auto-rebase on conflict
         let result = sync_mgr.push_with_rebase(&remote, &actor_id)
-            .map_err(|e| GriteError::Internal(e.to_string()))?;
+            ?;
 
         // Human-readable output with conflict reporting
         if result.rebased {
@@ -127,7 +129,7 @@ pub fn run(cli: &Cli, remote: String, pull_only: bool, push_only: bool) -> Resul
     } else {
         // Full sync: pull then push with auto-rebase
         let (pull_result, push_result) = sync_mgr.sync_with_rebase(&remote, &actor_id)
-            .map_err(|e| GriteError::Internal(e.to_string()))?;
+            ?;
 
         // Human-readable output with conflict reporting
         if pull_result.events_pulled > 0 {
@@ -173,14 +175,14 @@ fn backfill_wal_if_needed(
 ) -> Result<Option<usize>, GriteError> {
     let git_dir = ctx.repo_root().join(".git");
     let wal = WalManager::open(&git_dir)
-        .map_err(|e| GriteError::Internal(e.to_string()))?;
+        ?;
 
-    if wal.head().map_err(|e| GriteError::Internal(e.to_string()))?.is_some() {
+    if wal.head()?.is_some() {
         return Ok(None);
     }
 
     let store = libgrite_core::GriteStore::open(&ctx.sled_path())
-        .map_err(|e| GriteError::Internal(e.to_string()))?;
+        ?;
     let events = store.get_all_events()?;
 
     if events.is_empty() {
@@ -191,7 +193,7 @@ fn backfill_wal_if_needed(
     sorted.sort_by_key(|e| e.ts_unix_ms);
 
     wal.append(actor_id, &sorted)
-        .map_err(|e| GriteError::Internal(e.to_string()))?;
+        ?;
 
     Ok(Some(sorted.len()))
 }

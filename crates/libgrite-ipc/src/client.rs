@@ -182,7 +182,7 @@ impl IpcClient {
             }
         }
 
-        Err(last_error.unwrap())
+        Err(last_error.unwrap_or_else(|| IpcError::ConnectionFailed("all retries exhausted".to_string())))
     }
 }
 

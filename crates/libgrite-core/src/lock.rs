@@ -184,7 +184,7 @@ pub const DEFAULT_LOCK_TTL_MS: u64 = 5 * 60 * 1000;
 fn current_time_ms() -> u64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
+        .unwrap_or_default()
         .as_millis() as u64
 }
 
