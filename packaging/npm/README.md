@@ -1,4 +1,4 @@
-# @neul-labs/gritee
+# @neul-labs/grite
 
 Git-backed issue tracking for coding agents and humans.
 
