@@ -62,6 +62,9 @@ parse_args() {
     while [[ $# -gt 0 ]]; do
         case "$1" in
             --bump)
+                if [[ $# -lt 2 ]]; then
+                    error "--bump requires an argument (major, minor, or patch)"
+                fi
                 bump="$2"
                 if [[ "$bump" != "major" && "$bump" != "minor" && "$bump" != "patch" ]]; then
                     error "--bump must be major, minor, or patch"
@@ -69,6 +72,9 @@ parse_args() {
                 shift 2
                 ;;
             --version)
+                if [[ $# -lt 2 ]]; then
+                    error "--version requires an argument (e.g., 0.4.0)"
+                fi
                 explicit_version="$2"
                 shift 2
                 ;;
