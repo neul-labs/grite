@@ -247,6 +247,10 @@ update_changelog() {
 # ---------------------------------------------------------------------------
 
 cargo_dry_run() {
+    if $dry_run; then
+        echo "[DRY-RUN] cargo publish --dry-run for all crates"
+        return 0
+    fi
     local crates=("libgrite-core" "libgrite-git" "libgrite-ipc" "libgrite-cli" "grite" "grite-daemon")
     for crate in "${crates[@]}"; do
         info "Dry-run publishing $crate..."
@@ -255,6 +259,10 @@ cargo_dry_run() {
 }
 
 cargo_publish() {
+    if $dry_run; then
+        echo "[DRY-RUN] cargo publish for all crates (with 30s delays)"
+        return 0
+    fi
     local crates=("libgrite-core" "libgrite-git" "libgrite-ipc" "libgrite-cli" "grite" "grite-daemon")
     for crate in "${crates[@]}"; do
         info "Publishing $crate..."
