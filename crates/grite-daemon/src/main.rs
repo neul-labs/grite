@@ -70,7 +70,7 @@ async fn main() {
     }
 
     // Set up signal handlers
-    let shutdown = setup_signal_handlers();
+    let shutdown = grite_daemon::signals::shutdown_signal();
 
     // Create and run supervisor
     let idle_timeout = if cli.idle_timeout > 0 {
@@ -91,29 +91,4 @@ async fn main() {
     }
 
     info!("grite-daemon stopped");
-}
-
-/// Set up signal handlers for graceful shutdown
-async fn setup_signal_handlers() {
-    let ctrl_c = async {
-        tokio::signal::ctrl_c()
-            .await
-            .expect("Failed to install Ctrl+C handler");
-    };
-
-    #[cfg(unix)]
-    let terminate = async {
-        tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
-            .expect("Failed to install signal handler")
-            .recv()
-            .await;
-    };
-
-    #[cfg(not(unix))]
-    let terminate = std::future::pending::<()>();
-
-    tokio::select! {
-        _ = ctrl_c => {}
-        _ = terminate => {}
-    }
 }

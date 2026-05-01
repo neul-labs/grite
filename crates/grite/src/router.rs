@@ -108,6 +108,9 @@ pub fn should_route_through_daemon(cmd: &crate::cli::Command) -> bool {
         // Context commands are local-only (need filesystem access)
         Command::Context { .. } => false,
 
+        // Install-skill is local-only
+        Command::InstallSkill { .. } => false,
+
         // All issue commands (including dep) route through daemon
         Command::Issue { .. } => true,
         Command::Export { .. } => true,
@@ -141,7 +144,7 @@ pub fn cli_to_ipc_command(cmd: &crate::cli::Command) -> Option<IpcCommand> {
         }),
         Command::Snapshot { cmd: snap_cmd } => Some(snapshot_to_ipc(snap_cmd)),
         // These don't route through daemon
-        Command::Init { .. } | Command::Actor { .. } | Command::Daemon { .. } | Command::Lock { .. } | Command::Doctor { .. } | Command::Context { .. } => None,
+        Command::Init { .. } | Command::Actor { .. } | Command::Daemon { .. } | Command::Lock { .. } | Command::Doctor { .. } | Command::Context { .. } | Command::InstallSkill { .. } => None,
     }
 }
 

@@ -4,6 +4,7 @@ members = [
     "crates/libgrite-core",
     "crates/libgrite-git",
     "crates/libgrite-ipc",
+    "crates/libgrite-cli",
     "crates/grite",
     "crates/grite-daemon",
     "crates/grite-bench",
@@ -20,6 +21,7 @@ documentation = "https://docs.neullabs.com/grite"
 readme = "README.md"
 keywords = ["git", "issue-tracker", "crdt", "agents", "distributed"]
 categories = ["command-line-utilities", "development-tools"]
+authors = ["Dipankar Sarkar <dipankar@neullabs.com>"]
 
 [workspace.dependencies]
 blake2 = "0.10"

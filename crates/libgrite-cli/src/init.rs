@@ -1,0 +1,126 @@
+use std::fs;
+use std::path::{Path, PathBuf};
+
+use libgrite_core::{
+    config::{save_repo_config, save_actor_config, load_repo_config, load_actor_config, actor_dir, repo_sled_path, RepoConfig},
+    types::actor::ActorConfig,
+    types::ids::{generate_actor_id, id_to_hex},
+    GriteStore, GriteError,
+};
+
+use crate::agents_md::GRITE_AGENTS_SECTION;
+use crate::context::GriteContext;
+use crate::types::{InitOptions, InitResult};
+
+/// Action taken for AGENTS.md
+#[derive(Clone, Copy)]
+enum AgentsMdAction {
+    Created,
+    Updated,
+    Skipped,
+    Disabled,
+}
+
+impl AgentsMdAction {
+    fn as_str(&self) -> &'static str {
+        match self {
+            AgentsMdAction::Created => "created",
+            AgentsMdAction::Updated => "updated",
+            AgentsMdAction::Skipped => "skipped",
+            AgentsMdAction::Disabled => "disabled",
+        }
+    }
+}
+
+/// Initialize grite in the current repository.
+pub fn init(opts: &InitOptions) -> Result<InitResult, GriteError> {
+    let git_dir = GriteContext::find_git_dir()?;
+
+    let (actor_id_hex, data_dir, is_new) = match find_existing_actor(&git_dir) {
+        Some(existing_id) => {
+            let data_dir = actor_dir(&git_dir, &existing_id);
+            (existing_id, data_dir, false)
+        }
+        None => {
+            let actor_id = generate_actor_id();
+            let actor_id_hex = id_to_hex(&actor_id);
+            let data_dir = actor_dir(&git_dir, &actor_id_hex);
+
+            let actor_config = ActorConfig::new(actor_id, None);
+            save_actor_config(&data_dir, &actor_config)?;
+
+            // Initialize empty sled database with lock
+            let sled_path = repo_sled_path(&git_dir);
+            let _store = GriteStore::open_locked(&sled_path)?;
+
+            let repo_config = RepoConfig {
+                default_actor: Some(actor_id_hex.clone()),
+                ..Default::default()
+            };
+            save_repo_config(&git_dir, &repo_config)?;
+
+            (actor_id_hex, data_dir, true)
+        }
+    };
+
+    // Handle AGENTS.md
+    let created_agents_md = if opts.no_agents_md {
+        false
+    } else {
+        let (agents_md_path, action) = handle_agents_md(&git_dir)?;
+        matches!(action, AgentsMdAction::Created | AgentsMdAction::Updated)
+    };
+
+    Ok(InitResult {
+        actor_id: actor_id_hex,
+        data_dir,
+        created_agents_md,
+    })
+}
+
+/// Return the existing default actor ID if one is already configured and its
+/// directory is present with a readable config.
+fn find_existing_actor(git_dir: &Path) -> Option<String> {
+    let repo_config = load_repo_config(git_dir).ok()??;
+    let actor_id = repo_config.default_actor?;
+    let data_dir = actor_dir(git_dir, &actor_id);
+    load_actor_config(&data_dir).ok()?;
+    Some(actor_id)
+}
+
+/// Handle AGENTS.md creation or update
+fn handle_agents_md(git_dir: &PathBuf) -> Result<(Option<PathBuf>, AgentsMdAction), GriteError> {
+    let repo_root = git_dir.parent().ok_or_else(|| {
+        GriteError::Internal("Could not determine repository root".to_string())
+    })?;
+
+    let agents_md_path = repo_root.join("AGENTS.md");
+
+    if agents_md_path.exists() {
+        let content = fs::read_to_string(&agents_md_path).map_err(|e| {
+            GriteError::Internal(format!("Failed to read AGENTS.md: {}", e))
+        })?;
+
+        if content.contains("## Grite") {
+            return Ok((Some(agents_md_path), AgentsMdAction::Skipped));
+        }
+
+        let new_content = if content.ends_with('\n') {
+            format!("{}\n{}", content, GRITE_AGENTS_SECTION)
+        } else {
+            format!("{}\n\n{}", content, GRITE_AGENTS_SECTION)
+        };
+
+        fs::write(&agents_md_path, new_content).map_err(|e| {
+            GriteError::Internal(format!("Failed to update AGENTS.md: {}", e))
+        })?;
+
+        Ok((Some(agents_md_path), AgentsMdAction::Updated))
+    } else {
+        fs::write(&agents_md_path, GRITE_AGENTS_SECTION).map_err(|e| {
+            GriteError::Internal(format!("Failed to create AGENTS.md: {}", e))
+        })?;
+
+        Ok((Some(agents_md_path), AgentsMdAction::Created))
+    }
+}

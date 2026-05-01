@@ -10,7 +10,8 @@ documentation.workspace = true
 keywords.workspace = true
 categories.workspace = true
 description = "Git-backed issue tracker with CRDT merging, designed for AI coding agents"
-readme = "../../README.md"
+readme = "README.md"
+authors.workspace = true
 
 [[bin]]
 name = "grite"
@@ -20,6 +21,7 @@ path = "src/main.rs"
 libgrite-core = { path = "../libgrite-core", version = "0.3.0" }
 libgrite-git = { path = "../libgrite-git", version = "0.3.0" }
 libgrite-ipc = { path = "../libgrite-ipc", version = "0.3.0" }
+libgrite-cli = { path = "../libgrite-cli", version = "0.3.0" }
 clap = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

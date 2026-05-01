@@ -743,6 +743,7 @@ dependencies = [
  "glob",
  "hex",
  "libc",
+ "libgrite-cli",
  "libgrite-core",
  "libgrite-git",
  "libgrite-ipc",
@@ -1088,6 +1089,26 @@ dependencies = [
  "libz-sys",
  "openssl-sys",
  "pkg-config",
+]
+
+[[package]]
+name = "libgrite-cli"
+version = "0.3.0"
+dependencies = [
+ "chrono",
+ "git2",
+ "glob",
+ "hex",
+ "libgrite-core",
+ "libgrite-git",
+ "libgrite-ipc",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tempfile",
+ "thiserror",
+ "tokio",
+ "uuid",
 ]
 
 [[package]]

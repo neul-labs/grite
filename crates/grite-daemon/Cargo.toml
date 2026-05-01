@@ -10,7 +10,8 @@ documentation.workspace = true
 keywords.workspace = true
 categories.workspace = true
 description = "Background daemon for grite providing concurrent access and performance"
-readme = "../../README.md"
+readme = "README.md"
+authors.workspace = true
 
 [lib]
 name = "grite_daemon"

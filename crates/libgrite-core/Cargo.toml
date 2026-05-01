@@ -10,7 +10,8 @@ documentation.workspace = true
 keywords.workspace = true
 categories.workspace = true
 description = "Core library for grite: event types, CRDT projections, hashing, and sled store"
-readme = "../../README.md"
+readme = "README.md"
+authors.workspace = true
 
 [dependencies]
 blake2 = { workspace = true }

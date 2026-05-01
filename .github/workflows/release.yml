@@ -246,6 +246,8 @@ jobs:
           sleep 30
           cargo publish --package libgrite-ipc --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
           sleep 30
+          cargo publish --package libgrite-cli --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
+          sleep 30
           cargo publish --package grite --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
           sleep 30
           cargo publish --package grite-daemon --token ${{ secrets.CARGO_REGISTRY_TOKEN }}

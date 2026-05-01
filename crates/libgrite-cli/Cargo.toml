@@ -1,5 +1,5 @@
 [package]
-name = "grite-bench"
+name = "libgrite-cli"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -9,38 +9,28 @@ homepage.workspace = true
 documentation.workspace = true
 keywords.workspace = true
 categories.workspace = true
-description = "TUI benchmark tool for testing concurrent agent writes to grite"
-readme = "../../README.md"
-publish = false
+description = "Programmatic CLI library for grite: issue tracking, sync, and context management"
+readme = "README.md"
+authors.workspace = true
 
-[[bin]]
-name = "grite-bench"
-path = "src/main.rs"
+[features]
+default = []
+async = ["dep:tokio"]
 
 [dependencies]
 libgrite-core = { path = "../libgrite-core", version = "0.3.0" }
 libgrite-git = { path = "../libgrite-git", version = "0.3.0" }
-
-# TUI
-ratatui = "0.29"
-crossterm = "0.28"
-
-# CLI
-clap = { workspace = true }
-
-# Serialization
+libgrite-ipc = { path = "../libgrite-ipc", version = "0.3.0" }
 serde = { workspace = true }
 serde_json = { workspace = true }
-
-# Utils
 thiserror = { workspace = true }
 hex = { workspace = true }
 chrono = { workspace = true }
-rand = "0.8"
+uuid = { workspace = true }
+sha2 = { workspace = true }
+glob = { workspace = true }
 git2 = { workspace = true }
-
-# Metrics
-hdrhistogram = "7.5"
+tokio = { workspace = true, optional = true }
 
 [dev-dependencies]
 tempfile = "3.10"

@@ -47,6 +47,7 @@ fn run_command(cli: &Cli) -> Result<(), GriteError> {
         Command::Lock { cmd } => commands::lock::run(cli, cmd.clone()),
         Command::Doctor { fix } => commands::doctor::run(cli, *fix),
         Command::Context { cmd } => commands::context::run(cli, cmd.clone()),
+        Command::InstallSkill { global, force } => commands::install_skill::run(cli, *global, *force),
     }
 }
 

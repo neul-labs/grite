@@ -29,7 +29,6 @@ class Grite < Formula
     end
   end
 
-  depends_on "nng"
 
   def install
     bin.install "grite"

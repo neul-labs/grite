@@ -118,6 +118,17 @@ pub enum Command {
         #[command(subcommand)]
         cmd: ContextCommand,
     },
+
+    /// Install the Claude Code skill for grite
+    InstallSkill {
+        /// Install globally instead of per-repo
+        #[arg(long)]
+        global: bool,
+
+        /// Force overwrite if skill already exists
+        #[arg(long)]
+        force: bool,
+    },
 }
 
 #[derive(Clone, Subcommand)]

@@ -12,7 +12,7 @@ use libgrite_core::{
 };
 use libgrite_git::{WalManager, SnapshotManager, SyncManager, LockManager, GitError};
 use libgrite_ipc::{DaemonLock, IpcClient};
-use crate::cli::Cli;
+use crate::types::ResolveOptions;
 
 /// Source of actor selection
 #[derive(Debug, Clone, Copy)]
@@ -72,16 +72,20 @@ pub struct GriteContext {
     pub source: ActorSource,
 }
 
+impl Clone for GriteContext {
+    fn clone(&self) -> Self {
+        Self {
+            git_dir: self.git_dir.clone(),
+            actor_id: self.actor_id.clone(),
+            actor_config: self.actor_config.clone(),
+            data_dir: self.data_dir.clone(),
+            source: self.source,
+        }
+    }
+}
+
 impl GriteContext {
     /// Find the shared git directory (commondir) for this repository.
-    ///
-    /// Works in both regular repositories and git worktrees.
-    /// For worktrees, returns the main repository's .git directory
-    /// where refs/grite/* and .git/grite/ data are stored.
-    ///
-    /// Uses git2::Repository::discover() which handles:
-    /// - Walking up directories to find .git
-    /// - Reading .git files (gitlinks) in worktrees
     pub fn find_git_dir() -> Result<PathBuf, GriteError> {
         let cwd = std::env::current_dir()?;
 
@@ -89,9 +93,6 @@ impl GriteContext {
             GriteError::NotFound("Not a git repository (or any parent)".to_string())
         })?;
 
-        // commondir() returns:
-        // - For normal repos: the .git directory
-        // - For worktrees: the main repo's .git directory (shared)
         Ok(repo.commondir().to_path_buf())
     }
 
@@ -103,21 +104,15 @@ impl GriteContext {
             GriteError::NotFound("Not a git repository (or any parent)".to_string())
         })?;
 
-        // In a worktree, path() != commondir()
         Ok(repo.path() != repo.commondir())
     }
 
-    /// Resolve the actor context from CLI options
-    /// Resolution order from cli.md:
-    /// 1. --data-dir or GRITE_HOME
-    /// 2. --actor <id>
-    /// 3. Repo default in .git/grite/config.toml
-    /// 4. Auto-init a new actor if none exists
-    pub fn resolve(cli: &Cli) -> Result<Self, GriteError> {
+    /// Resolve the actor context from options.
+    pub fn resolve(opts: &ResolveOptions) -> Result<Self, GriteError> {
         let git_dir = Self::find_git_dir()?;
 
         // 1. Check --data-dir or GRITE_HOME
-        if let Some(ref data_dir) = cli.data_dir {
+        if let Some(ref data_dir) = opts.data_dir {
             let config = load_actor_config(data_dir)?;
             return Ok(Self {
                 git_dir,
@@ -141,7 +136,7 @@ impl GriteContext {
         }
 
         // 2. Check --actor flag
-        if let Some(ref actor_id) = cli.actor {
+        if let Some(ref actor_id) = opts.actor {
             let data_dir = actor_dir(&git_dir, actor_id);
             let config = load_actor_config(&data_dir)?;
             return Ok(Self {
@@ -208,8 +203,6 @@ impl GriteContext {
     }
 
     /// Open the store for this context with exclusive filesystem lock.
-    ///
-    /// Returns `GriteError::DbBusy` if another process holds the lock.
     pub fn open_store(&self) -> Result<LockedStore, GriteError> {
         GriteStore::open_locked(&repo_sled_path(&self.git_dir))
     }
@@ -249,9 +242,6 @@ impl GriteContext {
     }
 
     /// Check locks for a resource before a write operation
-    ///
-    /// Returns Ok(LockCheckResult) if operation can proceed (possibly with warnings),
-    /// or Err if blocked by lock policy.
     pub fn check_lock(&self, resource: &str) -> Result<LockCheckResult, GriteError> {
         let policy = self.get_lock_policy();
         if policy == LockPolicy::Off {
@@ -290,9 +280,6 @@ impl GriteContext {
     }
 
     /// Sign an event if a signing key is available
-    ///
-    /// Returns the event with the signature field set if a key exists,
-    /// otherwise returns the event unchanged.
     pub fn sign_event(&self, mut event: Event) -> Event {
         if let Some(keypair) = self.load_signing_key() {
             event.sig = Some(keypair.sign_event(&event));
@@ -301,30 +288,17 @@ impl GriteContext {
     }
 
     /// Determine execution mode (local vs daemon)
-    ///
-    /// Resolution order:
-    /// 1. If --no-daemon flag is set, always use Local
-    /// 2. Check for daemon.lock file in data directory
-    /// 3. If lock exists and is valid, try to connect to daemon
-    /// 4. If connection succeeds, return Daemon mode
-    /// 5. If lock is valid but connection fails, return Blocked
-    /// 6. If no lock or lock is expired, return Local
     pub fn execution_mode(&self, no_daemon: bool) -> ExecutionMode {
-        // 1. Check --no-daemon flag
         if no_daemon {
             return ExecutionMode::Local;
         }
 
-        // 2. Check for daemon lock
         match DaemonLock::read(&self.git_dir.join("grite")) {
             Ok(Some(lock)) => {
-                // 3. Check if lock is still valid
                 if lock.is_expired() {
-                    // Lock expired, can execute locally
                     return ExecutionMode::Local;
                 }
 
-                // 4. Try to connect to daemon
                 match IpcClient::connect(&lock.ipc_endpoint) {
                     Ok(client) => {
                         ExecutionMode::Daemon {
@@ -333,19 +307,12 @@ impl GriteContext {
                         }
                     }
                     Err(_) => {
-                        // 5. Lock valid but can't connect - blocked
                         ExecutionMode::Blocked { lock }
                     }
                 }
             }
-            Ok(None) => {
-                // No lock file, execute locally
-                ExecutionMode::Local
-            }
-            Err(_) => {
-                // Error reading lock, execute locally
-                ExecutionMode::Local
-            }
+            Ok(None) => ExecutionMode::Local,
+            Err(_) => ExecutionMode::Local,
         }
     }
 }
@@ -356,7 +323,6 @@ mod tests {
     use std::process::Command;
     use tempfile::TempDir;
 
-    /// Helper to run git commands
     fn git(args: &[&str], dir: &std::path::Path) -> bool {
         Command::new("git")
             .args(args)
@@ -371,7 +337,6 @@ mod tests {
         let temp = TempDir::new().unwrap();
         assert!(git(&["init"], temp.path()));
 
-        // Save and restore CWD
         let original_cwd = std::env::current_dir().unwrap();
         std::env::set_current_dir(temp.path()).unwrap();
 
@@ -390,33 +355,26 @@ mod tests {
         let worktree_path = temp.path().join("feature");
         std::fs::create_dir_all(&main_repo).unwrap();
 
-        // Create main repo with initial commit
         assert!(git(&["init"], &main_repo));
         assert!(git(&["config", "user.email", "test@test.com"], &main_repo));
         assert!(git(&["config", "user.name", "Test"], &main_repo));
         assert!(git(&["commit", "--allow-empty", "-m", "init"], &main_repo));
 
-        // Create worktree
         assert!(git(
             &["worktree", "add", worktree_path.to_str().unwrap(), "-b", "feature"],
             &main_repo
         ));
 
-        // Verify .git is a file in worktree (not a directory)
         let git_file = worktree_path.join(".git");
         assert!(git_file.is_file(), ".git should be a file in worktree, not a directory");
 
-        // Use git2 directly to test the worktree discovery logic
-        // (avoiding issues with changing CWD in tests)
         let repo = Repository::discover(&worktree_path).expect("Should discover repo from worktree");
 
-        // commondir should be the main repo's .git
         let commondir = repo.commondir();
         let expected_commondir = main_repo.join(".git").canonicalize().unwrap();
         let actual_commondir = commondir.canonicalize().unwrap();
         assert_eq!(actual_commondir, expected_commondir);
 
-        // path() should be different from commondir() for worktrees
         assert_ne!(repo.path(), repo.commondir(), "In worktree, path() != commondir()");
     }
 
@@ -428,7 +386,6 @@ mod tests {
         let original_cwd = std::env::current_dir().unwrap();
         std::env::set_current_dir(temp.path()).unwrap();
 
-        // Main repo is not a worktree
         assert!(!GriteContext::is_worktree().unwrap());
 
         std::env::set_current_dir(original_cwd).unwrap();
@@ -439,14 +396,12 @@ mod tests {
         let temp = TempDir::new().unwrap();
         assert!(git(&["init"], temp.path()));
 
-        // Create subdirectory
         let subdir = temp.path().join("src").join("deep");
         std::fs::create_dir_all(&subdir).unwrap();
 
         let original_cwd = std::env::current_dir().unwrap();
         std::env::set_current_dir(&subdir).unwrap();
 
-        // Should still find .git from parent
         let git_dir = GriteContext::find_git_dir().unwrap();
         assert_eq!(git_dir.canonicalize().unwrap(), temp.path().join(".git").canonicalize().unwrap());
 

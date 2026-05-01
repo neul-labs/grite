@@ -11,3 +11,4 @@ pub mod lock;
 pub mod doctor;
 pub mod dep;
 pub mod context;
+pub mod install_skill;
