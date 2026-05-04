@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-05-02
+
 ### Added
 - New `libgrite-cli` crate: programmatic API for all CLI operations, with optional async wrappers via `tokio`
 - `grite install-skill` subcommand to install a Claude Code skill file per-repo or globally

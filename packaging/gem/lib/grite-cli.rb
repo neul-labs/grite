@@ -8,7 +8,7 @@ require 'rubygems/package'
 require 'zlib'
 
 module GriteCli
-  VERSION = '0.4.0'
+  VERSION = '0.5.0'
   REPO = 'neul-labs/grite'
 
   class << self

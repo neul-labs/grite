@@ -18,10 +18,10 @@ name = "grite"
 path = "src/main.rs"
 
 [dependencies]
-libgrite-core = { path = "../libgrite-core", version = "0.3.0" }
-libgrite-git = { path = "../libgrite-git", version = "0.3.0" }
-libgrite-ipc = { path = "../libgrite-ipc", version = "0.3.0" }
-libgrite-cli = { path = "../libgrite-cli", version = "0.3.0" }
+libgrite-core = { path = "../libgrite-core", version = "0.5.0" }
+libgrite-git = { path = "../libgrite-git", version = "0.5.0" }
+libgrite-ipc = { path = "../libgrite-ipc", version = "0.5.0" }
+libgrite-cli = { path = "../libgrite-cli", version = "0.5.0" }
 clap = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

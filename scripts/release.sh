@@ -203,6 +203,11 @@ update_versions() {
     # Root Cargo.toml (workspace version)
     update_file "Cargo.toml" "^version = \"${old}\"" "version = \"${new}\""
 
+    # Internal crate dependency versions
+    for crate_toml in crates/*/Cargo.toml; do
+        update_file "$crate_toml" "version = \"${old}\"" "version = \"${new}\""
+    done
+
     # npm package.json
     update_file "packaging/npm/package.json" "\"version\": \"${old}\"" "\"version\": \"${new}\""
 

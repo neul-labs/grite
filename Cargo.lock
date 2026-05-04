@@ -733,7 +733,7 @@ checksum = "0cc23270f6e1808e30a928bdc84dea0b9b4136a8bc82338574f23baf47bbd280"
 
 [[package]]
 name = "grite"
-version = "0.3.0"
+version = "0.5.0"
 dependencies = [
  "assert_cmd",
  "chrono",
@@ -759,7 +759,7 @@ dependencies = [
 
 [[package]]
 name = "grite-bench"
-version = "0.3.0"
+version = "0.5.0"
 dependencies = [
  "chrono",
  "clap",
@@ -779,7 +779,7 @@ dependencies = [
 
 [[package]]
 name = "grite-daemon"
-version = "0.3.0"
+version = "0.5.0"
 dependencies = [
  "clap",
  "hex",
@@ -1093,7 +1093,7 @@ dependencies = [
 
 [[package]]
 name = "libgrite-cli"
-version = "0.3.0"
+version = "0.5.0"
 dependencies = [
  "chrono",
  "git2",
@@ -1113,7 +1113,7 @@ dependencies = [
 
 [[package]]
 name = "libgrite-core"
-version = "0.3.0"
+version = "0.5.0"
 dependencies = [
  "blake2",
  "chrono",
@@ -1148,7 +1148,7 @@ dependencies = [
 
 [[package]]
 name = "libgrite-git"
-version = "0.3.0"
+version = "0.5.0"
 dependencies = [
  "blake2",
  "chrono",
@@ -1164,7 +1164,7 @@ dependencies = [
 
 [[package]]
 name = "libgrite-ipc"
-version = "0.3.0"
+version = "0.5.0"
 dependencies = [
  "libc",
  "libgrite-core",

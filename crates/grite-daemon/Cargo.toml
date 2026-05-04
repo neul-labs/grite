@@ -22,9 +22,9 @@ name = "grite-daemon"
 path = "src/main.rs"
 
 [dependencies]
-libgrite-core = { path = "../libgrite-core", version = "0.3.0" }
-libgrite-git = { path = "../libgrite-git", version = "0.3.0" }
-libgrite-ipc = { path = "../libgrite-ipc", version = "0.3.0" }
+libgrite-core = { path = "../libgrite-core", version = "0.5.0" }
+libgrite-git = { path = "../libgrite-git", version = "0.5.0" }
+libgrite-ipc = { path = "../libgrite-ipc", version = "0.5.0" }
 rkyv = { workspace = true }
 tokio = { workspace = true }
 serde = { workspace = true }
