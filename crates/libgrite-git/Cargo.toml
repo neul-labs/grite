@@ -14,7 +14,7 @@ readme = "README.md"
 authors.workspace = true
 
 [dependencies]
-libgrite-core = { path = "../libgrite-core", version = "0.5.0" }
+libgrite-core = { path = "../libgrite-core", version = "0.5.1" }
 git2 = { workspace = true }
 blake2 = { workspace = true }
 ciborium = { workspace = true }
