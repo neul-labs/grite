@@ -21,12 +21,12 @@
 //! ```
 
 pub mod error;
+pub mod signals;
 pub mod state;
 pub mod supervisor;
 pub mod worker;
-pub mod signals;
 
 pub use error::DaemonError;
+pub use signals::{setup_signal_handlers, shutdown_signal};
 pub use supervisor::Supervisor;
 pub use worker::{Worker, WorkerMessage};
-pub use signals::{setup_signal_handlers, shutdown_signal};

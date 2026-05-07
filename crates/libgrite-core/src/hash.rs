@@ -1,5 +1,5 @@
-use blake2::{Blake2b, Digest};
 use blake2::digest::consts::U32;
+use blake2::{Blake2b, Digest};
 use ciborium::Value;
 
 use crate::types::event::EventKind;
@@ -51,7 +51,8 @@ pub fn build_canonical_cbor(
     let mut buf = Vec::new();
     // ciborium::into_writer only fails for types we never use (NaN, infinite floats, etc.).
     // Our Value types are integers, bytes, text, arrays, and null — all guaranteed to serialize.
-    ciborium::into_writer(&array, &mut buf).expect("CBOR serialization of known-safe types should not fail");
+    ciborium::into_writer(&array, &mut buf)
+        .expect("CBOR serialization of known-safe types should not fail");
     buf
 }
 
@@ -59,13 +60,15 @@ pub fn build_canonical_cbor(
 /// This is public so libgrite-git can use it for chunk encoding
 pub fn kind_to_tag_and_payload(kind: &EventKind) -> (u32, ciborium::Value) {
     match kind {
-        EventKind::IssueCreated { title, body, labels } => {
+        EventKind::IssueCreated {
+            title,
+            body,
+            labels,
+        } => {
             // Labels must be sorted lexicographically for hashing
             let mut sorted_labels = labels.clone();
             sorted_labels.sort();
-            let labels_value = Value::Array(
-                sorted_labels.into_iter().map(Value::Text).collect()
-            );
+            let labels_value = Value::Array(sorted_labels.into_iter().map(Value::Text).collect());
             (
                 1,
                 Value::Array(vec![
@@ -84,98 +87,68 @@ pub fn kind_to_tag_and_payload(kind: &EventKind) -> (u32, ciborium::Value) {
                 Some(b) => Value::Text(b.clone()),
                 None => Value::Null,
             };
-            (
-                2,
-                Value::Array(vec![title_value, body_value]),
-            )
+            (2, Value::Array(vec![title_value, body_value]))
         }
-        EventKind::CommentAdded { body } => {
-            (
-                3,
-                Value::Array(vec![Value::Text(body.clone())]),
-            )
-        }
-        EventKind::LabelAdded { label } => {
-            (
-                4,
-                Value::Array(vec![Value::Text(label.clone())]),
-            )
-        }
-        EventKind::LabelRemoved { label } => {
-            (
-                5,
-                Value::Array(vec![Value::Text(label.clone())]),
-            )
-        }
-        EventKind::StateChanged { state } => {
-            (
-                6,
-                Value::Array(vec![Value::Text(state.as_str().to_string())]),
-            )
-        }
+        EventKind::CommentAdded { body } => (3, Value::Array(vec![Value::Text(body.clone())])),
+        EventKind::LabelAdded { label } => (4, Value::Array(vec![Value::Text(label.clone())])),
+        EventKind::LabelRemoved { label } => (5, Value::Array(vec![Value::Text(label.clone())])),
+        EventKind::StateChanged { state } => (
+            6,
+            Value::Array(vec![Value::Text(state.as_str().to_string())]),
+        ),
         EventKind::LinkAdded { url, note } => {
             let note_value = match note {
                 Some(n) => Value::Text(n.clone()),
                 None => Value::Null,
             };
-            (
-                7,
-                Value::Array(vec![Value::Text(url.clone()), note_value]),
-            )
+            (7, Value::Array(vec![Value::Text(url.clone()), note_value]))
         }
-        EventKind::AssigneeAdded { user } => {
-            (
-                8,
-                Value::Array(vec![Value::Text(user.clone())]),
-            )
-        }
-        EventKind::AssigneeRemoved { user } => {
-            (
-                9,
-                Value::Array(vec![Value::Text(user.clone())]),
-            )
-        }
-        EventKind::AttachmentAdded { name, sha256, mime } => {
-            (
-                10,
-                Value::Array(vec![
-                    Value::Text(name.clone()),
-                    Value::Bytes(sha256.to_vec()),
-                    Value::Text(mime.clone()),
-                ]),
-            )
-        }
-        EventKind::DependencyAdded { target, dep_type } => {
-            (
-                11,
-                Value::Array(vec![
-                    Value::Bytes(target.to_vec()),
-                    Value::Text(dep_type.as_str().to_string()),
-                ]),
-            )
-        }
-        EventKind::DependencyRemoved { target, dep_type } => {
-            (
-                12,
-                Value::Array(vec![
-                    Value::Bytes(target.to_vec()),
-                    Value::Text(dep_type.as_str().to_string()),
-                ]),
-            )
-        }
-        EventKind::ContextUpdated { path, language, symbols, summary, content_hash } => {
+        EventKind::AssigneeAdded { user } => (8, Value::Array(vec![Value::Text(user.clone())])),
+        EventKind::AssigneeRemoved { user } => (9, Value::Array(vec![Value::Text(user.clone())])),
+        EventKind::AttachmentAdded { name, sha256, mime } => (
+            10,
+            Value::Array(vec![
+                Value::Text(name.clone()),
+                Value::Bytes(sha256.to_vec()),
+                Value::Text(mime.clone()),
+            ]),
+        ),
+        EventKind::DependencyAdded { target, dep_type } => (
+            11,
+            Value::Array(vec![
+                Value::Bytes(target.to_vec()),
+                Value::Text(dep_type.as_str().to_string()),
+            ]),
+        ),
+        EventKind::DependencyRemoved { target, dep_type } => (
+            12,
+            Value::Array(vec![
+                Value::Bytes(target.to_vec()),
+                Value::Text(dep_type.as_str().to_string()),
+            ]),
+        ),
+        EventKind::ContextUpdated {
+            path,
+            language,
+            symbols,
+            summary,
+            content_hash,
+        } => {
             // Symbols sorted by (name, kind) for deterministic hashing
             let mut sorted_symbols = symbols.clone();
             sorted_symbols.sort_by(|a, b| (&a.name, &a.kind).cmp(&(&b.name, &b.kind)));
             let symbols_value = Value::Array(
-                sorted_symbols.iter().map(|s| {
-                    Value::Array(vec![
-                        Value::Text(s.name.clone()),
-                        Value::Text(s.kind.clone()),
-                        Value::Integer(s.line_start.into()),
-                        Value::Integer(s.line_end.into()),
-                    ])
-                }).collect()
+                sorted_symbols
+                    .iter()
+                    .map(|s| {
+                        Value::Array(vec![
+                            Value::Text(s.name.clone()),
+                            Value::Text(s.kind.clone()),
+                            Value::Integer(s.line_start.into()),
+                            Value::Integer(s.line_end.into()),
+                        ])
+                    })
+                    .collect(),
             );
             (
                 13,
@@ -188,15 +161,10 @@ pub fn kind_to_tag_and_payload(kind: &EventKind) -> (u32, ciborium::Value) {
                 ]),
             )
         }
-        EventKind::ProjectContextUpdated { key, value } => {
-            (
-                14,
-                Value::Array(vec![
-                    Value::Text(key.clone()),
-                    Value::Text(value.clone()),
-                ]),
-            )
-        }
+        EventKind::ProjectContextUpdated { key, value } => (
+            14,
+            Value::Array(vec![Value::Text(key.clone()), Value::Text(value.clone())]),
+        ),
     }
 }
 
@@ -224,12 +192,15 @@ mod tests {
         let expected_cbor = hex::decode(
             "870150000102030405060708090a0b0c0d0e0f50101112131415161718191a1b1c1d1e1f1b0000018bcfe56800f60183645465737464426f64798263627567627030"
         ).unwrap();
-        assert_eq!(hex::encode(&cbor), hex::encode(&expected_cbor), "CBOR mismatch");
+        assert_eq!(
+            hex::encode(&cbor),
+            hex::encode(&expected_cbor),
+            "CBOR mismatch"
+        );
 
         let event_id = compute_event_id(&issue_id, &actor, ts_unix_ms, parent, &kind);
-        let expected_event_id: EventId = hex_to_id(
-            "9c2aee7924bf7482dd3842c6ec32fd5103883b9d2354f63df2075ac61fe3d827"
-        ).unwrap();
+        let expected_event_id: EventId =
+            hex_to_id("9c2aee7924bf7482dd3842c6ec32fd5103883b9d2354f63df2075ac61fe3d827").unwrap();
         assert_eq!(event_id, expected_event_id);
     }
 
@@ -248,12 +219,15 @@ mod tests {
         let expected_cbor = hex::decode(
             "870150000102030405060708090a0b0c0d0e0f50101112131415161718191a1b1c1d1e1f1b0000018bcfe56800f60282675469746c652032f6"
         ).unwrap();
-        assert_eq!(hex::encode(&cbor), hex::encode(&expected_cbor), "CBOR mismatch");
+        assert_eq!(
+            hex::encode(&cbor),
+            hex::encode(&expected_cbor),
+            "CBOR mismatch"
+        );
 
         let event_id = compute_event_id(&issue_id, &actor, ts_unix_ms, parent, &kind);
-        let expected_event_id: EventId = hex_to_id(
-            "5227efec6ae3d41725827edb3e62d00a595784d7adec58fb4e1b787c44c4b333"
-        ).unwrap();
+        let expected_event_id: EventId =
+            hex_to_id("5227efec6ae3d41725827edb3e62d00a595784d7adec58fb4e1b787c44c4b333").unwrap();
         assert_eq!(event_id, expected_event_id);
     }
 
@@ -262,9 +236,8 @@ mod tests {
         let issue_id: IssueId = hex_to_id("000102030405060708090a0b0c0d0e0f").unwrap();
         let actor: ActorId = hex_to_id("101112131415161718191a1b1c1d1e1f").unwrap();
         let ts_unix_ms: u64 = 1700000001000;
-        let parent_bytes: EventId = hex_to_id(
-            "202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f"
-        ).unwrap();
+        let parent_bytes: EventId =
+            hex_to_id("202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f").unwrap();
         let parent = Some(&parent_bytes);
         let kind = EventKind::CommentAdded {
             body: "Looks good".to_string(),
@@ -274,12 +247,15 @@ mod tests {
         let expected_cbor = hex::decode(
             "870150000102030405060708090a0b0c0d0e0f50101112131415161718191a1b1c1d1e1f1b0000018bcfe56be85820202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f03816a4c6f6f6b7320676f6f64"
         ).unwrap();
-        assert_eq!(hex::encode(&cbor), hex::encode(&expected_cbor), "CBOR mismatch");
+        assert_eq!(
+            hex::encode(&cbor),
+            hex::encode(&expected_cbor),
+            "CBOR mismatch"
+        );
 
         let event_id = compute_event_id(&issue_id, &actor, ts_unix_ms, parent, &kind);
-        let expected_event_id: EventId = hex_to_id(
-            "fca597420160df9f7230b28384a27dc86656b206520e5c8085e78cbb02a46e27"
-        ).unwrap();
+        let expected_event_id: EventId =
+            hex_to_id("fca597420160df9f7230b28384a27dc86656b206520e5c8085e78cbb02a46e27").unwrap();
         assert_eq!(event_id, expected_event_id);
     }
 
@@ -297,12 +273,15 @@ mod tests {
         let expected_cbor = hex::decode(
             "870150000102030405060708090a0b0c0d0e0f50101112131415161718191a1b1c1d1e1f1b0000018bcfe56fd0f6048163627567"
         ).unwrap();
-        assert_eq!(hex::encode(&cbor), hex::encode(&expected_cbor), "CBOR mismatch");
+        assert_eq!(
+            hex::encode(&cbor),
+            hex::encode(&expected_cbor),
+            "CBOR mismatch"
+        );
 
         let event_id = compute_event_id(&issue_id, &actor, ts_unix_ms, parent, &kind);
-        let expected_event_id: EventId = hex_to_id(
-            "d742a0d9c83f17176e30511d62045686b491ddf55f8d1dfe7a74921787bdd436"
-        ).unwrap();
+        let expected_event_id: EventId =
+            hex_to_id("d742a0d9c83f17176e30511d62045686b491ddf55f8d1dfe7a74921787bdd436").unwrap();
         assert_eq!(event_id, expected_event_id);
     }
 
@@ -320,12 +299,15 @@ mod tests {
         let expected_cbor = hex::decode(
             "870150000102030405060708090a0b0c0d0e0f50101112131415161718191a1b1c1d1e1f1b0000018bcfe573b8f6058163776970"
         ).unwrap();
-        assert_eq!(hex::encode(&cbor), hex::encode(&expected_cbor), "CBOR mismatch");
+        assert_eq!(
+            hex::encode(&cbor),
+            hex::encode(&expected_cbor),
+            "CBOR mismatch"
+        );
 
         let event_id = compute_event_id(&issue_id, &actor, ts_unix_ms, parent, &kind);
-        let expected_event_id: EventId = hex_to_id(
-            "f23e9c69c3fa4cd2889e57fe1c547630afa132052197a5fe449e6d5acf22c40c"
-        ).unwrap();
+        let expected_event_id: EventId =
+            hex_to_id("f23e9c69c3fa4cd2889e57fe1c547630afa132052197a5fe449e6d5acf22c40c").unwrap();
         assert_eq!(event_id, expected_event_id);
     }
 
@@ -343,12 +325,15 @@ mod tests {
         let expected_cbor = hex::decode(
             "870150000102030405060708090a0b0c0d0e0f50101112131415161718191a1b1c1d1e1f1b0000018bcfe577a0f6068166636c6f736564"
         ).unwrap();
-        assert_eq!(hex::encode(&cbor), hex::encode(&expected_cbor), "CBOR mismatch");
+        assert_eq!(
+            hex::encode(&cbor),
+            hex::encode(&expected_cbor),
+            "CBOR mismatch"
+        );
 
         let event_id = compute_event_id(&issue_id, &actor, ts_unix_ms, parent, &kind);
-        let expected_event_id: EventId = hex_to_id(
-            "839ae6d0898f48efcc7a41fdbb9631e64ba1f05a6c1725fc196971bfd1645b2b"
-        ).unwrap();
+        let expected_event_id: EventId =
+            hex_to_id("839ae6d0898f48efcc7a41fdbb9631e64ba1f05a6c1725fc196971bfd1645b2b").unwrap();
         assert_eq!(event_id, expected_event_id);
     }
 
@@ -367,12 +352,15 @@ mod tests {
         let expected_cbor = hex::decode(
             "870150000102030405060708090a0b0c0d0e0f50101112131415161718191a1b1c1d1e1f1b0000018bcfe57b88f607827368747470733a2f2f6578616d706c652e636f6d63726566"
         ).unwrap();
-        assert_eq!(hex::encode(&cbor), hex::encode(&expected_cbor), "CBOR mismatch");
+        assert_eq!(
+            hex::encode(&cbor),
+            hex::encode(&expected_cbor),
+            "CBOR mismatch"
+        );
 
         let event_id = compute_event_id(&issue_id, &actor, ts_unix_ms, parent, &kind);
-        let expected_event_id: EventId = hex_to_id(
-            "b8af76be8b7a40244bb8e731130ed52969a77b87532dadf9a00a352eeb00e3b5"
-        ).unwrap();
+        let expected_event_id: EventId =
+            hex_to_id("b8af76be8b7a40244bb8e731130ed52969a77b87532dadf9a00a352eeb00e3b5").unwrap();
         assert_eq!(event_id, expected_event_id);
     }
 
@@ -390,12 +378,15 @@ mod tests {
         let expected_cbor = hex::decode(
             "870150000102030405060708090a0b0c0d0e0f50101112131415161718191a1b1c1d1e1f1b0000018bcfe57f70f6088165616c696365"
         ).unwrap();
-        assert_eq!(hex::encode(&cbor), hex::encode(&expected_cbor), "CBOR mismatch");
+        assert_eq!(
+            hex::encode(&cbor),
+            hex::encode(&expected_cbor),
+            "CBOR mismatch"
+        );
 
         let event_id = compute_event_id(&issue_id, &actor, ts_unix_ms, parent, &kind);
-        let expected_event_id: EventId = hex_to_id(
-            "42f329d826d34d425dd67080d91f6c909bc56411c9add54389fbec5d457b14e4"
-        ).unwrap();
+        let expected_event_id: EventId =
+            hex_to_id("42f329d826d34d425dd67080d91f6c909bc56411c9add54389fbec5d457b14e4").unwrap();
         assert_eq!(event_id, expected_event_id);
     }
 
@@ -413,12 +404,15 @@ mod tests {
         let expected_cbor = hex::decode(
             "870150000102030405060708090a0b0c0d0e0f50101112131415161718191a1b1c1d1e1f1b0000018bcfe58358f6098165616c696365"
         ).unwrap();
-        assert_eq!(hex::encode(&cbor), hex::encode(&expected_cbor), "CBOR mismatch");
+        assert_eq!(
+            hex::encode(&cbor),
+            hex::encode(&expected_cbor),
+            "CBOR mismatch"
+        );
 
         let event_id = compute_event_id(&issue_id, &actor, ts_unix_ms, parent, &kind);
-        let expected_event_id: EventId = hex_to_id(
-            "bfb0fdfed0f0ee36f31107963317dd904143f37d9ef8792f64272cf2f07f6a1e"
-        ).unwrap();
+        let expected_event_id: EventId =
+            hex_to_id("bfb0fdfed0f0ee36f31107963317dd904143f37d9ef8792f64272cf2f07f6a1e").unwrap();
         assert_eq!(event_id, expected_event_id);
     }
 
@@ -428,9 +422,8 @@ mod tests {
         let actor: ActorId = hex_to_id("101112131415161718191a1b1c1d1e1f").unwrap();
         let ts_unix_ms: u64 = 1700000008000;
         let parent: Option<&EventId> = None;
-        let sha256: [u8; 32] = hex_to_id(
-            "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
-        ).unwrap();
+        let sha256: [u8; 32] =
+            hex_to_id("000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f").unwrap();
         let kind = EventKind::AttachmentAdded {
             name: "log.txt".to_string(),
             sha256,
@@ -441,12 +434,15 @@ mod tests {
         let expected_cbor = hex::decode(
             "870150000102030405060708090a0b0c0d0e0f50101112131415161718191a1b1c1d1e1f1b0000018bcfe58740f60a83676c6f672e7478745820000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f6a746578742f706c61696e"
         ).unwrap();
-        assert_eq!(hex::encode(&cbor), hex::encode(&expected_cbor), "CBOR mismatch");
+        assert_eq!(
+            hex::encode(&cbor),
+            hex::encode(&expected_cbor),
+            "CBOR mismatch"
+        );
 
         let event_id = compute_event_id(&issue_id, &actor, ts_unix_ms, parent, &kind);
-        let expected_event_id: EventId = hex_to_id(
-            "dc83946d33437f0b73d8b04c63f7b0b85b9e9a24e790fee3ca129d3d8b870749"
-        ).unwrap();
+        let expected_event_id: EventId =
+            hex_to_id("dc83946d33437f0b73d8b04c63f7b0b85b9e9a24e790fee3ca129d3d8b870749").unwrap();
         assert_eq!(event_id, expected_event_id);
     }
 
@@ -511,8 +507,18 @@ mod tests {
             path: "src/main.rs".to_string(),
             language: "rust".to_string(),
             symbols: vec![
-                SymbolInfo { name: "main".to_string(), kind: "function".to_string(), line_start: 1, line_end: 10 },
-                SymbolInfo { name: "Config".to_string(), kind: "struct".to_string(), line_start: 12, line_end: 20 },
+                SymbolInfo {
+                    name: "main".to_string(),
+                    kind: "function".to_string(),
+                    line_start: 1,
+                    line_end: 10,
+                },
+                SymbolInfo {
+                    name: "Config".to_string(),
+                    kind: "struct".to_string(),
+                    line_start: 12,
+                    line_end: 20,
+                },
             ],
             summary: "Entry point".to_string(),
             content_hash: [0xAA; 32],
@@ -527,8 +533,18 @@ mod tests {
             path: "src/main.rs".to_string(),
             language: "rust".to_string(),
             symbols: vec![
-                SymbolInfo { name: "Config".to_string(), kind: "struct".to_string(), line_start: 12, line_end: 20 },
-                SymbolInfo { name: "main".to_string(), kind: "function".to_string(), line_start: 1, line_end: 10 },
+                SymbolInfo {
+                    name: "Config".to_string(),
+                    kind: "struct".to_string(),
+                    line_start: 12,
+                    line_end: 20,
+                },
+                SymbolInfo {
+                    name: "main".to_string(),
+                    kind: "function".to_string(),
+                    line_start: 1,
+                    line_end: 10,
+                },
             ],
             summary: "Entry point".to_string(),
             content_hash: [0xAA; 32],

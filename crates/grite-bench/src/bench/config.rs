@@ -1,10 +1,10 @@
 //! Benchmark configuration
 
-use std::path::PathBuf;
 use super::scenario::BenchmarkScenario;
+use std::path::PathBuf;
 
 /// Configuration for a benchmark run
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct BenchmarkConfig {
     /// The scenario to run
     pub scenario: BenchmarkScenario,
@@ -12,14 +12,4 @@ pub struct BenchmarkConfig {
     pub repo_path: Option<PathBuf>,
     /// Path for JSON report output
     pub json_report_path: Option<PathBuf>,
-}
-
-impl Default for BenchmarkConfig {
-    fn default() -> Self {
-        Self {
-            scenario: BenchmarkScenario::default(),
-            repo_path: None,
-            json_report_path: None,
-        }
-    }
 }

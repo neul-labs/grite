@@ -65,28 +65,35 @@ pub fn run(cli: &Cli, cmd: LockCommand) -> Result<(), GriteError> {
 fn run_acquire(cli: &Cli, resource: String, ttl_seconds: u64) -> Result<(), GriteError> {
     let ctx = GriteContext::resolve(cli)?;
     let git_dir = ctx.repo_root().join(".git");
-    let manager = LockManager::open(&git_dir)
-        ?;
+    let manager = LockManager::open(&git_dir)?;
 
     let ttl_ms = ttl_seconds * 1000;
-    let lock = manager.acquire(&resource, &ctx.actor_id, Some(ttl_ms))
+    let lock = manager
+        .acquire(&resource, &ctx.actor_id, Some(ttl_ms))
         .map_err(|e| match e {
-            libgrite_git::GitError::LockConflict { resource, owner, expires_in_ms } => {
-                GriteError::Conflict(format!(
-                    "Lock on {} is held by {} (expires in {}s)",
-                    resource, owner, expires_in_ms / 1000
-                ))
-            }
+            libgrite_git::GitError::LockConflict {
+                resource,
+                owner,
+                expires_in_ms,
+            } => GriteError::Conflict(format!(
+                "Lock on {} is held by {} (expires in {}s)",
+                resource,
+                owner,
+                expires_in_ms / 1000
+            )),
             _ => GriteError::Internal(e.to_string()),
         })?;
 
-    output_success(cli, LockAcquireOutput {
-        resource: lock.resource,
-        owner: lock.owner,
-        nonce: lock.nonce,
-        expires_unix_ms: lock.expires_unix_ms,
-        ttl_seconds,
-    });
+    output_success(
+        cli,
+        LockAcquireOutput {
+            resource: lock.resource,
+            owner: lock.owner,
+            nonce: lock.nonce,
+            expires_unix_ms: lock.expires_unix_ms,
+            ttl_seconds,
+        },
+    );
 
     Ok(())
 }
@@ -94,24 +101,24 @@ fn run_acquire(cli: &Cli, resource: String, ttl_seconds: u64) -> Result<(), Grit
 fn run_release(cli: &Cli, resource: String) -> Result<(), GriteError> {
     let ctx = GriteContext::resolve(cli)?;
     let git_dir = ctx.repo_root().join(".git");
-    let manager = LockManager::open(&git_dir)
-        ?;
+    let manager = LockManager::open(&git_dir)?;
 
-    manager.release(&resource, &ctx.actor_id)
+    manager
+        .release(&resource, &ctx.actor_id)
         .map_err(|e| match e {
-            libgrite_git::GitError::LockNotOwned { resource, owner } => {
-                GriteError::Conflict(format!(
-                    "Cannot release lock on {} - owned by {}",
-                    resource, owner
-                ))
-            }
+            libgrite_git::GitError::LockNotOwned { resource, owner } => GriteError::Conflict(
+                format!("Cannot release lock on {} - owned by {}", resource, owner),
+            ),
             _ => GriteError::Internal(e.to_string()),
         })?;
 
-    output_success(cli, LockReleaseOutput {
-        resource,
-        released: true,
-    });
+    output_success(
+        cli,
+        LockReleaseOutput {
+            resource,
+            released: true,
+        },
+    );
 
     Ok(())
 }
@@ -119,27 +126,27 @@ fn run_release(cli: &Cli, resource: String) -> Result<(), GriteError> {
 fn run_renew(cli: &Cli, resource: String, ttl_seconds: u64) -> Result<(), GriteError> {
     let ctx = GriteContext::resolve(cli)?;
     let git_dir = ctx.repo_root().join(".git");
-    let manager = LockManager::open(&git_dir)
-        ?;
+    let manager = LockManager::open(&git_dir)?;
 
     let ttl_ms = ttl_seconds * 1000;
-    let lock = manager.renew(&resource, &ctx.actor_id, Some(ttl_ms))
+    let lock = manager
+        .renew(&resource, &ctx.actor_id, Some(ttl_ms))
         .map_err(|e| match e {
-            libgrite_git::GitError::LockNotOwned { resource, owner } => {
-                GriteError::Conflict(format!(
-                    "Cannot renew lock on {} - owned by {}",
-                    resource, owner
-                ))
-            }
+            libgrite_git::GitError::LockNotOwned { resource, owner } => GriteError::Conflict(
+                format!("Cannot renew lock on {} - owned by {}", resource, owner),
+            ),
             _ => GriteError::Internal(e.to_string()),
         })?;
 
-    output_success(cli, LockRenewOutput {
-        resource: lock.resource,
-        owner: lock.owner,
-        expires_unix_ms: lock.expires_unix_ms,
-        ttl_seconds,
-    });
+    output_success(
+        cli,
+        LockRenewOutput {
+            resource: lock.resource,
+            owner: lock.owner,
+            expires_unix_ms: lock.expires_unix_ms,
+            ttl_seconds,
+        },
+    );
 
     Ok(())
 }
@@ -147,28 +154,30 @@ fn run_renew(cli: &Cli, resource: String, ttl_seconds: u64) -> Result<(), GriteE
 fn run_status(cli: &Cli) -> Result<(), GriteError> {
     let ctx = GriteContext::resolve(cli)?;
     let git_dir = ctx.repo_root().join(".git");
-    let manager = LockManager::open(&git_dir)
-        ?;
+    let manager = LockManager::open(&git_dir)?;
 
-    let locks = manager.list_locks()
-        ?;
+    let locks = manager.list_locks()?;
 
-    let lock_infos: Vec<LockInfo> = locks.iter().map(|lock| {
-        LockInfo {
+    let lock_infos: Vec<LockInfo> = locks
+        .iter()
+        .map(|lock| LockInfo {
             resource: lock.resource.clone(),
             owner: lock.owner.clone(),
             expires_unix_ms: lock.expires_unix_ms,
             time_remaining_seconds: lock.time_remaining_ms() / 1000,
             expired: lock.is_expired(),
-        }
-    }).collect();
+        })
+        .collect();
 
     let total = lock_infos.len();
 
-    output_success(cli, LockStatusOutput {
-        locks: lock_infos,
-        total,
-    });
+    output_success(
+        cli,
+        LockStatusOutput {
+            locks: lock_infos,
+            total,
+        },
+    );
 
     Ok(())
 }
@@ -176,16 +185,17 @@ fn run_status(cli: &Cli) -> Result<(), GriteError> {
 fn run_gc(cli: &Cli) -> Result<(), GriteError> {
     let ctx = GriteContext::resolve(cli)?;
     let git_dir = ctx.repo_root().join(".git");
-    let manager = LockManager::open(&git_dir)
-        ?;
+    let manager = LockManager::open(&git_dir)?;
 
-    let stats = manager.gc()
-        ?;
+    let stats = manager.gc()?;
 
-    output_success(cli, LockGcOutput {
-        removed: stats.removed,
-        kept: stats.kept,
-    });
+    output_success(
+        cli,
+        LockGcOutput {
+            removed: stats.removed,
+            kept: stats.kept,
+        },
+    );
 
     Ok(())
 }

@@ -68,7 +68,8 @@ pub fn extract(content: &str, language: &str) -> Option<Vec<SymbolInfo>> {
 
     // Sort by line, then by kind specificity (prefer struct/class/interface over generic "type")
     symbols.sort_by(|a, b| {
-        a.line_start.cmp(&b.line_start)
+        a.line_start
+            .cmp(&b.line_start)
             .then_with(|| kind_priority(&a.kind).cmp(&kind_priority(&b.kind)))
     });
     // Deduplicate: same name+line keeps the more specific kind (first after priority sort)
@@ -91,9 +92,21 @@ fn language_config(language: &str) -> Option<(LanguageFn, &'static str, &'static
     match language {
         "rust" => Some((tree_sitter_rust::LANGUAGE, RUST_QUERY, RUST_KINDS)),
         "python" => Some((tree_sitter_python::LANGUAGE, PYTHON_QUERY, PYTHON_KINDS)),
-        "typescript" => Some((tree_sitter_typescript::LANGUAGE_TYPESCRIPT, TYPESCRIPT_QUERY, TYPESCRIPT_KINDS)),
-        "typescriptreact" => Some((tree_sitter_typescript::LANGUAGE_TSX, TYPESCRIPT_QUERY, TYPESCRIPT_KINDS)),
-        "javascript" => Some((tree_sitter_javascript::LANGUAGE, JAVASCRIPT_QUERY, JAVASCRIPT_KINDS)),
+        "typescript" => Some((
+            tree_sitter_typescript::LANGUAGE_TYPESCRIPT,
+            TYPESCRIPT_QUERY,
+            TYPESCRIPT_KINDS,
+        )),
+        "typescriptreact" => Some((
+            tree_sitter_typescript::LANGUAGE_TSX,
+            TYPESCRIPT_QUERY,
+            TYPESCRIPT_KINDS,
+        )),
+        "javascript" => Some((
+            tree_sitter_javascript::LANGUAGE,
+            JAVASCRIPT_QUERY,
+            JAVASCRIPT_KINDS,
+        )),
         "go" => Some((tree_sitter_go::LANGUAGE, GO_QUERY, GO_KINDS)),
         "java" => Some((tree_sitter_java::LANGUAGE, JAVA_QUERY, JAVA_KINDS)),
         "c" => Some((tree_sitter_c::LANGUAGE, C_QUERY, C_KINDS)),
@@ -343,15 +356,30 @@ pub type Result<T> = std::result::Result<T, Error>;
         let symbols = extract(content, "rust").unwrap();
         let names: Vec<&str> = symbols.iter().map(|s| s.name.as_str()).collect();
 
-        assert!(names.contains(&"Config"), "missing Config, got: {:?}", names);
+        assert!(
+            names.contains(&"Config"),
+            "missing Config, got: {:?}",
+            names
+        );
         assert!(names.contains(&"State"), "missing State, got: {:?}", names);
-        assert!(names.contains(&"Handler"), "missing Handler, got: {:?}", names);
+        assert!(
+            names.contains(&"Handler"),
+            "missing Handler, got: {:?}",
+            names
+        );
         assert!(names.contains(&"new"), "missing new, got: {:?}", names);
         assert!(names.contains(&"load"), "missing load, got: {:?}", names);
-        assert!(names.contains(&"MAX_SIZE"), "missing MAX_SIZE, got: {:?}", names);
+        assert!(
+            names.contains(&"MAX_SIZE"),
+            "missing MAX_SIZE, got: {:?}",
+            names
+        );
 
         // Check accurate line ranges
-        let config = symbols.iter().find(|s| s.name == "Config" && s.kind == "struct").unwrap();
+        let config = symbols
+            .iter()
+            .find(|s| s.name == "Config" && s.kind == "struct")
+            .unwrap();
         assert_eq!(config.line_start, 1);
         assert_eq!(config.line_end, 4);
     }
@@ -375,11 +403,31 @@ async def async_func():
         let symbols = extract(content, "python").unwrap();
         let names: Vec<&str> = symbols.iter().map(|s| s.name.as_str()).collect();
 
-        assert!(names.contains(&"MyClass"), "missing MyClass, got: {:?}", names);
-        assert!(names.contains(&"__init__"), "missing __init__, got: {:?}", names);
-        assert!(names.contains(&"method"), "missing method, got: {:?}", names);
-        assert!(names.contains(&"standalone"), "missing standalone, got: {:?}", names);
-        assert!(names.contains(&"async_func"), "missing async_func, got: {:?}", names);
+        assert!(
+            names.contains(&"MyClass"),
+            "missing MyClass, got: {:?}",
+            names
+        );
+        assert!(
+            names.contains(&"__init__"),
+            "missing __init__, got: {:?}",
+            names
+        );
+        assert!(
+            names.contains(&"method"),
+            "missing method, got: {:?}",
+            names
+        );
+        assert!(
+            names.contains(&"standalone"),
+            "missing standalone, got: {:?}",
+            names
+        );
+        assert!(
+            names.contains(&"async_func"),
+            "missing async_func, got: {:?}",
+            names
+        );
 
         // Check accurate line ranges
         let class = symbols.iter().find(|s| s.name == "MyClass").unwrap();
@@ -419,11 +467,31 @@ const fetchData = async (url: string) => {
         let names: Vec<&str> = symbols.iter().map(|s| s.name.as_str()).collect();
 
         assert!(names.contains(&"greet"), "missing greet, got: {:?}", names);
-        assert!(names.contains(&"UserService"), "missing UserService, got: {:?}", names);
-        assert!(names.contains(&"Config"), "missing Config, got: {:?}", names);
-        assert!(names.contains(&"UserId"), "missing UserId, got: {:?}", names);
-        assert!(names.contains(&"Status"), "missing Status, got: {:?}", names);
-        assert!(names.contains(&"fetchData"), "missing fetchData, got: {:?}", names);
+        assert!(
+            names.contains(&"UserService"),
+            "missing UserService, got: {:?}",
+            names
+        );
+        assert!(
+            names.contains(&"Config"),
+            "missing Config, got: {:?}",
+            names
+        );
+        assert!(
+            names.contains(&"UserId"),
+            "missing UserId, got: {:?}",
+            names
+        );
+        assert!(
+            names.contains(&"Status"),
+            "missing Status, got: {:?}",
+            names
+        );
+        assert!(
+            names.contains(&"fetchData"),
+            "missing fetchData, got: {:?}",
+            names
+        );
     }
 
     #[test]
@@ -447,7 +515,11 @@ const greet = (name) => {
         let names: Vec<&str> = symbols.iter().map(|s| s.name.as_str()).collect();
 
         assert!(names.contains(&"hello"), "missing hello, got: {:?}", names);
-        assert!(names.contains(&"Animal"), "missing Animal, got: {:?}", names);
+        assert!(
+            names.contains(&"Animal"),
+            "missing Animal, got: {:?}",
+            names
+        );
         assert!(names.contains(&"greet"), "missing greet, got: {:?}", names);
     }
 
@@ -480,9 +552,21 @@ type UserID string
 
         assert!(names.contains(&"main"), "missing main, got: {:?}", names);
         assert!(names.contains(&"Start"), "missing Start, got: {:?}", names);
-        assert!(names.contains(&"Config"), "missing Config, got: {:?}", names);
-        assert!(names.contains(&"Handler"), "missing Handler, got: {:?}", names);
-        assert!(names.contains(&"UserID"), "missing UserID, got: {:?}", names);
+        assert!(
+            names.contains(&"Config"),
+            "missing Config, got: {:?}",
+            names
+        );
+        assert!(
+            names.contains(&"Handler"),
+            "missing Handler, got: {:?}",
+            names
+        );
+        assert!(
+            names.contains(&"UserID"),
+            "missing UserID, got: {:?}",
+            names
+        );
 
         // Check kinds
         let config = symbols.iter().find(|s| s.name == "Config").unwrap();
@@ -523,11 +607,31 @@ public enum Status {
         let symbols = extract(content, "java").unwrap();
         let names: Vec<&str> = symbols.iter().map(|s| s.name.as_str()).collect();
 
-        assert!(names.contains(&"UserService"), "missing UserService, got: {:?}", names);
-        assert!(names.contains(&"getName"), "missing getName, got: {:?}", names);
-        assert!(names.contains(&"setName"), "missing setName, got: {:?}", names);
-        assert!(names.contains(&"Repository"), "missing Repository, got: {:?}", names);
-        assert!(names.contains(&"Status"), "missing Status, got: {:?}", names);
+        assert!(
+            names.contains(&"UserService"),
+            "missing UserService, got: {:?}",
+            names
+        );
+        assert!(
+            names.contains(&"getName"),
+            "missing getName, got: {:?}",
+            names
+        );
+        assert!(
+            names.contains(&"setName"),
+            "missing setName, got: {:?}",
+            names
+        );
+        assert!(
+            names.contains(&"Repository"),
+            "missing Repository, got: {:?}",
+            names
+        );
+        assert!(
+            names.contains(&"Status"),
+            "missing Status, got: {:?}",
+            names
+        );
     }
 
     #[test]
@@ -560,7 +664,11 @@ void helper(int n) {
         assert!(names.contains(&"Point"), "missing Point, got: {:?}", names);
         assert!(names.contains(&"Color"), "missing Color, got: {:?}", names);
         assert!(names.contains(&"main"), "missing main, got: {:?}", names);
-        assert!(names.contains(&"helper"), "missing helper, got: {:?}", names);
+        assert!(
+            names.contains(&"helper"),
+            "missing helper, got: {:?}",
+            names
+        );
     }
 
     #[test]
@@ -592,10 +700,18 @@ void process(int n) {
         let names: Vec<&str> = symbols.iter().map(|s| s.name.as_str()).collect();
 
         assert!(names.contains(&"mylib"), "missing mylib, got: {:?}", names);
-        assert!(names.contains(&"Widget"), "missing Widget, got: {:?}", names);
+        assert!(
+            names.contains(&"Widget"),
+            "missing Widget, got: {:?}",
+            names
+        );
         assert!(names.contains(&"Point"), "missing Point, got: {:?}", names);
         assert!(names.contains(&"Color"), "missing Color, got: {:?}", names);
-        assert!(names.contains(&"process"), "missing process, got: {:?}", names);
+        assert!(
+            names.contains(&"process"),
+            "missing process, got: {:?}",
+            names
+        );
     }
 
     #[test]
@@ -620,9 +736,17 @@ end
         let symbols = extract(content, "ruby").unwrap();
         let names: Vec<&str> = symbols.iter().map(|s| s.name.as_str()).collect();
 
-        assert!(names.contains(&"Authentication"), "missing Authentication, got: {:?}", names);
+        assert!(
+            names.contains(&"Authentication"),
+            "missing Authentication, got: {:?}",
+            names
+        );
         assert!(names.contains(&"User"), "missing User, got: {:?}", names);
-        assert!(names.contains(&"initialize"), "missing initialize, got: {:?}", names);
+        assert!(
+            names.contains(&"initialize"),
+            "missing initialize, got: {:?}",
+            names
+        );
         assert!(names.contains(&"greet"), "missing greet, got: {:?}", names);
     }
 
@@ -643,9 +767,21 @@ end
         let symbols = extract(content, "elixir").unwrap();
         let names: Vec<&str> = symbols.iter().map(|s| s.name.as_str()).collect();
 
-        assert!(names.contains(&"MyApp.Users"), "missing MyApp.Users, got: {:?}", names);
-        assert!(names.contains(&"get_user"), "missing get_user, got: {:?}", names);
-        assert!(names.contains(&"validate"), "missing validate, got: {:?}", names);
+        assert!(
+            names.contains(&"MyApp.Users"),
+            "missing MyApp.Users, got: {:?}",
+            names
+        );
+        assert!(
+            names.contains(&"get_user"),
+            "missing get_user, got: {:?}",
+            names
+        );
+        assert!(
+            names.contains(&"validate"),
+            "missing validate, got: {:?}",
+            names
+        );
     }
 
     #[test]
@@ -665,7 +801,11 @@ type Theme = "light" | "dark";
         let names: Vec<&str> = symbols.iter().map(|s| s.name.as_str()).collect();
 
         assert!(names.contains(&"Props"), "missing Props, got: {:?}", names);
-        assert!(names.contains(&"Component"), "missing Component, got: {:?}", names);
+        assert!(
+            names.contains(&"Component"),
+            "missing Component, got: {:?}",
+            names
+        );
         assert!(names.contains(&"Theme"), "missing Theme, got: {:?}", names);
     }
 

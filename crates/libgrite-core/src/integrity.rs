@@ -6,7 +6,7 @@ use crate::hash::compute_event_id;
 use crate::signing::verify_signature;
 use crate::store::GriteStore;
 use crate::types::event::Event;
-use crate::types::ids::{EventId, id_to_hex};
+use crate::types::ids::{id_to_hex, EventId};
 use crate::GriteError;
 
 /// Result of an integrity check
@@ -43,9 +43,7 @@ pub enum CorruptionKind {
         computed: EventId,
     },
     /// Event references a parent that doesn't exist
-    MissingParent {
-        parent_id: EventId,
-    },
+    MissingParent { parent_id: EventId },
 }
 
 /// Signature verification error

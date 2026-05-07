@@ -44,27 +44,26 @@ pub enum GitError {
     },
 
     #[error("Lock not owned: {resource} is owned by {owner}")]
-    LockNotOwned {
-        resource: String,
-        owner: String,
-    },
+    LockNotOwned { resource: String, owner: String },
 }
 
 /// Bridge GitError into GriteError, preserving semantic variants.
 impl From<GitError> for libgrite_core::GriteError {
     fn from(e: GitError) -> Self {
         match e {
-            GitError::LockConflict { resource, owner, expires_in_ms } => {
-                libgrite_core::GriteError::Conflict(format!(
-                    "Resource '{}' is locked by {} (expires in {}s)",
-                    resource, owner, expires_in_ms / 1000
-                ))
-            }
-            GitError::LockNotOwned { resource, owner } => {
-                libgrite_core::GriteError::Conflict(format!(
-                    "Cannot release lock on '{}': owned by {}", resource, owner
-                ))
-            }
+            GitError::LockConflict {
+                resource,
+                owner,
+                expires_in_ms,
+            } => libgrite_core::GriteError::Conflict(format!(
+                "Resource '{}' is locked by {} (expires in {}s)",
+                resource,
+                owner,
+                expires_in_ms / 1000
+            )),
+            GitError::LockNotOwned { resource, owner } => libgrite_core::GriteError::Conflict(
+                format!("Cannot release lock on '{}': owned by {}", resource, owner),
+            ),
             GitError::NotARepo => {
                 libgrite_core::GriteError::NotFound("Not a git repository".to_string())
             }

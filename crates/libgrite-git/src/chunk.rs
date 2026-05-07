@@ -7,8 +7,8 @@
 //! - Codec: "cbor-v1"
 //! - Payload: CBOR array of events
 
-use blake2::{Blake2b, Digest};
 use blake2::digest::consts::U32;
+use blake2::{Blake2b, Digest};
 use ciborium::Value;
 use libgrite_core::types::event::{DependencyType, Event, EventKind, IssueState, SymbolInfo};
 use libgrite_core::types::ids::{ActorId, EventId, IssueId};
@@ -71,7 +71,9 @@ pub fn decode_chunk(data: &[u8]) -> Result<Vec<Event>, GitError> {
     // Read codec
     let codec_len = data[10] as usize;
     if data.len() < 11 + codec_len {
-        return Err(GitError::InvalidChunk("Chunk truncated at codec".to_string()));
+        return Err(GitError::InvalidChunk(
+            "Chunk truncated at codec".to_string(),
+        ));
     }
     let codec = std::str::from_utf8(&data[11..11 + codec_len])
         .map_err(|_| GitError::InvalidChunk("Invalid codec string".to_string()))?;
@@ -134,7 +136,11 @@ fn event_to_cbor(event: &Event) -> Value {
 fn cbor_to_events(value: Value) -> Result<Vec<Event>, GitError> {
     let array = match value {
         Value::Array(arr) => arr,
-        _ => return Err(GitError::InvalidChunk("Expected array of events".to_string())),
+        _ => {
+            return Err(GitError::InvalidChunk(
+                "Expected array of events".to_string(),
+            ))
+        }
     };
 
     array.into_iter().map(cbor_to_event).collect()
@@ -219,25 +225,37 @@ fn cbor_to_event(value: Value) -> Result<Event, GitError> {
 fn parse_event_kind(tag: u32, payload: Value) -> Result<EventKind, GitError> {
     let array = match payload {
         Value::Array(arr) => arr,
-        _ => return Err(GitError::InvalidEvent("Expected kind payload array".to_string())),
+        _ => {
+            return Err(GitError::InvalidEvent(
+                "Expected kind payload array".to_string(),
+            ))
+        }
     };
 
     match tag {
         1 => {
             // IssueCreated { title, body, labels }
             if array.len() != 3 {
-                return Err(GitError::InvalidEvent("IssueCreated expects 3 fields".to_string()));
+                return Err(GitError::InvalidEvent(
+                    "IssueCreated expects 3 fields".to_string(),
+                ));
             }
             let mut iter = array.into_iter();
             let title = extract_string(&next_item(&mut iter, "title")?, "title")?;
             let body = extract_string(&next_item(&mut iter, "body")?, "body")?;
             let labels = extract_string_array(&next_item(&mut iter, "labels")?, "labels")?;
-            Ok(EventKind::IssueCreated { title, body, labels })
+            Ok(EventKind::IssueCreated {
+                title,
+                body,
+                labels,
+            })
         }
         2 => {
             // IssueUpdated { title, body }
             if array.len() != 2 {
-                return Err(GitError::InvalidEvent("IssueUpdated expects 2 fields".to_string()));
+                return Err(GitError::InvalidEvent(
+                    "IssueUpdated expects 2 fields".to_string(),
+                ));
             }
             let mut iter = array.into_iter();
             let title = extract_optional_string(&next_item(&mut iter, "title")?, "title")?;
@@ -247,7 +265,9 @@ fn parse_event_kind(tag: u32, payload: Value) -> Result<EventKind, GitError> {
         3 => {
             // CommentAdded { body }
             if array.len() != 1 {
-                return Err(GitError::InvalidEvent("CommentAdded expects 1 field".to_string()));
+                return Err(GitError::InvalidEvent(
+                    "CommentAdded expects 1 field".to_string(),
+                ));
             }
             let mut iter = array.into_iter();
             let body = extract_string(&next_item(&mut iter, "body")?, "body")?;
@@ -256,7 +276,9 @@ fn parse_event_kind(tag: u32, payload: Value) -> Result<EventKind, GitError> {
         4 => {
             // LabelAdded { label }
             if array.len() != 1 {
-                return Err(GitError::InvalidEvent("LabelAdded expects 1 field".to_string()));
+                return Err(GitError::InvalidEvent(
+                    "LabelAdded expects 1 field".to_string(),
+                ));
             }
             let mut iter = array.into_iter();
             let label = extract_string(&next_item(&mut iter, "label")?, "label")?;
@@ -265,7 +287,9 @@ fn parse_event_kind(tag: u32, payload: Value) -> Result<EventKind, GitError> {
         5 => {
             // LabelRemoved { label }
             if array.len() != 1 {
-                return Err(GitError::InvalidEvent("LabelRemoved expects 1 field".to_string()));
+                return Err(GitError::InvalidEvent(
+                    "LabelRemoved expects 1 field".to_string(),
+                ));
             }
             let mut iter = array.into_iter();
             let label = extract_string(&next_item(&mut iter, "label")?, "label")?;
@@ -274,21 +298,30 @@ fn parse_event_kind(tag: u32, payload: Value) -> Result<EventKind, GitError> {
         6 => {
             // StateChanged { state }
             if array.len() != 1 {
-                return Err(GitError::InvalidEvent("StateChanged expects 1 field".to_string()));
+                return Err(GitError::InvalidEvent(
+                    "StateChanged expects 1 field".to_string(),
+                ));
             }
             let mut iter = array.into_iter();
             let state_str = extract_string(&next_item(&mut iter, "state")?, "state")?;
             let state = match state_str.as_str() {
                 "open" => IssueState::Open,
                 "closed" => IssueState::Closed,
-                _ => return Err(GitError::InvalidEvent(format!("Invalid state: {}", state_str))),
+                _ => {
+                    return Err(GitError::InvalidEvent(format!(
+                        "Invalid state: {}",
+                        state_str
+                    )))
+                }
             };
             Ok(EventKind::StateChanged { state })
         }
         7 => {
             // LinkAdded { url, note }
             if array.len() != 2 {
-                return Err(GitError::InvalidEvent("LinkAdded expects 2 fields".to_string()));
+                return Err(GitError::InvalidEvent(
+                    "LinkAdded expects 2 fields".to_string(),
+                ));
             }
             let mut iter = array.into_iter();
             let url = extract_string(&next_item(&mut iter, "url")?, "url")?;
@@ -298,7 +331,9 @@ fn parse_event_kind(tag: u32, payload: Value) -> Result<EventKind, GitError> {
         8 => {
             // AssigneeAdded { user }
             if array.len() != 1 {
-                return Err(GitError::InvalidEvent("AssigneeAdded expects 1 field".to_string()));
+                return Err(GitError::InvalidEvent(
+                    "AssigneeAdded expects 1 field".to_string(),
+                ));
             }
             let mut iter = array.into_iter();
             let user = extract_string(&next_item(&mut iter, "user")?, "user")?;
@@ -307,7 +342,9 @@ fn parse_event_kind(tag: u32, payload: Value) -> Result<EventKind, GitError> {
         9 => {
             // AssigneeRemoved { user }
             if array.len() != 1 {
-                return Err(GitError::InvalidEvent("AssigneeRemoved expects 1 field".to_string()));
+                return Err(GitError::InvalidEvent(
+                    "AssigneeRemoved expects 1 field".to_string(),
+                ));
             }
             let mut iter = array.into_iter();
             let user = extract_string(&next_item(&mut iter, "user")?, "user")?;
@@ -316,7 +353,9 @@ fn parse_event_kind(tag: u32, payload: Value) -> Result<EventKind, GitError> {
         10 => {
             // AttachmentAdded { name, sha256, mime }
             if array.len() != 3 {
-                return Err(GitError::InvalidEvent("AttachmentAdded expects 3 fields".to_string()));
+                return Err(GitError::InvalidEvent(
+                    "AttachmentAdded expects 3 fields".to_string(),
+                ));
             }
             let mut iter = array.into_iter();
             let name = extract_string(&next_item(&mut iter, "name")?, "name")?;
@@ -329,35 +368,43 @@ fn parse_event_kind(tag: u32, payload: Value) -> Result<EventKind, GitError> {
         11 => {
             // DependencyAdded { target, dep_type }
             if array.len() != 2 {
-                return Err(GitError::InvalidEvent("DependencyAdded expects 2 fields".to_string()));
+                return Err(GitError::InvalidEvent(
+                    "DependencyAdded expects 2 fields".to_string(),
+                ));
             }
             let mut iter = array.into_iter();
             let target: IssueId = extract_bytes(&next_item(&mut iter, "target")?, "target", 16)?
                 .try_into()
                 .map_err(|_| GitError::InvalidEvent("Invalid target length".to_string()))?;
             let dep_type_str = extract_string(&next_item(&mut iter, "dep_type")?, "dep_type")?;
-            let dep_type = DependencyType::from_str(&dep_type_str)
-                .ok_or_else(|| GitError::InvalidEvent(format!("Invalid dep_type: {}", dep_type_str)))?;
+            let dep_type = DependencyType::from_str(&dep_type_str).ok_or_else(|| {
+                GitError::InvalidEvent(format!("Invalid dep_type: {}", dep_type_str))
+            })?;
             Ok(EventKind::DependencyAdded { target, dep_type })
         }
         12 => {
             // DependencyRemoved { target, dep_type }
             if array.len() != 2 {
-                return Err(GitError::InvalidEvent("DependencyRemoved expects 2 fields".to_string()));
+                return Err(GitError::InvalidEvent(
+                    "DependencyRemoved expects 2 fields".to_string(),
+                ));
             }
             let mut iter = array.into_iter();
             let target: IssueId = extract_bytes(&next_item(&mut iter, "target")?, "target", 16)?
                 .try_into()
                 .map_err(|_| GitError::InvalidEvent("Invalid target length".to_string()))?;
             let dep_type_str = extract_string(&next_item(&mut iter, "dep_type")?, "dep_type")?;
-            let dep_type = DependencyType::from_str(&dep_type_str)
-                .ok_or_else(|| GitError::InvalidEvent(format!("Invalid dep_type: {}", dep_type_str)))?;
+            let dep_type = DependencyType::from_str(&dep_type_str).ok_or_else(|| {
+                GitError::InvalidEvent(format!("Invalid dep_type: {}", dep_type_str))
+            })?;
             Ok(EventKind::DependencyRemoved { target, dep_type })
         }
         13 => {
             // ContextUpdated { path, language, symbols, summary, content_hash }
             if array.len() != 5 {
-                return Err(GitError::InvalidEvent("ContextUpdated expects 5 fields".to_string()));
+                return Err(GitError::InvalidEvent(
+                    "ContextUpdated expects 5 fields".to_string(),
+                ));
             }
             let mut iter = array.into_iter();
             let path = extract_string(&next_item(&mut iter, "path")?, "path")?;
@@ -365,15 +412,26 @@ fn parse_event_kind(tag: u32, payload: Value) -> Result<EventKind, GitError> {
             let symbols_value = next_item(&mut iter, "symbols")?;
             let symbols = parse_symbols(symbols_value)?;
             let summary = extract_string(&next_item(&mut iter, "summary")?, "summary")?;
-            let content_hash: [u8; 32] = extract_bytes(&next_item(&mut iter, "content_hash")?, "content_hash", 32)?
-                .try_into()
-                .map_err(|_| GitError::InvalidEvent("Invalid content_hash length".to_string()))?;
-            Ok(EventKind::ContextUpdated { path, language, symbols, summary, content_hash })
+            let content_hash: [u8; 32] =
+                extract_bytes(&next_item(&mut iter, "content_hash")?, "content_hash", 32)?
+                    .try_into()
+                    .map_err(|_| {
+                        GitError::InvalidEvent("Invalid content_hash length".to_string())
+                    })?;
+            Ok(EventKind::ContextUpdated {
+                path,
+                language,
+                symbols,
+                summary,
+                content_hash,
+            })
         }
         14 => {
             // ProjectContextUpdated { key, value }
             if array.len() != 2 {
-                return Err(GitError::InvalidEvent("ProjectContextUpdated expects 2 fields".to_string()));
+                return Err(GitError::InvalidEvent(
+                    "ProjectContextUpdated expects 2 fields".to_string(),
+                ));
             }
             let mut iter = array.into_iter();
             let key = extract_string(&next_item(&mut iter, "key")?, "key")?;
@@ -390,27 +448,42 @@ fn parse_symbols(value: Value) -> Result<Vec<SymbolInfo>, GitError> {
         Value::Array(arr) => arr,
         _ => return Err(GitError::InvalidEvent("symbols must be array".to_string())),
     };
-    array.into_iter().map(|sym_value| {
-        let sym_arr = match sym_value {
-            Value::Array(arr) => arr,
-            _ => return Err(GitError::InvalidEvent("symbol must be array".to_string())),
-        };
-        if sym_arr.len() != 4 {
-            return Err(GitError::InvalidEvent("symbol expects 4 fields".to_string()));
-        }
-        let mut iter = sym_arr.into_iter();
-        let name = extract_string(&next_item(&mut iter, "symbol.name")?, "symbol.name")?;
-        let kind = extract_string(&next_item(&mut iter, "symbol.kind")?, "symbol.kind")?;
-        let line_start = extract_u32(&next_item(&mut iter, "symbol.line_start")?, "symbol.line_start")?;
-        let line_end = extract_u32(&next_item(&mut iter, "symbol.line_end")?, "symbol.line_end")?;
-        Ok(SymbolInfo { name, kind, line_start, line_end })
-    }).collect()
+    array
+        .into_iter()
+        .map(|sym_value| {
+            let sym_arr = match sym_value {
+                Value::Array(arr) => arr,
+                _ => return Err(GitError::InvalidEvent("symbol must be array".to_string())),
+            };
+            if sym_arr.len() != 4 {
+                return Err(GitError::InvalidEvent(
+                    "symbol expects 4 fields".to_string(),
+                ));
+            }
+            let mut iter = sym_arr.into_iter();
+            let name = extract_string(&next_item(&mut iter, "symbol.name")?, "symbol.name")?;
+            let kind = extract_string(&next_item(&mut iter, "symbol.kind")?, "symbol.kind")?;
+            let line_start = extract_u32(
+                &next_item(&mut iter, "symbol.line_start")?,
+                "symbol.line_start",
+            )?;
+            let line_end =
+                extract_u32(&next_item(&mut iter, "symbol.line_end")?, "symbol.line_end")?;
+            Ok(SymbolInfo {
+                name,
+                kind,
+                line_start,
+                line_end,
+            })
+        })
+        .collect()
 }
 
 // Helper functions for extracting values from CBOR
 
 fn next_item(iter: &mut impl Iterator<Item = Value>, field: &str) -> Result<Value, GitError> {
-    iter.next().ok_or_else(|| GitError::InvalidEvent(format!("missing field: {}", field)))
+    iter.next()
+        .ok_or_else(|| GitError::InvalidEvent(format!("missing field: {}", field)))
 }
 
 fn extract_bytes(value: &Value, field: &str, expected_len: usize) -> Result<Vec<u8>, GitError> {
@@ -476,11 +549,7 @@ fn extract_optional_string(value: &Value, field: &str) -> Result<Option<String>,
 
 fn extract_string_array(value: &Value, field: &str) -> Result<Vec<String>, GitError> {
     match value {
-        Value::Array(arr) => {
-            arr.iter()
-                .map(|v| extract_string(v, field))
-                .collect()
-        }
+        Value::Array(arr) => arr.iter().map(|v| extract_string(v, field)).collect(),
         _ => Err(GitError::InvalidEvent(format!("{} must be array", field))),
     }
 }
@@ -507,7 +576,7 @@ mod tests {
             labels: vec!["bug".to_string(), "p0".to_string()],
         });
 
-        let chunk = encode_chunk(&[event.clone()]).unwrap();
+        let chunk = encode_chunk(std::slice::from_ref(&event)).unwrap();
 
         // Verify magic
         assert_eq!(&chunk[0..8], CHUNK_MAGIC);
@@ -520,7 +589,12 @@ mod tests {
         assert_eq!(decoded[0].actor, event.actor);
         assert_eq!(decoded[0].ts_unix_ms, event.ts_unix_ms);
 
-        if let EventKind::IssueCreated { title, body, labels } = &decoded[0].kind {
+        if let EventKind::IssueCreated {
+            title,
+            body,
+            labels,
+        } = &decoded[0].kind
+        {
             assert_eq!(title, "Test Issue");
             assert_eq!(body, "Test body");
             assert!(labels.contains(&"bug".to_string()));
@@ -580,9 +654,12 @@ mod tests {
             make_test_event(EventKind::ContextUpdated {
                 path: "src/main.rs".to_string(),
                 language: "rust".to_string(),
-                symbols: vec![
-                    SymbolInfo { name: "main".to_string(), kind: "function".to_string(), line_start: 1, line_end: 10 },
-                ],
+                symbols: vec![SymbolInfo {
+                    name: "main".to_string(),
+                    kind: "function".to_string(),
+                    line_start: 1,
+                    line_end: 10,
+                }],
                 summary: "Entry point".to_string(),
                 content_hash: [0xCC; 32],
             }),
@@ -610,7 +687,7 @@ mod tests {
             labels: vec![],
         });
 
-        let chunk1 = encode_chunk(&[event.clone()]).unwrap();
+        let chunk1 = encode_chunk(std::slice::from_ref(&event)).unwrap();
         let chunk2 = encode_chunk(&[event]).unwrap();
 
         let hash1 = chunk_hash(&chunk1);

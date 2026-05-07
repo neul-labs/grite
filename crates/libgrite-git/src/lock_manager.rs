@@ -6,7 +6,7 @@
 use std::path::Path;
 
 use git2::{Repository, Signature};
-use libgrite_core::{Lock, LockPolicy, LockCheckResult, resource_hash, DEFAULT_LOCK_TTL_MS};
+use libgrite_core::{resource_hash, Lock, LockCheckResult, LockPolicy, DEFAULT_LOCK_TTL_MS};
 
 use crate::GitError;
 
@@ -54,27 +54,50 @@ impl LockManager {
 
         // Try atomic create-if-not-exists (fast path)
         match self.try_create_lock(&ref_name, &lock) {
-            Ok(()) => return Ok(lock),
+            Ok(()) => Ok(lock),
             Err(LockAcquireError::Exists) => {
                 // Slow path: read existing, handle expired / owned-by-us
                 if let Some(existing) = self.read_lock(resource)? {
                     if !existing.is_expired() {
                         if existing.owner == owner {
                             // Already owned by this actor - return as-is
-                            return Ok(existing);
+                            Ok(existing)
                         } else {
                             let expires_in_ms = existing.time_remaining_ms();
-                            return Err(GitError::LockConflict {
+                            Err(GitError::LockConflict {
                                 resource: resource.to_string(),
                                 owner: existing.owner,
                                 expires_in_ms,
-                            });
+                            })
+                        }
+                    } else {
+                        // Lock is expired - delete and retry
+                        self.delete_ref(&ref_name)?;
+                        match self.try_create_lock(&ref_name, &lock) {
+                            Ok(()) => Ok(lock),
+                            Err(LockAcquireError::Exists) => {
+                                if let Some(other) = self.read_lock(resource)? {
+                                    if !other.is_expired() {
+                                        return Err(GitError::LockConflict {
+                                            resource: resource.to_string(),
+                                            owner: other.owner.clone(),
+                                            expires_in_ms: other.time_remaining_ms(),
+                                        });
+                                    }
+                                }
+                                Err(GitError::LockConflict {
+                                    resource: resource.to_string(),
+                                    owner: "unknown".to_string(),
+                                    expires_in_ms: 0,
+                                })
+                            }
+                            Err(LockAcquireError::Git(e)) => Err(e),
                         }
                     }
-                    // Lock is expired - delete and retry
-                    self.delete_ref(&ref_name)?;
+                } else {
+                    // Race: lock was deleted between read and delete
                     match self.try_create_lock(&ref_name, &lock) {
-                        Ok(()) => return Ok(lock),
+                        Ok(()) => Ok(lock),
                         Err(LockAcquireError::Exists) => {
                             if let Some(other) = self.read_lock(resource)? {
                                 if !other.is_expired() {
@@ -85,38 +108,17 @@ impl LockManager {
                                     });
                                 }
                             }
-                            return Err(GitError::LockConflict {
+                            Err(GitError::LockConflict {
                                 resource: resource.to_string(),
                                 owner: "unknown".to_string(),
                                 expires_in_ms: 0,
-                            });
+                            })
                         }
-                        Err(LockAcquireError::Git(e)) => return Err(e),
+                        Err(LockAcquireError::Git(e)) => Err(e),
                     }
-                }
-                // Race: lock was deleted between read and delete
-                match self.try_create_lock(&ref_name, &lock) {
-                    Ok(()) => return Ok(lock),
-                    Err(LockAcquireError::Exists) => {
-                        if let Some(other) = self.read_lock(resource)? {
-                            if !other.is_expired() {
-                                return Err(GitError::LockConflict {
-                                    resource: resource.to_string(),
-                                    owner: other.owner.clone(),
-                                    expires_in_ms: other.time_remaining_ms(),
-                                });
-                            }
-                        }
-                        return Err(GitError::LockConflict {
-                            resource: resource.to_string(),
-                            owner: "unknown".to_string(),
-                            expires_in_ms: 0,
-                        });
-                    }
-                    Err(LockAcquireError::Git(e)) => return Err(e),
                 }
             }
-            Err(LockAcquireError::Git(e)) => return Err(e),
+            Err(LockAcquireError::Git(e)) => Err(e),
         }
     }
 
@@ -141,7 +143,12 @@ impl LockManager {
     }
 
     /// Renew a lock's expiration
-    pub fn renew(&self, resource: &str, owner: &str, ttl_ms: Option<u64>) -> Result<Lock, GitError> {
+    pub fn renew(
+        &self,
+        resource: &str,
+        owner: &str,
+        ttl_ms: Option<u64>,
+    ) -> Result<Lock, GitError> {
         let ttl = ttl_ms.unwrap_or(DEFAULT_LOCK_TTL_MS);
         let ref_name = lock_ref_name(resource);
 
@@ -187,7 +194,12 @@ impl LockManager {
     }
 
     /// Check for conflicts with a resource
-    pub fn check_conflicts(&self, resource: &str, current_owner: &str, policy: LockPolicy) -> Result<LockCheckResult, GitError> {
+    pub fn check_conflicts(
+        &self,
+        resource: &str,
+        current_owner: &str,
+        policy: LockPolicy,
+    ) -> Result<LockCheckResult, GitError> {
         if policy == LockPolicy::Off {
             return Ok(LockCheckResult::Clear);
         }
@@ -196,9 +208,7 @@ impl LockManager {
         let conflicts: Vec<Lock> = locks
             .into_iter()
             .filter(|lock| {
-                !lock.is_expired() &&
-                lock.owner != current_owner &&
-                lock.conflicts_with(resource)
+                !lock.is_expired() && lock.owner != current_owner && lock.conflicts_with(resource)
             })
             .collect();
 
@@ -215,7 +225,9 @@ impl LockManager {
     pub fn gc(&self) -> Result<LockGcStats, GitError> {
         let mut stats = LockGcStats::default();
 
-        let refs: Vec<_> = self.repo.references_glob("refs/grite/locks/*")?
+        let refs: Vec<_> = self
+            .repo
+            .references_glob("refs/grite/locks/*")?
             .collect::<Result<Vec<_>, _>>()?;
 
         for reference in refs {
@@ -257,22 +269,24 @@ impl LockManager {
         };
 
         let blob = self.repo.find_blob(entry.id())?;
-        let content = std::str::from_utf8(blob.content())
-            .map_err(|e| GitError::ParseError(e.to_string()))?;
+        let content =
+            std::str::from_utf8(blob.content()).map_err(|e| GitError::ParseError(e.to_string()))?;
 
-        let lock: Lock = serde_json::from_str(content)
-            .map_err(|e| GitError::ParseError(e.to_string()))?;
+        let lock: Lock =
+            serde_json::from_str(content).map_err(|e| GitError::ParseError(e.to_string()))?;
 
         Ok(Some(lock))
     }
 
     /// Try to create a lock ref atomically (fail if it already exists).
     fn try_create_lock(&self, ref_name: &str, lock: &Lock) -> Result<(), LockAcquireError> {
-        let commit_oid = match self.write_lock_commit(lock) {
-            Ok(oid) => oid,
-            Err(e) => return Err(LockAcquireError::Git(e.into())),
-        };
-        match self.repo.reference(ref_name, commit_oid, false, "lock acquire") {
+        let commit_oid = self
+            .write_lock_commit(lock)
+            .map_err(LockAcquireError::Git)?;
+        match self
+            .repo
+            .reference(ref_name, commit_oid, false, "lock acquire")
+        {
             Ok(_) => Ok(()),
             Err(e) if e.code() == git2::ErrorCode::Exists => Err(LockAcquireError::Exists),
             Err(e) => Err(LockAcquireError::Git(e.into())),
@@ -280,11 +294,9 @@ impl LockManager {
     }
 
     /// Create the commit for a lock and return its OID (does not update any ref).
-    fn write_lock_commit(&self,
-        lock: &Lock,
-    ) -> Result<git2::Oid, GitError> {
-        let json = serde_json::to_string_pretty(lock)
-            .map_err(|e| GitError::ParseError(e.to_string()))?;
+    fn write_lock_commit(&self, lock: &Lock) -> Result<git2::Oid, GitError> {
+        let json =
+            serde_json::to_string_pretty(lock).map_err(|e| GitError::ParseError(e.to_string()))?;
 
         // Create blob
         let blob_id = self.repo.blob(json.as_bytes())?;
@@ -299,20 +311,17 @@ impl LockManager {
         let sig = Signature::now("grite", "grit@localhost")?;
         let message = format!("Lock: {}", lock.resource);
 
-        let parent = self.repo.find_reference(&lock_ref_name(&lock.resource))
+        let parent = self
+            .repo
+            .find_reference(&lock_ref_name(&lock.resource))
             .ok()
             .and_then(|r| r.peel_to_commit().ok());
 
         let parents: Vec<&git2::Commit> = parent.iter().collect();
 
-        let commit_oid = self.repo.commit(
-            None,
-            &sig,
-            &sig,
-            &message,
-            &tree,
-            &parents,
-        )?;
+        let commit_oid = self
+            .repo
+            .commit(None, &sig, &sig, &message, &tree, &parents)?;
 
         Ok(commit_oid)
     }
@@ -320,7 +329,8 @@ impl LockManager {
     /// Write lock to a ref (overwrites existing).
     fn write_lock(&self, ref_name: &str, lock: &Lock) -> Result<(), GitError> {
         let commit_oid = self.write_lock_commit(lock)?;
-        self.repo.reference(ref_name, commit_oid, true, "lock update")?;
+        self.repo
+            .reference(ref_name, commit_oid, true, "lock update")?;
         Ok(())
     }
 
@@ -356,7 +366,8 @@ mod tests {
         let tree_id = repo.treebuilder(None).unwrap().write().unwrap();
         {
             let tree = repo.find_tree(tree_id).unwrap();
-            repo.commit(Some("HEAD"), &sig, &sig, "Initial", &tree, &[]).unwrap();
+            repo.commit(Some("HEAD"), &sig, &sig, "Initial", &tree, &[])
+                .unwrap();
         }
 
         dir
@@ -368,7 +379,9 @@ mod tests {
         let manager = LockManager::open(dir.path()).unwrap();
 
         // Acquire lock
-        let lock = manager.acquire("repo:global", "actor1", Some(60000)).unwrap();
+        let lock = manager
+            .acquire("repo:global", "actor1", Some(60000))
+            .unwrap();
         assert_eq!(lock.owner, "actor1");
         assert_eq!(lock.resource, "repo:global");
         assert!(!lock.is_expired());
@@ -391,7 +404,9 @@ mod tests {
         let manager = LockManager::open(dir.path()).unwrap();
 
         // Acquire lock as actor1
-        manager.acquire("repo:global", "actor1", Some(60000)).unwrap();
+        manager
+            .acquire("repo:global", "actor1", Some(60000))
+            .unwrap();
 
         // Try to acquire as actor2 - should fail
         let result = manager.acquire("repo:global", "actor2", Some(60000));
@@ -404,14 +419,18 @@ mod tests {
         let manager = LockManager::open(dir.path()).unwrap();
 
         // Acquire lock
-        let lock1 = manager.acquire("issue:abc123", "actor1", Some(1000)).unwrap();
+        let lock1 = manager
+            .acquire("issue:abc123", "actor1", Some(1000))
+            .unwrap();
         let expires1 = lock1.expires_unix_ms;
 
         // Wait a tiny bit
         std::thread::sleep(std::time::Duration::from_millis(10));
 
         // Renew lock
-        let lock2 = manager.renew("issue:abc123", "actor1", Some(60000)).unwrap();
+        let lock2 = manager
+            .renew("issue:abc123", "actor1", Some(60000))
+            .unwrap();
         assert!(lock2.expires_unix_ms > expires1);
     }
 
@@ -421,8 +440,12 @@ mod tests {
         let manager = LockManager::open(dir.path()).unwrap();
 
         // Acquire multiple locks
-        manager.acquire("repo:global", "actor1", Some(60000)).unwrap();
-        manager.acquire("issue:abc123", "actor2", Some(60000)).unwrap();
+        manager
+            .acquire("repo:global", "actor1", Some(60000))
+            .unwrap();
+        manager
+            .acquire("issue:abc123", "actor2", Some(60000))
+            .unwrap();
 
         // List locks
         let locks = manager.list_locks().unwrap();
@@ -456,17 +479,25 @@ mod tests {
         let manager = LockManager::open(dir.path()).unwrap();
 
         // Acquire repo lock
-        manager.acquire("repo:global", "actor1", Some(60000)).unwrap();
+        manager
+            .acquire("repo:global", "actor1", Some(60000))
+            .unwrap();
 
         // Check conflicts for actor2
-        let result = manager.check_conflicts("issue:abc123", "actor2", LockPolicy::Warn).unwrap();
+        let result = manager
+            .check_conflicts("issue:abc123", "actor2", LockPolicy::Warn)
+            .unwrap();
         assert!(matches!(result, LockCheckResult::Warning(_)));
 
-        let result = manager.check_conflicts("issue:abc123", "actor2", LockPolicy::Require).unwrap();
+        let result = manager
+            .check_conflicts("issue:abc123", "actor2", LockPolicy::Require)
+            .unwrap();
         assert!(matches!(result, LockCheckResult::Blocked(_)));
 
         // No conflict for actor1 (owner)
-        let result = manager.check_conflicts("issue:abc123", "actor1", LockPolicy::Require).unwrap();
+        let result = manager
+            .check_conflicts("issue:abc123", "actor1", LockPolicy::Require)
+            .unwrap();
         assert!(matches!(result, LockCheckResult::Clear));
     }
 }

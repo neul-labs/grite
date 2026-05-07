@@ -1,19 +1,29 @@
-use libgrite_core::{
-    hash::compute_event_id,
-    types::event::{DependencyType, Event, EventKind},
-    types::ids::{id_to_hex, parse_issue_id},
-    store::IssueFilter,
-    GriteError,
-};
 use crate::cli::{Cli, DepCommand};
 use crate::context::GriteContext;
-use crate::output::output_success;
 use crate::event_helper::insert_and_append;
+use crate::output::output_success;
+use libgrite_core::{
+    hash::compute_event_id,
+    store::IssueFilter,
+    types::event::{DependencyType, Event, EventKind},
+    types::ids::{id_to_hex, parse_issue_id},
+    GriteError,
+};
 
 pub fn run(cli: &Cli, cmd: DepCommand) -> Result<(), GriteError> {
     match cmd {
-        DepCommand::Add { id, target, r#type, lock: _ } => run_add(cli, id, target, r#type),
-        DepCommand::Remove { id, target, r#type, lock: _ } => run_remove(cli, id, target, r#type),
+        DepCommand::Add {
+            id,
+            target,
+            r#type,
+            lock: _,
+        } => run_add(cli, id, target, r#type),
+        DepCommand::Remove {
+            id,
+            target,
+            r#type,
+            lock: _,
+        } => run_remove(cli, id, target, r#type),
         DepCommand::List { id, reverse } => run_list(cli, id, reverse),
         DepCommand::Topo { state, label } => run_topo(cli, state, label),
     }
@@ -40,8 +50,10 @@ fn run_add(cli: &Cli, id: String, target: String, dep_type_str: String) -> Resul
     let store = ctx.open_store()?;
     let wal = ctx.open_wal()?;
 
-    let issue_id = parse_issue_id(&id).map_err(|e| GriteError::InvalidArgs(format!("Invalid issue ID: {}", e)))?;
-    let target_id = parse_issue_id(&target).map_err(|e| GriteError::InvalidArgs(format!("Invalid target ID: {}", e)))?;
+    let issue_id = parse_issue_id(&id)
+        .map_err(|e| GriteError::InvalidArgs(format!("Invalid issue ID: {}", e)))?;
+    let target_id = parse_issue_id(&target)
+        .map_err(|e| GriteError::InvalidArgs(format!("Invalid target ID: {}", e)))?;
     let dep_type = parse_dep_type(&dep_type_str)?;
 
     // Verify both issues exist
@@ -49,7 +61,10 @@ fn run_add(cli: &Cli, id: String, target: String, dep_type_str: String) -> Resul
         return Err(GriteError::NotFound(format!("Issue {} not found", id)));
     }
     if store.get_issue(&target_id)?.is_none() {
-        return Err(GriteError::NotFound(format!("Target issue {} not found", target)));
+        return Err(GriteError::NotFound(format!(
+            "Target issue {} not found",
+            target
+        )));
     }
 
     // Check for cycles (only for acyclic types)
@@ -85,13 +100,20 @@ fn run_add(cli: &Cli, id: String, target: String, dep_type_str: String) -> Resul
     Ok(())
 }
 
-fn run_remove(cli: &Cli, id: String, target: String, dep_type_str: String) -> Result<(), GriteError> {
+fn run_remove(
+    cli: &Cli,
+    id: String,
+    target: String,
+    dep_type_str: String,
+) -> Result<(), GriteError> {
     let ctx = GriteContext::resolve(cli)?;
     let store = ctx.open_store()?;
     let wal = ctx.open_wal()?;
 
-    let issue_id = parse_issue_id(&id).map_err(|e| GriteError::InvalidArgs(format!("Invalid issue ID: {}", e)))?;
-    let target_id = parse_issue_id(&target).map_err(|e| GriteError::InvalidArgs(format!("Invalid target ID: {}", e)))?;
+    let issue_id = parse_issue_id(&id)
+        .map_err(|e| GriteError::InvalidArgs(format!("Invalid issue ID: {}", e)))?;
+    let target_id = parse_issue_id(&target)
+        .map_err(|e| GriteError::InvalidArgs(format!("Invalid target ID: {}", e)))?;
     let dep_type = parse_dep_type(&dep_type_str)?;
 
     let actor_id_bytes = libgrite_core::types::ids::hex_to_id::<16>(&ctx.actor_id)
@@ -123,7 +145,8 @@ fn run_list(cli: &Cli, id: String, reverse: bool) -> Result<(), GriteError> {
     let ctx = GriteContext::resolve(cli)?;
     let store = ctx.open_store()?;
 
-    let issue_id = parse_issue_id(&id).map_err(|e| GriteError::InvalidArgs(format!("Invalid issue ID: {}", e)))?;
+    let issue_id = parse_issue_id(&id)
+        .map_err(|e| GriteError::InvalidArgs(format!("Invalid issue ID: {}", e)))?;
 
     let deps = if reverse {
         store.get_dependents(&issue_id)?
@@ -131,18 +154,22 @@ fn run_list(cli: &Cli, id: String, reverse: bool) -> Result<(), GriteError> {
         store.get_dependencies(&issue_id)?
     };
 
-    let dep_list: Vec<serde_json::Value> = deps.iter().map(|(target, dep_type)| {
-        let title = store.get_issue(target)
-            .ok()
-            .flatten()
-            .map(|p| p.title.clone())
-            .unwrap_or_else(|| "?".to_string());
-        serde_json::json!({
-            "issue_id": id_to_hex(target),
-            "dep_type": dep_type.as_str(),
-            "title": title,
+    let dep_list: Vec<serde_json::Value> = deps
+        .iter()
+        .map(|(target, dep_type)| {
+            let title = store
+                .get_issue(target)
+                .ok()
+                .flatten()
+                .map(|p| p.title.clone())
+                .unwrap_or_else(|| "?".to_string());
+            serde_json::json!({
+                "issue_id": id_to_hex(target),
+                "dep_type": dep_type.as_str(),
+                "title": title,
+            })
         })
-    }).collect();
+        .collect();
 
     let output = serde_json::json!({
         "issue_id": id,
@@ -169,14 +196,17 @@ fn run_topo(cli: &Cli, state: Option<String>, label: Option<String>) -> Result<(
 
     let sorted = store.topological_order(&filter)?;
 
-    let issues: Vec<serde_json::Value> = sorted.iter().map(|s| {
-        serde_json::json!({
-            "issue_id": id_to_hex(&s.issue_id),
-            "title": s.title,
-            "state": format!("{:?}", s.state).to_lowercase(),
-            "labels": s.labels,
+    let issues: Vec<serde_json::Value> = sorted
+        .iter()
+        .map(|s| {
+            serde_json::json!({
+                "issue_id": id_to_hex(&s.issue_id),
+                "title": s.title,
+                "state": format!("{:?}", s.state).to_lowercase(),
+                "labels": s.labels,
+            })
         })
-    }).collect();
+        .collect();
 
     let output = serde_json::json!({
         "issues": issues,

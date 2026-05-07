@@ -2,10 +2,13 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use libgrite_core::{
-    config::{save_repo_config, save_actor_config, load_repo_config, load_actor_config, actor_dir, repo_sled_path, RepoConfig},
+    config::{
+        actor_dir, load_actor_config, load_repo_config, repo_sled_path, save_actor_config,
+        save_repo_config, RepoConfig,
+    },
     types::actor::ActorConfig,
     types::ids::{generate_actor_id, id_to_hex},
-    GriteStore, GriteError,
+    GriteError, GriteStore,
 };
 
 use crate::agents_md::GRITE_AGENTS_SECTION;
@@ -13,6 +16,7 @@ use crate::context::GriteContext;
 use crate::types::{InitOptions, InitResult};
 
 /// Action taken for AGENTS.md
+#[allow(dead_code)]
 #[derive(Clone, Copy)]
 enum AgentsMdAction {
     Created,
@@ -21,6 +25,7 @@ enum AgentsMdAction {
     Disabled,
 }
 
+#[allow(dead_code)]
 impl AgentsMdAction {
     fn as_str(&self) -> &'static str {
         match self {
@@ -36,7 +41,7 @@ impl AgentsMdAction {
 pub fn init(opts: &InitOptions) -> Result<InitResult, GriteError> {
     let git_dir = GriteContext::find_git_dir()?;
 
-    let (actor_id_hex, data_dir, is_new) = match find_existing_actor(&git_dir) {
+    let (actor_id_hex, data_dir, _is_new) = match find_existing_actor(&git_dir) {
         Some(existing_id) => {
             let data_dir = actor_dir(&git_dir, &existing_id);
             (existing_id, data_dir, false)
@@ -67,7 +72,7 @@ pub fn init(opts: &InitOptions) -> Result<InitResult, GriteError> {
     let created_agents_md = if opts.no_agents_md {
         false
     } else {
-        let (agents_md_path, action) = handle_agents_md(&git_dir)?;
+        let (_agents_md_path, action) = handle_agents_md(&git_dir)?;
         matches!(action, AgentsMdAction::Created | AgentsMdAction::Updated)
     };
 
@@ -89,17 +94,16 @@ fn find_existing_actor(git_dir: &Path) -> Option<String> {
 }
 
 /// Handle AGENTS.md creation or update
-fn handle_agents_md(git_dir: &PathBuf) -> Result<(Option<PathBuf>, AgentsMdAction), GriteError> {
-    let repo_root = git_dir.parent().ok_or_else(|| {
-        GriteError::Internal("Could not determine repository root".to_string())
-    })?;
+fn handle_agents_md(git_dir: &Path) -> Result<(Option<PathBuf>, AgentsMdAction), GriteError> {
+    let repo_root = git_dir
+        .parent()
+        .ok_or_else(|| GriteError::Internal("Could not determine repository root".to_string()))?;
 
     let agents_md_path = repo_root.join("AGENTS.md");
 
     if agents_md_path.exists() {
-        let content = fs::read_to_string(&agents_md_path).map_err(|e| {
-            GriteError::Internal(format!("Failed to read AGENTS.md: {}", e))
-        })?;
+        let content = fs::read_to_string(&agents_md_path)
+            .map_err(|e| GriteError::Internal(format!("Failed to read AGENTS.md: {}", e)))?;
 
         if content.contains("## Grite") {
             return Ok((Some(agents_md_path), AgentsMdAction::Skipped));
@@ -111,15 +115,13 @@ fn handle_agents_md(git_dir: &PathBuf) -> Result<(Option<PathBuf>, AgentsMdActio
             format!("{}\n\n{}", content, GRITE_AGENTS_SECTION)
         };
 
-        fs::write(&agents_md_path, new_content).map_err(|e| {
-            GriteError::Internal(format!("Failed to update AGENTS.md: {}", e))
-        })?;
+        fs::write(&agents_md_path, new_content)
+            .map_err(|e| GriteError::Internal(format!("Failed to update AGENTS.md: {}", e)))?;
 
         Ok((Some(agents_md_path), AgentsMdAction::Updated))
     } else {
-        fs::write(&agents_md_path, GRITE_AGENTS_SECTION).map_err(|e| {
-            GriteError::Internal(format!("Failed to create AGENTS.md: {}", e))
-        })?;
+        fs::write(&agents_md_path, GRITE_AGENTS_SECTION)
+            .map_err(|e| GriteError::Internal(format!("Failed to create AGENTS.md: {}", e)))?;
 
         Ok((Some(agents_md_path), AgentsMdAction::Created))
     }

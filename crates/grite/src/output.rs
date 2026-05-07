@@ -1,9 +1,11 @@
-use comfy_table::{modifiers::UTF8_ROUND_CORNERS, presets::UTF8_FULL, Attribute, Cell, Color,
-                    Table, ContentArrangement};
+use crate::cli::Cli;
+use comfy_table::{
+    modifiers::UTF8_ROUND_CORNERS, presets::UTF8_FULL, Attribute, Cell, Color, ContentArrangement,
+    Table,
+};
 use libgrite_core::GriteError;
 use regex::Regex;
 use serde::Serialize;
-use crate::cli::Cli;
 
 /// JSON response envelope (from cli-json.md)
 #[derive(Serialize)]
@@ -121,7 +123,11 @@ pub struct IssueRow {
 fn format_local_date(ts_ms: u64) -> String {
     let secs = (ts_ms / 1000) as i64;
     chrono::DateTime::from_timestamp(secs, 0)
-        .map(|dt| dt.with_timezone(&chrono::Local).format("%b %-e, %y %-l:%M %P").to_string())
+        .map(|dt| {
+            dt.with_timezone(&chrono::Local)
+                .format("%b %-e, %y %-l:%M %P")
+                .to_string()
+        })
         .unwrap_or_else(|| ts_ms.to_string())
 }
 
@@ -139,8 +145,7 @@ pub fn format_issue_table(issues: &[IssueRow]) -> String {
             "open" => Cell::new(&issue.state)
                 .fg(Color::Blue)
                 .add_attribute(Attribute::Bold),
-            _ => Cell::new(&issue.state)
-                .fg(Color::DarkYellow),
+            _ => Cell::new(&issue.state).fg(Color::DarkYellow),
         };
 
         let title = strip_markdown(&issue.title);

@@ -1,7 +1,7 @@
-use std::collections::BTreeMap;
-use serde::{Deserialize, Serialize};
 use super::event::SymbolInfo;
 use super::issue::Version;
+use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 
 /// Context for a single file in the repository
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -1,14 +1,17 @@
+use crate::cli::{ActorCommand, Cli};
+use crate::context::GriteContext;
+use crate::output::output_success;
 use libgrite_core::{
-    config::{save_repo_config, save_actor_config, load_repo_config, load_actor_config, actor_dir, list_actors},
+    config::{
+        actor_dir, list_actors, load_actor_config, load_repo_config, save_actor_config,
+        save_repo_config,
+    },
+    signing::SigningKeyPair,
     types::actor::ActorConfig,
     types::ids::{generate_actor_id, id_to_hex},
-    signing::SigningKeyPair,
     GriteError,
 };
 use serde::Serialize;
-use crate::cli::{Cli, ActorCommand};
-use crate::context::GriteContext;
-use crate::output::output_success;
 
 #[derive(Serialize)]
 struct ActorInitOutput {
@@ -62,7 +65,10 @@ struct ActorUseOutput {
 
 pub fn run(cli: &Cli, cmd: ActorCommand) -> Result<(), GriteError> {
     match cmd {
-        ActorCommand::Init { label, generate_key } => run_init(cli, label, generate_key),
+        ActorCommand::Init {
+            label,
+            generate_key,
+        } => run_init(cli, label, generate_key),
         ActorCommand::List => run_list(cli),
         ActorCommand::Show { id } => run_show(cli, id),
         ActorCommand::Current => run_current(cli),
@@ -116,12 +122,15 @@ fn run_init(cli: &Cli, label: Option<String>, generate_key: bool) -> Result<(), 
 
     save_actor_config(&data_dir, &config)?;
 
-    output_success(cli, ActorInitOutput {
-        actor_id: actor_id_hex,
-        label,
-        data_dir: data_dir.to_string_lossy().to_string(),
-        public_key,
-    });
+    output_success(
+        cli,
+        ActorInitOutput {
+            actor_id: actor_id_hex,
+            label,
+            data_dir: data_dir.to_string_lossy().to_string(),
+            public_key,
+        },
+    );
 
     Ok(())
 }
@@ -142,7 +151,12 @@ fn run_list(cli: &Cli) -> Result<(), GriteError> {
         })
         .collect();
 
-    output_success(cli, ActorListOutput { actors: actor_infos });
+    output_success(
+        cli,
+        ActorListOutput {
+            actors: actor_infos,
+        },
+    );
 
     Ok(())
 }
@@ -162,15 +176,18 @@ fn run_show(cli: &Cli, id: Option<String>) -> Result<(), GriteError> {
     let data_dir = actor_dir(&git_dir, &actor_id);
     let config = load_actor_config(&data_dir)?;
 
-    output_success(cli, ActorShowOutput {
-        actor: ActorDetail {
-            actor_id: config.actor_id,
-            label: config.label,
-            created_ts: config.created_ts,
-            public_key: config.public_key,
-            key_scheme: config.key_scheme,
+    output_success(
+        cli,
+        ActorShowOutput {
+            actor: ActorDetail {
+                actor_id: config.actor_id,
+                label: config.label,
+                created_ts: config.created_ts,
+                public_key: config.public_key,
+                key_scheme: config.key_scheme,
+            },
         },
-    });
+    );
 
     Ok(())
 }
@@ -178,11 +195,14 @@ fn run_show(cli: &Cli, id: Option<String>) -> Result<(), GriteError> {
 fn run_current(cli: &Cli) -> Result<(), GriteError> {
     let ctx = GriteContext::resolve(cli)?;
 
-    output_success(cli, ActorCurrentOutput {
-        actor_id: ctx.actor_id,
-        data_dir: ctx.data_dir.to_string_lossy().to_string(),
-        source: ctx.source.as_str().to_string(),
-    });
+    output_success(
+        cli,
+        ActorCurrentOutput {
+            actor_id: ctx.actor_id,
+            data_dir: ctx.data_dir.to_string_lossy().to_string(),
+            source: ctx.source.as_str().to_string(),
+        },
+    );
 
     Ok(())
 }
@@ -201,10 +221,13 @@ fn run_use(cli: &Cli, id: String) -> Result<(), GriteError> {
     let repo_config_path = git_dir.join("grite").join("config.toml");
     save_repo_config(&git_dir, &repo_config)?;
 
-    output_success(cli, ActorUseOutput {
-        default_actor: id,
-        repo_config: repo_config_path.to_string_lossy().to_string(),
-    });
+    output_success(
+        cli,
+        ActorUseOutput {
+            default_actor: id,
+            repo_config: repo_config_path.to_string_lossy().to_string(),
+        },
+    );
 
     Ok(())
 }

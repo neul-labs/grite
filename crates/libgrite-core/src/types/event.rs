@@ -1,5 +1,5 @@
-use serde::{Deserialize, Serialize};
 use super::ids::{ActorId, EventId, IssueId};
+use serde::{Deserialize, Serialize};
 
 /// Issue state enum
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -40,6 +40,7 @@ impl DependencyType {
         }
     }
 
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Option<Self> {
         match s {
             "blocks" => Some(DependencyType::Blocks),

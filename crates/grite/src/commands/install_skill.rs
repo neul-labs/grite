@@ -157,9 +157,8 @@ pub fn run(cli: &Cli, global: bool, force: bool) -> Result<(), GriteError> {
         repo_root.join(".claude").join("skills")
     };
 
-    fs::create_dir_all(&target_dir).map_err(|e| {
-        GriteError::Internal(format!("Failed to create skills directory: {}", e))
-    })?;
+    fs::create_dir_all(&target_dir)
+        .map_err(|e| GriteError::Internal(format!("Failed to create skills directory: {}", e)))?;
 
     let skill_path = target_dir.join("grite.md");
 
@@ -170,18 +169,27 @@ pub fn run(cli: &Cli, global: bool, force: bool) -> Result<(), GriteError> {
         )));
     }
 
-    let action = if skill_path.exists() { "updated" } else { "created" };
+    let action = if skill_path.exists() {
+        "updated"
+    } else {
+        "created"
+    };
 
-    fs::write(&skill_path, SKILL_CONTENT).map_err(|e| {
-        GriteError::Internal(format!("Failed to write skill file: {}", e))
-    })?;
+    fs::write(&skill_path, SKILL_CONTENT)
+        .map_err(|e| GriteError::Internal(format!("Failed to write skill file: {}", e)))?;
 
-    output_success(cli, InstallSkillOutput {
-        path: skill_path.to_string_lossy().to_string(),
-        action: action.to_string(),
-    });
+    output_success(
+        cli,
+        InstallSkillOutput {
+            path: skill_path.to_string_lossy().to_string(),
+            action: action.to_string(),
+        },
+    );
 
-    print_human(cli, &format!("{} skill at {}", action, skill_path.display()));
+    print_human(
+        cli,
+        &format!("{} skill at {}", action, skill_path.display()),
+    );
 
     Ok(())
 }

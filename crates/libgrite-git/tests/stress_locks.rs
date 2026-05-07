@@ -5,7 +5,10 @@
 //! so each thread opens its own LockManager instance.
 
 use libgrite_git::LockManager;
-use std::sync::{Arc, Barrier, atomic::{AtomicUsize, Ordering}};
+use std::sync::{
+    atomic::{AtomicUsize, Ordering},
+    Arc, Barrier,
+};
 use std::thread;
 use tempfile::tempdir;
 
@@ -40,18 +43,16 @@ fn test_concurrent_lock_acquisition_same_resource() {
             let actor = format!("actor-{:02}", thread_id);
 
             thread::spawn(move || {
-                let lock_manager = LockManager::open(&git_dir).expect("Failed to open lock manager");
+                let lock_manager =
+                    LockManager::open(&git_dir).expect("Failed to open lock manager");
                 barrier.wait();
 
                 // Try to acquire lock
-                match lock_manager.acquire(resource, &actor, None) {
-                    Ok(_lock) => {
-                        // Got the lock, hold it briefly
-                        thread::sleep(std::time::Duration::from_millis(10));
-                        let _ = lock_manager.release(resource, &actor);
-                        success_counter.fetch_add(1, Ordering::SeqCst);
-                    }
-                    Err(_) => {}
+                if let Ok(_lock) = lock_manager.acquire(resource, &actor, None) {
+                    // Got the lock, hold it briefly
+                    thread::sleep(std::time::Duration::from_millis(10));
+                    let _ = lock_manager.release(resource, &actor);
+                    success_counter.fetch_add(1, Ordering::SeqCst);
                 }
             })
         })
@@ -69,7 +70,10 @@ fn test_concurrent_lock_acquisition_same_resource() {
         "Expected at least 1 success, got {}",
         successes
     );
-    println!("Lock same-resource test: {} threads got the lock", successes);
+    println!(
+        "Lock same-resource test: {} threads got the lock",
+        successes
+    );
 }
 
 #[test]
@@ -92,17 +96,15 @@ fn test_concurrent_lock_acquisition_different_resources() {
             let resource = format!("issue:test{:02}", thread_id);
 
             thread::spawn(move || {
-                let lock_manager = LockManager::open(&git_dir).expect("Failed to open lock manager");
+                let lock_manager =
+                    LockManager::open(&git_dir).expect("Failed to open lock manager");
                 barrier.wait();
 
                 // Try to acquire lock on unique resource
-                match lock_manager.acquire(&resource, &actor, None) {
-                    Ok(_lock) => {
-                        thread::sleep(std::time::Duration::from_millis(5));
-                        let _ = lock_manager.release(&resource, &actor);
-                        success_counter.fetch_add(1, Ordering::SeqCst);
-                    }
-                    Err(_) => {}
+                if let Ok(_lock) = lock_manager.acquire(&resource, &actor, None) {
+                    thread::sleep(std::time::Duration::from_millis(5));
+                    let _ = lock_manager.release(&resource, &actor);
+                    success_counter.fetch_add(1, Ordering::SeqCst);
                 }
             })
         })
@@ -148,7 +150,8 @@ fn test_lock_acquire_release_cycle() {
             let actor = format!("actor-{:02}", thread_id);
 
             thread::spawn(move || {
-                let lock_manager = LockManager::open(&git_dir).expect("Failed to open lock manager");
+                let lock_manager =
+                    LockManager::open(&git_dir).expect("Failed to open lock manager");
                 barrier.wait();
 
                 for _ in 0..cycles_per_thread {

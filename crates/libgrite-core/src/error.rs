@@ -99,9 +99,7 @@ impl GriteError {
                 "Run 'grite daemon stop' and retry",
                 "Or use 'grite --no-daemon <command>' to bypass IPC",
             ],
-            GriteError::Conflict(_) => vec![
-                "Run 'grite sync' to pull latest changes",
-            ],
+            GriteError::Conflict(_) => vec!["Run 'grite sync' to pull latest changes"],
             GriteError::IdParse(_) => vec![
                 "IDs should be hex strings (e.g., 'abc123...')",
                 "Use 'grite issue list' to see valid issue IDs",

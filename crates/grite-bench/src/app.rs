@@ -5,7 +5,9 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyModifiers};
-use crossterm::terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen};
+use crossterm::terminal::{
+    disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen,
+};
 use crossterm::ExecutableCommand;
 use ratatui::prelude::*;
 use ratatui::Terminal;
@@ -137,10 +139,7 @@ impl App {
     }
 
     fn start_benchmark(&mut self) -> Result<()> {
-        let mut runner = BenchmarkRunner::new(
-            self.config.clone(),
-            Arc::clone(&self.metrics),
-        )?;
+        let mut runner = BenchmarkRunner::new(self.config.clone(), Arc::clone(&self.metrics))?;
 
         runner.start()?;
         self.runner = Some(runner);
@@ -180,11 +179,15 @@ impl App {
         let snapshot = self.metrics.snapshot();
         let report = serde_json::to_string_pretty(&snapshot)?;
 
-        let path = self.config.json_report_path.clone()
+        let path = self
+            .config
+            .json_report_path
+            .clone()
             .unwrap_or_else(|| std::path::PathBuf::from("grite-bench-report.json"));
 
         std::fs::write(&path, report)?;
-        self.metrics.log_event(format!("Report saved to {}", path.display()));
+        self.metrics
+            .log_event(format!("Report saved to {}", path.display()));
 
         Ok(())
     }
@@ -195,16 +198,21 @@ impl App {
         println!("\n=== GRITE BENCHMARK RESULTS ===\n");
         println!("Scenario:     {}", self.config.scenario.name);
         println!("Agents:       {}", self.config.scenario.agent_count);
-        println!("Ops/Agent:    {}", self.config.scenario.operations_per_agent);
+        println!(
+            "Ops/Agent:    {}",
+            self.config.scenario.operations_per_agent
+        );
         println!();
         println!("Total Operations: {}", snapshot.total_operations);
-        println!("Successful:       {} ({:.1}%)",
+        println!(
+            "Successful:       {} ({:.1}%)",
             snapshot.successful_operations,
             snapshot.success_rate()
         );
         println!("Failed:           {}", snapshot.failed_operations);
         println!();
-        println!("WAL Contentions:  {} ({:.1}%)",
+        println!(
+            "WAL Contentions:  {} ({:.1}%)",
             snapshot.wal_contentions,
             snapshot.contention_rate()
         );
@@ -215,7 +223,10 @@ impl App {
         println!("Latency (P99):    {:.2}ms", snapshot.latencies.p99_ms());
         println!("Latency (Max):    {:.2}ms", snapshot.latencies.max_ms());
         println!();
-        println!("Peak Throughput:  {:.0} events/sec", snapshot.peak_throughput);
+        println!(
+            "Peak Throughput:  {:.0} events/sec",
+            snapshot.peak_throughput
+        );
         println!("Elapsed Time:     {:.2}s", snapshot.elapsed.as_secs_f64());
         println!();
         println!("Issues Created:   {}", snapshot.issues_created);
@@ -232,9 +243,9 @@ pub fn run_headless(config: BenchmarkConfig) -> Result<MetricsSnapshot> {
     let mut runner = BenchmarkRunner::new(config.clone(), Arc::clone(&metrics))?;
     runner.start()?;
 
-    println!("Running benchmark: {} agents, {} ops each...",
-        config.scenario.agent_count,
-        config.scenario.operations_per_agent
+    println!(
+        "Running benchmark: {} agents, {} ops each...",
+        config.scenario.agent_count, config.scenario.operations_per_agent
     );
 
     // Wait for completion with progress updates
@@ -247,7 +258,8 @@ pub fn run_headless(config: BenchmarkConfig) -> Result<MetricsSnapshot> {
         if last_update.elapsed() >= Duration::from_secs(1) {
             metrics.update_throughput_sample();
             let snapshot = metrics.snapshot();
-            print!("\rProgress: {}/{} ({:.1}%) - {:.0} ops/sec",
+            print!(
+                "\rProgress: {}/{} ({:.1}%) - {:.0} ops/sec",
                 snapshot.total_operations,
                 total,
                 (snapshot.total_operations as f64 / total as f64) * 100.0,
@@ -273,12 +285,14 @@ pub fn run_headless(config: BenchmarkConfig) -> Result<MetricsSnapshot> {
 
     // Print summary
     println!("=== RESULTS ===");
-    println!("Total: {} ops, Success: {:.1}%, WAL Contention: {:.1}%",
+    println!(
+        "Total: {} ops, Success: {:.1}%, WAL Contention: {:.1}%",
         snapshot.total_operations,
         snapshot.success_rate(),
         snapshot.contention_rate()
     );
-    println!("Latency: P50={:.2}ms P95={:.2}ms P99={:.2}ms",
+    println!(
+        "Latency: P50={:.2}ms P95={:.2}ms P99={:.2}ms",
         snapshot.latencies.p50_ms(),
         snapshot.latencies.p95_ms(),
         snapshot.latencies.p99_ms()

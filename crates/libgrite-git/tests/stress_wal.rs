@@ -3,11 +3,14 @@
 //! These tests verify that WAL operations handle concurrent access correctly.
 //! Note: git2::Repository is not thread-safe, so each thread opens its own WalManager.
 
+use libgrite_core::hash::compute_event_id;
 use libgrite_core::types::event::{Event, EventKind};
 use libgrite_core::types::ids::generate_actor_id;
-use libgrite_core::hash::compute_event_id;
 use libgrite_git::WalManager;
-use std::sync::{Arc, Barrier, atomic::{AtomicUsize, Ordering}};
+use std::sync::{
+    atomic::{AtomicUsize, Ordering},
+    Arc, Barrier,
+};
 use std::thread;
 use tempfile::tempdir;
 
@@ -203,7 +206,7 @@ fn test_sequential_appends_many_events() {
     for i in 0..num_events {
         let event = create_test_event(&actor, &issue_id, i as u64);
         wal.append(&actor, &[event])
-            .expect(&format!("Failed to append event {}", i));
+            .unwrap_or_else(|_| panic!("Failed to append event {}", i));
     }
 
     // Verify all events are there

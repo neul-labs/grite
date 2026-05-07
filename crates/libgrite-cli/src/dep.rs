@@ -10,7 +10,10 @@ pub fn dep_add(ctx: &GriteContext, opts: &DepAddOptions) -> Result<DepAddResult,
 }
 
 /// Remove a dependency.
-pub fn dep_remove(ctx: &GriteContext, opts: &DepRemoveOptions) -> Result<DepRemoveResult, GriteError> {
+pub fn dep_remove(
+    ctx: &GriteContext,
+    opts: &DepRemoveOptions,
+) -> Result<DepRemoveResult, GriteError> {
     let _ = ctx;
     let _ = opts;
     todo!("dep_remove not yet implemented in library")

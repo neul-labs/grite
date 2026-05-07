@@ -65,14 +65,7 @@ impl BenchmarkRunner {
 
             let handle = thread::spawn(move || {
                 run_agent(
-                    agent_id,
-                    scenario,
-                    store,
-                    git_dir,
-                    metrics,
-                    barrier,
-                    pause_flag,
-                    stop_flag,
+                    agent_id, scenario, store, git_dir, metrics, barrier, pause_flag, stop_flag,
                 );
             });
 
@@ -81,8 +74,7 @@ impl BenchmarkRunner {
 
         self.metrics.log_event(format!(
             "Started {} agents, {} ops each",
-            agent_count,
-            self.config.scenario.operations_per_agent
+            agent_count, self.config.scenario.operations_per_agent
         ));
 
         Ok(())
@@ -131,6 +123,7 @@ impl BenchmarkRunner {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 /// Run a single agent
 fn run_agent(
     agent_id: usize,
@@ -215,7 +208,10 @@ fn run_agent(
     }
 
     metrics.update_agent_status(agent_id, AgentStatus::Complete);
-    metrics.log_event(format!("Agent #{} completed {} operations", agent_id, completed));
+    metrics.log_event(format!(
+        "Agent #{} completed {} operations",
+        agent_id, completed
+    ));
 }
 
 /// Setup repository for benchmarking

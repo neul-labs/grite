@@ -3,13 +3,13 @@
 //! Signatures are detached - they sign the 32-byte event_id, not the full event.
 //! This allows verification independent of serialization format.
 
-use ed25519_dalek::{SigningKey, VerifyingKey, Signature, Signer, Verifier};
+use ed25519_dalek::{Signature, Signer, SigningKey, Verifier, VerifyingKey};
 use rand::rngs::OsRng;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-use crate::types::ids::EventId;
 use crate::types::event::Event;
+use crate::types::ids::EventId;
 
 /// Ed25519 signing key pair
 pub struct SigningKeyPair {
@@ -25,13 +25,14 @@ impl SigningKeyPair {
 
     /// Create from a 32-byte seed (hex-encoded)
     pub fn from_seed_hex(seed_hex: &str) -> Result<Self, SigningError> {
-        let seed_bytes = hex::decode(seed_hex)
-            .map_err(|e| SigningError::KeyParseError(e.to_string()))?;
+        let seed_bytes =
+            hex::decode(seed_hex).map_err(|e| SigningError::KeyParseError(e.to_string()))?;
 
         if seed_bytes.len() != 32 {
-            return Err(SigningError::KeyParseError(
-                format!("Seed must be 32 bytes, got {}", seed_bytes.len())
-            ));
+            return Err(SigningError::KeyParseError(format!(
+                "Seed must be 32 bytes, got {}",
+                seed_bytes.len()
+            )));
         }
 
         let mut seed_array = [0u8; 32];
@@ -83,6 +84,7 @@ pub enum VerificationPolicy {
 
 impl VerificationPolicy {
     /// Parse from string
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Option<Self> {
         match s.to_lowercase().as_str() {
             "off" => Some(VerificationPolicy::Off),
@@ -124,17 +126,17 @@ pub enum SigningError {
 /// Verify an event signature against a public key
 pub fn verify_signature(event: &Event, public_key_hex: &str) -> Result<(), SigningError> {
     // Get signature from event
-    let sig_bytes = event.sig.as_ref()
-        .ok_or(SigningError::SignatureMissing)?;
+    let sig_bytes = event.sig.as_ref().ok_or(SigningError::SignatureMissing)?;
 
     // Parse public key
-    let pk_bytes = hex::decode(public_key_hex)
-        .map_err(|e| SigningError::KeyParseError(e.to_string()))?;
+    let pk_bytes =
+        hex::decode(public_key_hex).map_err(|e| SigningError::KeyParseError(e.to_string()))?;
 
     if pk_bytes.len() != 32 {
-        return Err(SigningError::KeyParseError(
-            format!("Public key must be 32 bytes, got {}", pk_bytes.len())
-        ));
+        return Err(SigningError::KeyParseError(format!(
+            "Public key must be 32 bytes, got {}",
+            pk_bytes.len()
+        )));
     }
 
     let mut pk_array = [0u8; 32];
@@ -145,9 +147,10 @@ pub fn verify_signature(event: &Event, public_key_hex: &str) -> Result<(), Signi
 
     // Parse signature
     if sig_bytes.len() != 64 {
-        return Err(SigningError::SignatureParseError(
-            format!("Signature must be 64 bytes, got {}", sig_bytes.len())
-        ));
+        return Err(SigningError::SignatureParseError(format!(
+            "Signature must be 64 bytes, got {}",
+            sig_bytes.len()
+        )));
     }
 
     let mut sig_array = [0u8; 64];
@@ -156,7 +159,8 @@ pub fn verify_signature(event: &Event, public_key_hex: &str) -> Result<(), Signi
     let signature = Signature::from_bytes(&sig_array);
 
     // Verify
-    verifying_key.verify(&event.event_id, &signature)
+    verifying_key
+        .verify(&event.event_id, &signature)
         .map_err(|_| SigningError::InvalidSignature)
 }
 
@@ -167,13 +171,14 @@ pub fn verify_raw(
     public_key_hex: &str,
 ) -> Result<(), SigningError> {
     // Parse public key
-    let pk_bytes = hex::decode(public_key_hex)
-        .map_err(|e| SigningError::KeyParseError(e.to_string()))?;
+    let pk_bytes =
+        hex::decode(public_key_hex).map_err(|e| SigningError::KeyParseError(e.to_string()))?;
 
     if pk_bytes.len() != 32 {
-        return Err(SigningError::KeyParseError(
-            format!("Public key must be 32 bytes, got {}", pk_bytes.len())
-        ));
+        return Err(SigningError::KeyParseError(format!(
+            "Public key must be 32 bytes, got {}",
+            pk_bytes.len()
+        )));
     }
 
     let mut pk_array = [0u8; 32];
@@ -184,9 +189,10 @@ pub fn verify_raw(
 
     // Parse signature
     if signature.len() != 64 {
-        return Err(SigningError::SignatureParseError(
-            format!("Signature must be 64 bytes, got {}", signature.len())
-        ));
+        return Err(SigningError::SignatureParseError(format!(
+            "Signature must be 64 bytes, got {}",
+            signature.len()
+        )));
     }
 
     let mut sig_array = [0u8; 64];
@@ -195,7 +201,8 @@ pub fn verify_raw(
     let sig = Signature::from_bytes(&sig_array);
 
     // Verify
-    verifying_key.verify(event_id, &sig)
+    verifying_key
+        .verify(event_id, &sig)
         .map_err(|_| SigningError::InvalidSignature)
 }
 
@@ -276,7 +283,9 @@ mod tests {
             [3u8; 16],
             1700000000000,
             None,
-            EventKind::CommentAdded { body: "test".to_string() },
+            EventKind::CommentAdded {
+                body: "test".to_string(),
+            },
         );
 
         let result = verify_signature(&event, &keypair.public_key_hex());
@@ -293,7 +302,9 @@ mod tests {
             [3u8; 16],
             1700000000000,
             None,
-            EventKind::CommentAdded { body: "test".to_string() },
+            EventKind::CommentAdded {
+                body: "test".to_string(),
+            },
         );
 
         // Set invalid signature (wrong bytes)
@@ -314,7 +325,9 @@ mod tests {
             [3u8; 16],
             1700000000000,
             None,
-            EventKind::CommentAdded { body: "test".to_string() },
+            EventKind::CommentAdded {
+                body: "test".to_string(),
+            },
         );
 
         // Sign with keypair1
@@ -327,10 +340,22 @@ mod tests {
 
     #[test]
     fn test_verification_policy_parse() {
-        assert_eq!(VerificationPolicy::from_str("off"), Some(VerificationPolicy::Off));
-        assert_eq!(VerificationPolicy::from_str("warn"), Some(VerificationPolicy::Warn));
-        assert_eq!(VerificationPolicy::from_str("require"), Some(VerificationPolicy::Require));
-        assert_eq!(VerificationPolicy::from_str("REQUIRE"), Some(VerificationPolicy::Require));
+        assert_eq!(
+            VerificationPolicy::from_str("off"),
+            Some(VerificationPolicy::Off)
+        );
+        assert_eq!(
+            VerificationPolicy::from_str("warn"),
+            Some(VerificationPolicy::Warn)
+        );
+        assert_eq!(
+            VerificationPolicy::from_str("require"),
+            Some(VerificationPolicy::Require)
+        );
+        assert_eq!(
+            VerificationPolicy::from_str("REQUIRE"),
+            Some(VerificationPolicy::Require)
+        );
         assert_eq!(VerificationPolicy::from_str("invalid"), None);
     }
 }

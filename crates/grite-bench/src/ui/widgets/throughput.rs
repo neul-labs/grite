@@ -2,7 +2,7 @@
 
 use ratatui::{
     prelude::*,
-    widgets::{Block, Borders, Sparkline, Paragraph},
+    widgets::{Block, Borders, Paragraph, Sparkline},
 };
 
 use crate::bench::MetricsSnapshot;
@@ -20,10 +20,7 @@ pub fn render(frame: &mut Frame, area: Rect, snapshot: &MetricsSnapshot) {
     // Split into sparkline and stats
     let chunks = Layout::default()
         .direction(Direction::Vertical)
-        .constraints([
-            Constraint::Min(3),
-            Constraint::Length(2),
-        ])
+        .constraints([Constraint::Min(3), Constraint::Length(2)])
         .split(inner);
 
     // Sparkline
@@ -36,8 +33,7 @@ pub fn render(frame: &mut Frame, area: Rect, snapshot: &MetricsSnapshot) {
     // Stats line
     let stats = format!(
         "Current: {:.0}/sec  Peak: {:.0}/sec",
-        snapshot.current_throughput,
-        snapshot.peak_throughput
+        snapshot.current_throughput, snapshot.peak_throughput
     );
     let stats_widget = Paragraph::new(stats)
         .style(Style::default().fg(Color::White))

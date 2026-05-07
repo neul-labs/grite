@@ -1,10 +1,10 @@
+use crate::cli::Cli;
+use crate::context::{ExecutionMode, GriteContext};
+use crate::output::{output_success, print_human};
 use libgrite_core::GriteError;
 use libgrite_git::{SnapshotManager, WalManager};
 use libgrite_ipc::{IpcClient, IpcCommand, IpcRequest};
 use serde::Serialize;
-use crate::cli::Cli;
-use crate::context::{ExecutionMode, GriteContext};
-use crate::output::{output_success, print_human};
 
 /// Rebuild can take much longer than normal IPC commands (minutes for large stores).
 const REBUILD_TIMEOUT_MS: u64 = 300_000; // 5 minutes
@@ -26,14 +26,12 @@ pub fn run(cli: &Cli, use_snapshot: bool) -> Result<(), GriteError> {
             // with a generous timeout since rebuilds can be slow.
             rebuild_via_daemon(cli, &ctx, &endpoint)
         }
-        ExecutionMode::Blocked { lock } => {
-            Err(GriteError::DbBusy(format!(
-                "Store is locked by pid {} (expires in {}s). \
+        ExecutionMode::Blocked { lock } => Err(GriteError::DbBusy(format!(
+            "Store is locked by pid {} (expires in {}s). \
                  Try again later or run 'grite daemon stop' first.",
-                lock.pid,
-                lock.time_remaining_ms() / 1000
-            )))
-        }
+            lock.pid,
+            lock.time_remaining_ms() / 1000
+        ))),
         ExecutionMode::Local => {
             let store = ctx.open_store()?;
             let git_dir = ctx.repo_root().join(".git");
@@ -55,7 +53,8 @@ fn rebuild_via_daemon(cli: &Cli, ctx: &GriteContext, endpoint: &str) -> Result<(
         IpcCommand::Rebuild,
     );
 
-    let response = client.send(&request)
+    let response = client
+        .send(&request)
         .map_err(|e| GriteError::Internal(format!("Rebuild via daemon failed: {}", e)))?;
 
     if response.ok {
@@ -64,17 +63,24 @@ fn rebuild_via_daemon(cli: &Cli, ctx: &GriteContext, endpoint: &str) -> Result<(
                 println!("{}", data);
             } else if !cli.quiet {
                 if let Ok(json) = serde_json::from_str::<serde_json::Value>(data) {
-                    let count = json.get("event_count").and_then(|v| v.as_u64()).unwrap_or(0);
+                    let count = json
+                        .get("event_count")
+                        .and_then(|v| v.as_u64())
+                        .unwrap_or(0);
                     print_human(cli, &format!("Rebuilt {} events (via daemon)", count));
                 }
             }
         }
         Ok(())
     } else {
-        let msg = response.error
+        let msg = response
+            .error
             .map(|e| e.message)
             .unwrap_or_else(|| "unknown error".to_string());
-        Err(GriteError::Internal(format!("Daemon rebuild failed: {}", msg)))
+        Err(GriteError::Internal(format!(
+            "Daemon rebuild failed: {}",
+            msg
+        )))
     }
 }
 
@@ -86,24 +92,24 @@ fn do_rebuild(
 ) -> Result<(), GriteError> {
     if use_snapshot {
         // Snapshot-based rebuild: load from latest snapshot
-        let snap_mgr = SnapshotManager::open(git_dir)
-            ?;
-        let wal_mgr = WalManager::open(git_dir)
-            ?;
+        let snap_mgr = SnapshotManager::open(git_dir)?;
+        let wal_mgr = WalManager::open(git_dir)?;
 
         // Get latest snapshot
-        let snapshots = snap_mgr.list()
-            ?;
+        let snapshots = snap_mgr.list()?;
 
         if snapshots.is_empty() {
             print_human(cli, "No snapshots found, falling back to full rebuild");
             let stats = store.rebuild()?;
-            output_success(cli, RebuildOutput {
-                wal_head: wal_mgr.head().ok().flatten().map(|oid| oid.to_string()),
-                event_count: stats.event_count,
-                from_snapshot: None,
-                snapshot_events: None,
-            });
+            output_success(
+                cli,
+                RebuildOutput {
+                    wal_head: wal_mgr.head().ok().flatten().map(|oid| oid.to_string()),
+                    event_count: stats.event_count,
+                    from_snapshot: None,
+                    snapshot_events: None,
+                },
+            );
             return Ok(());
         }
 
@@ -111,8 +117,7 @@ fn do_rebuild(
         print_human(cli, &format!("Loading from snapshot: {}", latest.ref_name));
 
         // Read snapshot events
-        let snapshot_events = snap_mgr.read(latest.oid)
-            ?;
+        let snapshot_events = snap_mgr.read(latest.oid)?;
 
         let snap_count = snapshot_events.len();
 
@@ -121,17 +126,17 @@ fn do_rebuild(
         // the snapshot, they should already be in the local store's event log.
         let stats = store.rebuild_from_events(&snapshot_events)?;
 
-        print_human(cli, &format!(
-            "Rebuilt from {} snapshot events",
-            snap_count
-        ));
+        print_human(cli, &format!("Rebuilt from {} snapshot events", snap_count));
 
-        output_success(cli, RebuildOutput {
-            wal_head: wal_mgr.head().ok().flatten().map(|oid| oid.to_string()),
-            event_count: stats.event_count,
-            from_snapshot: Some(latest.ref_name.clone()),
-            snapshot_events: Some(snap_count),
-        });
+        output_success(
+            cli,
+            RebuildOutput {
+                wal_head: wal_mgr.head().ok().flatten().map(|oid| oid.to_string()),
+                event_count: stats.event_count,
+                from_snapshot: Some(latest.ref_name.clone()),
+                snapshot_events: Some(snap_count),
+            },
+        );
     } else {
         // Standard rebuild from store events
         let wal_head = WalManager::open(git_dir)
@@ -140,12 +145,15 @@ fn do_rebuild(
 
         let stats = store.rebuild()?;
 
-        output_success(cli, RebuildOutput {
-            wal_head: wal_head.map(|oid| oid.to_string()),
-            event_count: stats.event_count,
-            from_snapshot: None,
-            snapshot_events: None,
-        });
+        output_success(
+            cli,
+            RebuildOutput {
+                wal_head: wal_head.map(|oid| oid.to_string()),
+                event_count: stats.event_count,
+                from_snapshot: None,
+                snapshot_events: None,
+            },
+        );
     }
 
     Ok(())

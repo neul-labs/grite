@@ -1,7 +1,7 @@
-use std::collections::BTreeSet;
-use serde::{Deserialize, Serialize};
-use super::ids::{ActorId, EventId, IssueId};
 use super::event::{DependencyType, IssueState};
+use super::ids::{ActorId, EventId, IssueId};
+use serde::{Deserialize, Serialize};
+use std::collections::BTreeSet;
 
 /// A comment on an issue
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -46,12 +46,17 @@ pub struct Version {
 
 impl Version {
     pub fn new(ts_unix_ms: u64, actor: ActorId, event_id: EventId) -> Self {
-        Self { ts_unix_ms, actor, event_id }
+        Self {
+            ts_unix_ms,
+            actor,
+            event_id,
+        }
     }
 
     /// Compare versions for LWW: (ts, actor, event_id)
     pub fn is_newer_than(&self, other: &Version) -> bool {
-        (self.ts_unix_ms, &self.actor, &self.event_id) > (other.ts_unix_ms, &other.actor, &other.event_id)
+        (self.ts_unix_ms, &self.actor, &self.event_id)
+            > (other.ts_unix_ms, &other.actor, &other.event_id)
     }
 }
 

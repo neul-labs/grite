@@ -1,9 +1,9 @@
-use std::path::Path;
-use serde::{Deserialize, Serialize};
 use crate::error::GriteError;
 use crate::lock::LockPolicy;
 use crate::signing::VerificationPolicy;
 use crate::types::actor::ActorConfig;
+use serde::{Deserialize, Serialize};
+use std::path::Path;
 
 /// Repo-level configuration stored in .git/grite/config.toml
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]

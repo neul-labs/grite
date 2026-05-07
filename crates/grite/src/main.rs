@@ -2,8 +2,8 @@ mod agents_md;
 mod cli;
 mod commands;
 mod context;
-mod output;
 mod event_helper;
+mod output;
 mod router;
 
 use clap::Parser;
@@ -39,15 +39,21 @@ fn run_command(cli: &Cli) -> Result<(), GriteError> {
         Command::Actor { cmd } => commands::actor::run(cli, cmd.clone()),
         Command::Issue { cmd } => commands::issue::run(cli, cmd.clone()),
         Command::Db { cmd } => commands::db::run(cli, cmd.clone()),
-        Command::Export { format, since } => commands::export::run(cli, format.clone(), since.clone()),
+        Command::Export { format, since } => {
+            commands::export::run(cli, format.clone(), since.clone())
+        }
         Command::Rebuild { from_snapshot } => commands::rebuild::run(cli, *from_snapshot),
-        Command::Sync { remote, pull, push } => commands::sync::run(cli, remote.clone(), *pull, *push),
+        Command::Sync { remote, pull, push } => {
+            commands::sync::run(cli, remote.clone(), *pull, *push)
+        }
         Command::Snapshot { cmd } => commands::snapshot::run(cli, cmd.clone()),
         Command::Daemon { cmd } => commands::daemon::run(cli, cmd.clone()),
         Command::Lock { cmd } => commands::lock::run(cli, cmd.clone()),
         Command::Doctor { fix } => commands::doctor::run(cli, *fix),
         Command::Context { cmd } => commands::context::run(cli, cmd.clone()),
-        Command::InstallSkill { global, force } => commands::install_skill::run(cli, *global, *force),
+        Command::InstallSkill { global, force } => {
+            commands::install_skill::run(cli, *global, *force)
+        }
     }
 }
 
@@ -83,7 +89,10 @@ fn try_route_through_daemon(
 }
 
 /// Handle a response from the daemon
-fn handle_daemon_response(cli: &Cli, response: libgrite_ipc::IpcResponse) -> Result<(), GriteError> {
+fn handle_daemon_response(
+    cli: &Cli,
+    response: libgrite_ipc::IpcResponse,
+) -> Result<(), GriteError> {
     if response.ok {
         // Output the data
         if let Some(data) = response.data {
@@ -132,10 +141,16 @@ fn output_daemon_data(cli: &Cli, data: &str) -> Result<(), GriteError> {
                 let rows: Vec<output::IssueRow> = arr
                     .iter()
                     .map(|issue| {
-                        let id = issue.get("issue_id").and_then(|v| v.as_str()).unwrap_or("?");
+                        let id = issue
+                            .get("issue_id")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("?");
                         let state = issue.get("state").and_then(|v| v.as_str()).unwrap_or("?");
                         let title = issue.get("title").and_then(|v| v.as_str()).unwrap_or("?");
-                        let created_ts = issue.get("created_ts").and_then(|v| v.as_u64()).unwrap_or(0);
+                        let created_ts = issue
+                            .get("created_ts")
+                            .and_then(|v| v.as_u64())
+                            .unwrap_or(0);
                         output::IssueRow {
                             id: id.to_string(),
                             state: state.to_string(),
@@ -170,8 +185,14 @@ fn output_daemon_data(cli: &Cli, data: &str) -> Result<(), GriteError> {
             println!("{}", serde_json::to_string_pretty(&json)?);
         } else if json.get("event_count").is_some() {
             // Rebuild response (only has event_count/issue_count, no "path")
-            let events = json.get("event_count").and_then(|v| v.as_u64()).unwrap_or(0);
-            let issues = json.get("issue_count").and_then(|v| v.as_u64()).unwrap_or(0);
+            let events = json
+                .get("event_count")
+                .and_then(|v| v.as_u64())
+                .unwrap_or(0);
+            let issues = json
+                .get("issue_count")
+                .and_then(|v| v.as_u64())
+                .unwrap_or(0);
             println!("Rebuilt: {} events, {} issues", events, issues);
         } else {
             // Unknown format, just print

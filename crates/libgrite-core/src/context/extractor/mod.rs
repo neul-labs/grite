@@ -1,5 +1,5 @@
-mod ts_engine;
 mod regex_fallback;
+mod ts_engine;
 
 use std::path::Path;
 
@@ -43,19 +43,26 @@ pub fn generate_summary(path: &str, symbols: &[SymbolInfo], language: &str) -> S
         return format!("{} file", display_language);
     }
 
-    let structs: Vec<&str> = symbols.iter()
+    let structs: Vec<&str> = symbols
+        .iter()
         .filter(|s| s.kind == "struct" || s.kind == "class" || s.kind == "interface")
         .map(|s| s.name.as_str())
         .collect();
 
-    let functions: Vec<&str> = symbols.iter()
+    let functions: Vec<&str> = symbols
+        .iter()
         .filter(|s| s.kind == "function" || s.kind == "method")
         .map(|s| s.name.as_str())
         .collect();
 
     let mut parts = Vec::new();
     if !structs.is_empty() {
-        let names: String = structs.iter().take(3).copied().collect::<Vec<_>>().join(", ");
+        let names: String = structs
+            .iter()
+            .take(3)
+            .copied()
+            .collect::<Vec<_>>()
+            .join(", ");
         if structs.len() > 3 {
             parts.push(format!("defines {} (+{} more)", names, structs.len() - 3));
         } else {
@@ -67,7 +74,14 @@ pub fn generate_summary(path: &str, symbols: &[SymbolInfo], language: &str) -> S
     }
 
     if parts.is_empty() {
-        format!("{} ({})", Path::new(path).file_name().unwrap_or_default().to_string_lossy(), display_language)
+        format!(
+            "{} ({})",
+            Path::new(path)
+                .file_name()
+                .unwrap_or_default()
+                .to_string_lossy(),
+            display_language
+        )
     } else {
         parts.join("; ")
     }
@@ -308,9 +322,24 @@ end
     #[test]
     fn test_generate_summary() {
         let symbols = vec![
-            SymbolInfo { name: "Config".to_string(), kind: "struct".to_string(), line_start: 1, line_end: 10 },
-            SymbolInfo { name: "new".to_string(), kind: "function".to_string(), line_start: 12, line_end: 20 },
-            SymbolInfo { name: "load".to_string(), kind: "function".to_string(), line_start: 22, line_end: 30 },
+            SymbolInfo {
+                name: "Config".to_string(),
+                kind: "struct".to_string(),
+                line_start: 1,
+                line_end: 10,
+            },
+            SymbolInfo {
+                name: "new".to_string(),
+                kind: "function".to_string(),
+                line_start: 12,
+                line_end: 20,
+            },
+            SymbolInfo {
+                name: "load".to_string(),
+                kind: "function".to_string(),
+                line_start: 22,
+                line_end: 30,
+            },
         ];
 
         let summary = generate_summary("src/config.rs", &symbols, "rust");
@@ -320,9 +349,12 @@ end
 
     #[test]
     fn test_generate_summary_tsx() {
-        let symbols = vec![
-            SymbolInfo { name: "App".to_string(), kind: "function".to_string(), line_start: 1, line_end: 10 },
-        ];
+        let symbols = vec![SymbolInfo {
+            name: "App".to_string(),
+            kind: "function".to_string(),
+            line_start: 1,
+            line_end: 10,
+        }];
 
         let summary = generate_summary("src/App.tsx", &symbols, "typescriptreact");
         assert!(summary.contains("1 functions"));
@@ -348,7 +380,10 @@ pub fn process(config: &Config) -> String {
 
         let symbols = extract_symbols(content, "rust");
 
-        let config = symbols.iter().find(|s| s.name == "Config" && s.kind == "struct").unwrap();
+        let config = symbols
+            .iter()
+            .find(|s| s.name == "Config" && s.kind == "struct")
+            .unwrap();
         assert_eq!(config.line_start, 1);
         assert_eq!(config.line_end, 4);
 

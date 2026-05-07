@@ -1,15 +1,15 @@
 //! Simulated AI coding agent
 
+use rand::Rng;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
-use rand::Rng;
 
 use libgrite_core::{
-    GriteError,
     hash::compute_event_id,
     store::LockedStore,
     types::event::{Event, EventKind, IssueState},
     types::ids::{generate_actor_id, generate_issue_id, id_to_hex, ActorId, IssueId},
+    GriteError,
 };
 use libgrite_git::WalManager;
 
@@ -98,7 +98,11 @@ impl SimulatedAgent {
 
         let latency = start.elapsed();
         let success = result.is_ok();
-        let had_contention = result.as_ref().err().map(|e| self.is_contention_error(e)).unwrap_or(false);
+        let had_contention = result
+            .as_ref()
+            .err()
+            .map(|e| self.is_contention_error(e))
+            .unwrap_or(false);
 
         metrics.record_operation(op_type, success, latency);
         metrics.update_agent_metrics(self.id, success, had_contention);
@@ -212,7 +216,7 @@ impl SimulatedAgent {
         store.insert_event(event)?;
 
         // Append to WAL (this may fail due to contention)
-        wal.append(&self.actor_id, &[event.clone()])?;
+        wal.append(&self.actor_id, std::slice::from_ref(event))?;
 
         Ok(())
     }
@@ -221,7 +225,9 @@ impl SimulatedAgent {
     fn get_random_issue(&self) -> Result<IssueId> {
         if self.known_issues.is_empty() {
             // Create a new issue if none exist
-            Err(BenchError::Bench("No known issues, will create one".to_string()))
+            Err(BenchError::Bench(
+                "No known issues, will create one".to_string(),
+            ))
         } else {
             let idx = rand::thread_rng().gen_range(0..self.known_issues.len());
             Ok(self.known_issues[idx])
@@ -269,9 +275,9 @@ impl SimulatedAgent {
     pub fn is_contention_error(&self, error: &BenchError) -> bool {
         match error {
             BenchError::Git(libgrite_git::GitError::Git(e)) => {
-                e.code() == git2::ErrorCode::Locked ||
-                e.message().contains("reference") ||
-                e.message().contains("conflict")
+                e.code() == git2::ErrorCode::Locked
+                    || e.message().contains("reference")
+                    || e.message().contains("conflict")
             }
             BenchError::Core(GriteError::DbBusy(_)) => true,
             _ => false,

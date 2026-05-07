@@ -1,18 +1,21 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
+use crate::types::ResolveOptions;
 use git2::Repository;
 use libgrite_core::{
-    config::{load_repo_config, save_repo_config, load_actor_config, save_actor_config, actor_dir, list_actors, RepoConfig, load_signing_key, repo_sled_path},
-    lock::{LockPolicy, LockCheckResult},
+    config::{
+        actor_dir, list_actors, load_actor_config, load_repo_config, load_signing_key,
+        repo_sled_path, save_actor_config, save_repo_config, RepoConfig,
+    },
+    lock::{LockCheckResult, LockPolicy},
     signing::SigningKeyPair,
     types::actor::ActorConfig,
     types::event::Event,
     types::ids::{generate_actor_id, id_to_hex},
-    GriteStore, LockedStore, GriteError,
+    GriteError, GriteStore, LockedStore,
 };
-use libgrite_git::{WalManager, SnapshotManager, SyncManager, LockManager, GitError};
+use libgrite_git::{GitError, LockManager, SnapshotManager, SyncManager, WalManager};
 use libgrite_ipc::{DaemonLock, IpcClient};
-use crate::types::ResolveOptions;
 
 /// Source of actor selection
 #[derive(Debug, Clone, Copy)]
@@ -39,14 +42,9 @@ pub enum ExecutionMode {
     /// Execute locally (no daemon or daemon skipped)
     Local,
     /// Route through daemon via IPC
-    Daemon {
-        client: IpcClient,
-        endpoint: String,
-    },
+    Daemon { client: IpcClient, endpoint: String },
     /// Daemon lock is valid but IPC unreachable
-    Blocked {
-        lock: DaemonLock,
-    },
+    Blocked { lock: DaemonLock },
 }
 
 impl std::fmt::Debug for ExecutionMode {
@@ -57,7 +55,12 @@ impl std::fmt::Debug for ExecutionMode {
                 write!(f, "Daemon {{ endpoint: {} }}", endpoint)
             }
             ExecutionMode::Blocked { lock } => {
-                write!(f, "Blocked {{ pid: {}, expires_in: {}ms }}", lock.pid, lock.time_remaining_ms())
+                write!(
+                    f,
+                    "Blocked {{ pid: {}, expires_in: {}ms }}",
+                    lock.pid,
+                    lock.time_remaining_ms()
+                )
             }
         }
     }
@@ -87,9 +90,11 @@ impl Clone for GriteContext {
 impl GriteContext {
     /// Find the shared git directory (commondir) for this repository.
     pub fn find_git_dir() -> Result<PathBuf, GriteError> {
-        let cwd = std::env::current_dir()?;
+        Self::find_git_dir_at(std::env::current_dir()?)
+    }
 
-        let repo = Repository::discover(&cwd).map_err(|_| {
+    pub fn find_git_dir_at(path: impl AsRef<Path>) -> Result<PathBuf, GriteError> {
+        let repo = Repository::discover(path.as_ref()).map_err(|_| {
             GriteError::NotFound("Not a git repository (or any parent)".to_string())
         })?;
 
@@ -99,8 +104,12 @@ impl GriteContext {
     /// Check if we're currently in a git worktree (not the main repo).
     #[cfg(test)]
     pub fn is_worktree() -> Result<bool, GriteError> {
-        let cwd = std::env::current_dir()?;
-        let repo = Repository::discover(&cwd).map_err(|_| {
+        Self::is_worktree_at(std::env::current_dir()?)
+    }
+
+    #[cfg(test)]
+    pub fn is_worktree_at(path: impl AsRef<Path>) -> Result<bool, GriteError> {
+        let repo = Repository::discover(path.as_ref()).map_err(|_| {
             GriteError::NotFound("Not a git repository (or any parent)".to_string())
         })?;
 
@@ -248,16 +257,21 @@ impl GriteContext {
             return Ok(LockCheckResult::Clear);
         }
 
-        let lock_manager = self.open_lock_manager()
-            ?;
+        let lock_manager = self.open_lock_manager()?;
 
-        let result = lock_manager.check_conflicts(resource, &self.actor_id, policy)
-            ?;
+        let result = lock_manager.check_conflicts(resource, &self.actor_id, policy)?;
 
         if let LockCheckResult::Blocked(ref conflicts) = result {
-            let conflict_desc: Vec<String> = conflicts.iter()
-                .map(|l| format!("{} (owned by {}, expires in {}s)",
-                    l.resource, l.owner, l.time_remaining_ms() / 1000))
+            let conflict_desc: Vec<String> = conflicts
+                .iter()
+                .map(|l| {
+                    format!(
+                        "{} (owned by {}, expires in {}s)",
+                        l.resource,
+                        l.owner,
+                        l.time_remaining_ms() / 1000
+                    )
+                })
                 .collect();
             return Err(GriteError::Conflict(format!(
                 "Blocked by lock policy: {}",
@@ -300,15 +314,11 @@ impl GriteContext {
                 }
 
                 match IpcClient::connect(&lock.ipc_endpoint) {
-                    Ok(client) => {
-                        ExecutionMode::Daemon {
-                            endpoint: lock.ipc_endpoint.clone(),
-                            client,
-                        }
-                    }
-                    Err(_) => {
-                        ExecutionMode::Blocked { lock }
-                    }
+                    Ok(client) => ExecutionMode::Daemon {
+                        endpoint: lock.ipc_endpoint.clone(),
+                        client,
+                    },
+                    Err(_) => ExecutionMode::Blocked { lock },
                 }
             }
             Ok(None) => ExecutionMode::Local,
@@ -337,13 +347,11 @@ mod tests {
         let temp = TempDir::new().unwrap();
         assert!(git(&["init"], temp.path()));
 
-        let original_cwd = std::env::current_dir().unwrap();
-        std::env::set_current_dir(temp.path()).unwrap();
-
-        let git_dir = GriteContext::find_git_dir().unwrap();
-        assert_eq!(git_dir.canonicalize().unwrap(), temp.path().join(".git").canonicalize().unwrap());
-
-        std::env::set_current_dir(original_cwd).unwrap();
+        let git_dir = GriteContext::find_git_dir_at(temp.path()).unwrap();
+        assert_eq!(
+            git_dir.canonicalize().unwrap(),
+            temp.path().join(".git").canonicalize().unwrap()
+        );
     }
 
     #[test]
@@ -361,21 +369,35 @@ mod tests {
         assert!(git(&["commit", "--allow-empty", "-m", "init"], &main_repo));
 
         assert!(git(
-            &["worktree", "add", worktree_path.to_str().unwrap(), "-b", "feature"],
+            &[
+                "worktree",
+                "add",
+                worktree_path.to_str().unwrap(),
+                "-b",
+                "feature"
+            ],
             &main_repo
         ));
 
         let git_file = worktree_path.join(".git");
-        assert!(git_file.is_file(), ".git should be a file in worktree, not a directory");
+        assert!(
+            git_file.is_file(),
+            ".git should be a file in worktree, not a directory"
+        );
 
-        let repo = Repository::discover(&worktree_path).expect("Should discover repo from worktree");
+        let repo =
+            Repository::discover(&worktree_path).expect("Should discover repo from worktree");
 
         let commondir = repo.commondir();
         let expected_commondir = main_repo.join(".git").canonicalize().unwrap();
         let actual_commondir = commondir.canonicalize().unwrap();
         assert_eq!(actual_commondir, expected_commondir);
 
-        assert_ne!(repo.path(), repo.commondir(), "In worktree, path() != commondir()");
+        assert_ne!(
+            repo.path(),
+            repo.commondir(),
+            "In worktree, path() != commondir()"
+        );
     }
 
     #[test]
@@ -383,12 +405,7 @@ mod tests {
         let temp = TempDir::new().unwrap();
         assert!(git(&["init"], temp.path()));
 
-        let original_cwd = std::env::current_dir().unwrap();
-        std::env::set_current_dir(temp.path()).unwrap();
-
-        assert!(!GriteContext::is_worktree().unwrap());
-
-        std::env::set_current_dir(original_cwd).unwrap();
+        assert!(!GriteContext::is_worktree_at(temp.path()).unwrap());
     }
 
     #[test]
@@ -399,12 +416,10 @@ mod tests {
         let subdir = temp.path().join("src").join("deep");
         std::fs::create_dir_all(&subdir).unwrap();
 
-        let original_cwd = std::env::current_dir().unwrap();
-        std::env::set_current_dir(&subdir).unwrap();
-
-        let git_dir = GriteContext::find_git_dir().unwrap();
-        assert_eq!(git_dir.canonicalize().unwrap(), temp.path().join(".git").canonicalize().unwrap());
-
-        std::env::set_current_dir(original_cwd).unwrap();
+        let git_dir = GriteContext::find_git_dir_at(&subdir).unwrap();
+        assert_eq!(
+            git_dir.canonicalize().unwrap(),
+            temp.path().join(".git").canonicalize().unwrap()
+        );
     }
 }

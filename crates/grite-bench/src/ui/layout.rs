@@ -3,8 +3,8 @@
 use ratatui::prelude::*;
 use ratatui::widgets::{Block, Borders, Paragraph};
 
-use crate::bench::{BenchmarkConfig, MetricsSnapshot};
 use super::widgets;
+use crate::bench::{BenchmarkConfig, MetricsSnapshot};
 
 /// UI state
 #[derive(Default)]
@@ -25,20 +25,25 @@ impl UiState {
 }
 
 /// Draw the main UI
-pub fn draw(frame: &mut Frame, config: &BenchmarkConfig, snapshot: &MetricsSnapshot, state: &UiState) {
+pub fn draw(
+    frame: &mut Frame,
+    config: &BenchmarkConfig,
+    snapshot: &MetricsSnapshot,
+    state: &UiState,
+) {
     let area = frame.area();
 
     // Main layout
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
-            Constraint::Length(3),  // Header
-            Constraint::Length(2),  // Config bar
-            Constraint::Length(8),  // Throughput + Histogram
-            Constraint::Min(8),     // Agent table
-            Constraint::Length(3),  // Summary
-            Constraint::Length(6),  // Event log
-            Constraint::Length(1),  // Help bar
+            Constraint::Length(3), // Header
+            Constraint::Length(2), // Config bar
+            Constraint::Length(8), // Throughput + Histogram
+            Constraint::Min(8),    // Agent table
+            Constraint::Length(3), // Summary
+            Constraint::Length(6), // Event log
+            Constraint::Length(1), // Help bar
         ])
         .split(area);
 
@@ -72,15 +77,22 @@ pub fn draw(frame: &mut Frame, config: &BenchmarkConfig, snapshot: &MetricsSnaps
 
 fn render_header(frame: &mut Frame, area: Rect) {
     let title = Paragraph::new("GRITE BENCHMARK - AI Agent Stress Test")
-        .style(Style::default()
-            .fg(Color::Cyan)
-            .add_modifier(Modifier::BOLD))
+        .style(
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        )
         .alignment(Alignment::Center)
         .block(Block::default().borders(Borders::ALL));
     frame.render_widget(title, area);
 }
 
-fn render_config_bar(frame: &mut Frame, area: Rect, config: &BenchmarkConfig, snapshot: &MetricsSnapshot) {
+fn render_config_bar(
+    frame: &mut Frame,
+    area: Rect,
+    config: &BenchmarkConfig,
+    snapshot: &MetricsSnapshot,
+) {
     let elapsed = snapshot.elapsed;
     let elapsed_str = format!("{:.1}s", elapsed.as_secs_f64());
 

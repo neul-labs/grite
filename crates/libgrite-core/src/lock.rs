@@ -4,7 +4,7 @@
 //! Locks are optional and designed for coordination, not enforcement.
 
 use serde::{Deserialize, Serialize};
-use sha2::{Sha256, Digest};
+use sha2::{Digest, Sha256};
 
 /// A lease-based lock on a resource
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -40,11 +40,7 @@ impl Lock {
     /// Get time remaining in milliseconds (0 if expired)
     pub fn time_remaining_ms(&self) -> u64 {
         let now = current_time_ms();
-        if now >= self.expires_unix_ms {
-            0
-        } else {
-            self.expires_unix_ms - now
-        }
+        self.expires_unix_ms.saturating_sub(now)
     }
 
     /// Extend the lock's expiration
@@ -113,6 +109,7 @@ pub enum LockPolicy {
 
 impl LockPolicy {
     /// Parse from string
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Option<Self> {
         match s.to_lowercase().as_str() {
             "off" => Some(LockPolicy::Off),
@@ -203,8 +200,16 @@ fn paths_overlap(path1: &str, path2: &str) -> bool {
     }
 
     // Check if one is a prefix of the other (as a directory)
-    let p1_dir = if p1.ends_with('/') { p1.to_string() } else { format!("{}/", p1) };
-    let p2_dir = if p2.ends_with('/') { p2.to_string() } else { format!("{}/", p2) };
+    let p1_dir = if p1.ends_with('/') {
+        p1.to_string()
+    } else {
+        format!("{}/", p1)
+    };
+    let p2_dir = if p2.ends_with('/') {
+        p2.to_string()
+    } else {
+        format!("{}/", p2)
+    };
 
     p2.starts_with(&p1_dir) || p1.starts_with(&p2_dir)
 }

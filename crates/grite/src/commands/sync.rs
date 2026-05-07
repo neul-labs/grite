@@ -1,12 +1,12 @@
 //! Sync command implementation
 
-use libgrite_core::{GriteError, lock::LockCheckResult};
-use libgrite_core::types::ids::ActorId;
-use libgrite_git::WalManager;
-use serde::Serialize;
 use crate::cli::Cli;
 use crate::context::GriteContext;
 use crate::output::{output_success, print_human};
+use libgrite_core::types::ids::ActorId;
+use libgrite_core::{lock::LockCheckResult, GriteError};
+use libgrite_git::WalManager;
+use serde::Serialize;
 
 /// Check repo lock for push operations
 fn check_push_lock(cli: &Cli, ctx: &GriteContext) -> Result<(), GriteError> {
@@ -26,7 +26,7 @@ fn check_push_lock(cli: &Cli, ctx: &GriteContext) -> Result<(), GriteError> {
             Ok(())
         }
         LockCheckResult::Blocked(_) => Err(GriteError::Conflict(
-            "Repository is locked by another process".to_string()
+            "Repository is locked by another process".to_string(),
         )),
     }
 }
@@ -80,7 +80,10 @@ pub fn run(cli: &Cli, remote: String, pull_only: bool, push_only: bool) -> Resul
 
         // Auto-backfill WAL from sled if WAL is empty
         if let Some(count) = backfill_wal_if_needed(&ctx, &actor_id)? {
-            print_human(cli, &format!("Backfilled WAL with {} event(s) from local store", count));
+            print_human(
+                cli,
+                &format!("Backfilled WAL with {} event(s) from local store", count),
+            );
         }
     }
 
@@ -90,28 +93,36 @@ pub fn run(cli: &Cli, remote: String, pull_only: bool, push_only: bool) -> Resul
 
         // Human-readable output
         if result.events_pulled > 0 {
-            print_human(cli, &format!("Pulled {} events from {}", result.events_pulled, remote));
+            print_human(
+                cli,
+                &format!("Pulled {} events from {}", result.events_pulled, remote),
+            );
         } else {
             print_human(cli, &format!("Already up to date with {}", remote));
         }
 
-        output_success(cli, PullOutput {
-            success: result.success,
-            events: result.events_pulled,
-            wal_head: result.new_wal_head.map(|oid| oid.to_string()),
-            message: result.message,
-        });
+        output_success(
+            cli,
+            PullOutput {
+                success: result.success,
+                events: result.events_pulled,
+                wal_head: result.new_wal_head.map(|oid| oid.to_string()),
+                message: result.message,
+            },
+        );
     } else if do_push && !do_pull {
         // Push only with auto-rebase on conflict
-        let result = sync_mgr.push_with_rebase(&remote, &actor_id)
-            ?;
+        let result = sync_mgr.push_with_rebase(&remote, &actor_id)?;
 
         // Human-readable output with conflict reporting
         if result.rebased {
-            print_human(cli, &format!(
-                "Conflict resolved: rebased {} local events on top of remote",
-                result.events_rebased
-            ));
+            print_human(
+                cli,
+                &format!(
+                    "Conflict resolved: rebased {} local events on top of remote",
+                    result.events_rebased
+                ),
+            );
         }
         if result.success {
             print_human(cli, &format!("Pushed to {}", remote));
@@ -119,28 +130,39 @@ pub fn run(cli: &Cli, remote: String, pull_only: bool, push_only: bool) -> Resul
             print_human(cli, &format!("Push failed: {}", result.message));
         }
 
-        output_success(cli, PushOutput {
-            success: result.success,
-            rebased: result.rebased,
-            events_rebased: result.events_rebased,
-            backfilled: 0,
-            message: result.message,
-        });
+        output_success(
+            cli,
+            PushOutput {
+                success: result.success,
+                rebased: result.rebased,
+                events_rebased: result.events_rebased,
+                backfilled: 0,
+                message: result.message,
+            },
+        );
     } else {
         // Full sync: pull then push with auto-rebase
-        let (pull_result, push_result) = sync_mgr.sync_with_rebase(&remote, &actor_id)
-            ?;
+        let (pull_result, push_result) = sync_mgr.sync_with_rebase(&remote, &actor_id)?;
 
         // Human-readable output with conflict reporting
         if pull_result.events_pulled > 0 {
-            print_human(cli, &format!("Pulled {} events from {}", pull_result.events_pulled, remote));
+            print_human(
+                cli,
+                &format!(
+                    "Pulled {} events from {}",
+                    pull_result.events_pulled, remote
+                ),
+            );
         }
 
         if push_result.rebased {
-            print_human(cli, &format!(
-                "Conflict resolved: rebased {} local events on top of remote",
-                push_result.events_rebased
-            ));
+            print_human(
+                cli,
+                &format!(
+                    "Conflict resolved: rebased {} local events on top of remote",
+                    push_result.events_rebased
+                ),
+            );
         }
 
         if push_result.success {
@@ -149,21 +171,23 @@ pub fn run(cli: &Cli, remote: String, pull_only: bool, push_only: bool) -> Resul
             print_human(cli, &format!("Push failed: {}", push_result.message));
         }
 
-        output_success(cli, SyncOutput {
-            pulled: true,
-            pushed: true,
-            pull_events: pull_result.events_pulled,
-            pull_wal_head: pull_result.new_wal_head.map(|oid| oid.to_string()),
-            push_success: push_result.success,
-            push_rebased: push_result.rebased,
-            push_events_rebased: push_result.events_rebased,
-            message: format!("{} / {}", pull_result.message, push_result.message),
-        });
+        output_success(
+            cli,
+            SyncOutput {
+                pulled: true,
+                pushed: true,
+                pull_events: pull_result.events_pulled,
+                pull_wal_head: pull_result.new_wal_head.map(|oid| oid.to_string()),
+                push_success: push_result.success,
+                push_rebased: push_result.rebased,
+                push_events_rebased: push_result.events_rebased,
+                message: format!("{} / {}", pull_result.message, push_result.message),
+            },
+        );
     }
 
     Ok(())
 }
-
 
 /// Backfill WAL from sled events if WAL is empty.
 // Needed before push/sync.
@@ -174,15 +198,13 @@ fn backfill_wal_if_needed(
     actor_id: &ActorId,
 ) -> Result<Option<usize>, GriteError> {
     let git_dir = ctx.repo_root().join(".git");
-    let wal = WalManager::open(&git_dir)
-        ?;
+    let wal = WalManager::open(&git_dir)?;
 
     if wal.head()?.is_some() {
         return Ok(None);
     }
 
-    let store = libgrite_core::GriteStore::open(&ctx.sled_path())
-        ?;
+    let store = libgrite_core::GriteStore::open(&ctx.sled_path())?;
     let events = store.get_all_events()?;
 
     if events.is_empty() {
@@ -192,8 +214,7 @@ fn backfill_wal_if_needed(
     let mut sorted = events;
     sorted.sort_by_key(|e| e.ts_unix_ms);
 
-    wal.append(actor_id, &sorted)
-        ?;
+    wal.append(actor_id, &sorted)?;
 
     Ok(Some(sorted.len()))
 }

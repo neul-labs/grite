@@ -2,10 +2,10 @@
 //!
 //! These tests verify that store operations handle concurrent access correctly.
 
+use libgrite_core::hash::compute_event_id;
 use libgrite_core::store::GriteStore;
 use libgrite_core::types::event::{Event, EventKind};
 use libgrite_core::types::ids::{generate_actor_id, generate_issue_id};
-use libgrite_core::hash::compute_event_id;
 use std::sync::{Arc, Barrier};
 use std::thread;
 use tempfile::tempdir;
@@ -97,7 +97,9 @@ fn test_concurrent_comments_single_issue() {
 
     // First create the issue
     let create_event = create_issue_event(&actor, &issue_id, 0);
-    store.insert_event(&create_event).expect("Failed to create issue");
+    store
+        .insert_event(&create_event)
+        .expect("Failed to create issue");
 
     // Now add comments concurrently
     let num_threads = 8;
@@ -141,7 +143,9 @@ fn test_concurrent_comments_single_issue() {
     );
 
     // Verify all comments were stored
-    let events = store.get_issue_events(&issue_id).expect("Failed to get events");
+    let events = store
+        .get_issue_events(&issue_id)
+        .expect("Failed to get events");
     // +1 for the create event
     assert_eq!(
         events.len(),
@@ -162,7 +166,9 @@ fn test_concurrent_read_write() {
 
     // Create initial issue
     let create_event = create_issue_event(&actor, &issue_id, 0);
-    store.insert_event(&create_event).expect("Failed to create issue");
+    store
+        .insert_event(&create_event)
+        .expect("Failed to create issue");
 
     let num_readers = 4;
     let num_writers = 4;

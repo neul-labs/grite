@@ -69,19 +69,17 @@ impl From<IpcError> for libgrite_core::GriteError {
             IpcError::DaemonNotRunning => {
                 libgrite_core::GriteError::Ipc("Daemon not running".to_string())
             }
-            IpcError::Timeout(_) => {
-                libgrite_core::GriteError::Ipc("IPC timeout".to_string())
-            }
+            IpcError::Timeout(_) => libgrite_core::GriteError::Ipc("IPC timeout".to_string()),
             IpcError::LockHeld { pid, expires_in_ms } => {
                 libgrite_core::GriteError::DbBusy(format!(
-                    "Daemon lock held by process {} (expires in {}s)", pid, expires_in_ms / 1000
+                    "Daemon lock held by process {} (expires in {}s)",
+                    pid,
+                    expires_in_ms / 1000
                 ))
             }
-            IpcError::LockRace => {
-                libgrite_core::GriteError::Conflict(
-                    "Another process acquired the daemon lock simultaneously".to_string()
-                )
-            }
+            IpcError::LockRace => libgrite_core::GriteError::Conflict(
+                "Another process acquired the daemon lock simultaneously".to_string(),
+            ),
             IpcError::LockExpired => {
                 libgrite_core::GriteError::Ipc("Daemon lock expired".to_string())
             }

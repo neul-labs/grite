@@ -122,17 +122,19 @@ impl IssueProjection {
     /// Create a projection from an IssueCreated event
     pub fn from_event(event: &Event) -> Result<Self, GriteError> {
         match &event.kind {
-            EventKind::IssueCreated { title, body, labels } => {
-                Ok(Self::new(
-                    event.issue_id,
-                    title.clone(),
-                    body.clone(),
-                    labels.clone(),
-                    event.ts_unix_ms,
-                    event.actor,
-                    event.event_id,
-                ))
-            }
+            EventKind::IssueCreated {
+                title,
+                body,
+                labels,
+            } => Ok(Self::new(
+                event.issue_id,
+                title.clone(),
+                body.clone(),
+                labels.clone(),
+                event.ts_unix_ms,
+                event.actor,
+                event.event_id,
+            )),
             _ => Err(GriteError::Internal(
                 "Expected IssueCreated event".to_string(),
             )),
@@ -147,12 +149,7 @@ mod tests {
     use crate::types::event::IssueState;
     use crate::types::ids::generate_issue_id;
 
-    fn make_event(
-        issue_id: [u8; 16],
-        actor: [u8; 16],
-        ts: u64,
-        kind: EventKind,
-    ) -> Event {
+    fn make_event(issue_id: [u8; 16], actor: [u8; 16], ts: u64, kind: EventKind) -> Event {
         let event_id = compute_event_id(&issue_id, &actor, ts, None, &kind);
         Event::new(event_id, issue_id, actor, ts, None, kind)
     }
@@ -341,7 +338,7 @@ mod tests {
         let actor2 = [2u8; 16];
 
         // Create a sequence of events
-        let events = vec![
+        let events = [
             make_event(
                 issue_id,
                 actor1,

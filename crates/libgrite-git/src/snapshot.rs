@@ -3,12 +3,12 @@
 //! Snapshots provide an optimization for rebuilding state without
 //! replaying the entire WAL history.
 
-use std::path::Path;
 use git2::{Oid, Repository, Signature};
-use serde::{Deserialize, Serialize};
 use libgrite_core::types::event::Event;
+use serde::{Deserialize, Serialize};
+use std::path::Path;
 
-use crate::chunk::{encode_chunk, decode_chunk, chunk_hash};
+use crate::chunk::{chunk_hash, decode_chunk, encode_chunk};
 use crate::GitError;
 
 /// Snapshot reference prefix
@@ -59,7 +59,9 @@ impl SnapshotManager {
     /// Create a new snapshot from events
     pub fn create(&self, wal_head: Oid, events: &[Event]) -> Result<Oid, GitError> {
         if events.is_empty() {
-            return Err(GitError::Snapshot("Cannot create empty snapshot".to_string()));
+            return Err(GitError::Snapshot(
+                "Cannot create empty snapshot".to_string(),
+            ));
         }
 
         let now_ms = std::time::SystemTime::now()
@@ -113,14 +115,9 @@ impl SnapshotManager {
         let message = format!("Snapshot: {} events at {}", events.len(), now_ms);
 
         let ref_name = format!("{}{}", SNAPSHOT_REF_PREFIX, now_ms);
-        let commit_oid = self.repo.commit(
-            Some(&ref_name),
-            &sig,
-            &sig,
-            &message,
-            &tree,
-            &[],
-        )?;
+        let commit_oid = self
+            .repo
+            .commit(Some(&ref_name), &sig, &sig, &message, &tree, &[])?;
 
         Ok(commit_oid)
     }
@@ -129,7 +126,10 @@ impl SnapshotManager {
     pub fn list(&self) -> Result<Vec<SnapshotRef>, GitError> {
         let mut snapshots = Vec::new();
 
-        for reference in self.repo.references_glob(&format!("{}*", SNAPSHOT_REF_PREFIX))? {
+        for reference in self
+            .repo
+            .references_glob(&format!("{}*", SNAPSHOT_REF_PREFIX))?
+        {
             let reference = reference?;
             let ref_name = reference.name().unwrap_or("").to_string();
 
@@ -163,7 +163,8 @@ impl SnapshotManager {
         let tree = commit.tree()?;
 
         // Read snapshot.json for chunk order
-        let meta_entry = tree.get_name("snapshot.json")
+        let meta_entry = tree
+            .get_name("snapshot.json")
             .ok_or_else(|| GitError::Snapshot("Missing snapshot.json".to_string()))?;
         let meta_blob = self.repo.find_blob(meta_entry.id())?;
         let meta: SnapshotMeta = serde_json::from_slice(meta_blob.content())?;
@@ -171,13 +172,18 @@ impl SnapshotManager {
         // Read chunks in order
         let mut all_events = Vec::with_capacity(meta.event_count);
 
-        let events_entry = tree.get_name("events")
+        let events_entry = tree
+            .get_name("events")
             .ok_or_else(|| GitError::Snapshot("Missing events directory".to_string()))?;
         let events_tree = self.repo.find_tree(events_entry.id())?;
 
         for chunk_info in &meta.chunks {
-            let chunk_name = chunk_info.path.strip_prefix("events/").unwrap_or(&chunk_info.path);
-            let chunk_entry = events_tree.get_name(chunk_name)
+            let chunk_name = chunk_info
+                .path
+                .strip_prefix("events/")
+                .unwrap_or(&chunk_info.path);
+            let chunk_entry = events_tree
+                .get_name(chunk_name)
                 .ok_or_else(|| GitError::Snapshot(format!("Missing chunk: {}", chunk_name)))?;
             let chunk_blob = self.repo.find_blob(chunk_entry.id())?;
             let events = decode_chunk(chunk_blob.content())?;
@@ -204,7 +210,10 @@ impl SnapshotManager {
             deleted += 1;
         }
 
-        Ok(GcStats { deleted, kept: keep })
+        Ok(GcStats {
+            deleted,
+            kept: keep,
+        })
     }
 }
 
@@ -221,8 +230,8 @@ mod tests {
     use libgrite_core::hash::compute_event_id;
     use libgrite_core::types::event::EventKind;
     use libgrite_core::types::ids::generate_issue_id;
-    use tempfile::TempDir;
     use std::process::Command;
+    use tempfile::TempDir;
 
     fn setup_test_repo() -> (TempDir, Repository) {
         let temp = TempDir::new().unwrap();
@@ -236,18 +245,20 @@ mod tests {
     }
 
     fn make_test_events(count: usize) -> Vec<Event> {
-        (0..count).map(|i| {
-            let issue_id = generate_issue_id();
-            let actor = [1u8; 16];
-            let ts_unix_ms = 1700000000000u64 + i as u64;
-            let kind = EventKind::IssueCreated {
-                title: format!("Issue {}", i),
-                body: "Body".to_string(),
-                labels: vec![],
-            };
-            let event_id = compute_event_id(&issue_id, &actor, ts_unix_ms, None, &kind);
-            Event::new(event_id, issue_id, actor, ts_unix_ms, None, kind)
-        }).collect()
+        (0..count)
+            .map(|i| {
+                let issue_id = generate_issue_id();
+                let actor = [1u8; 16];
+                let ts_unix_ms = 1700000000000u64 + i as u64;
+                let kind = EventKind::IssueCreated {
+                    title: format!("Issue {}", i),
+                    body: "Body".to_string(),
+                    labels: vec![],
+                };
+                let event_id = compute_event_id(&issue_id, &actor, ts_unix_ms, None, &kind);
+                Event::new(event_id, issue_id, actor, ts_unix_ms, None, kind)
+            })
+            .collect()
     }
 
     #[test]

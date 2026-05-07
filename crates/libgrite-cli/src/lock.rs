@@ -3,7 +3,10 @@ use crate::types::*;
 use libgrite_core::GriteError;
 
 /// Acquire a lock.
-pub fn lock_acquire(ctx: &GriteContext, opts: &LockAcquireOptions) -> Result<LockAcquireResult, GriteError> {
+pub fn lock_acquire(
+    ctx: &GriteContext,
+    opts: &LockAcquireOptions,
+) -> Result<LockAcquireResult, GriteError> {
     let _ = ctx;
     let _ = opts;
     todo!("lock_acquire not yet implemented in library")
@@ -17,7 +20,10 @@ pub fn lock_release(ctx: &GriteContext, opts: &LockReleaseOptions) -> Result<(),
 }
 
 /// Renew a lock.
-pub fn lock_renew(ctx: &GriteContext, opts: &LockRenewOptions) -> Result<LockRenewResult, GriteError> {
+pub fn lock_renew(
+    ctx: &GriteContext,
+    opts: &LockRenewOptions,
+) -> Result<LockRenewResult, GriteError> {
     let _ = ctx;
     let _ = opts;
     todo!("lock_renew not yet implemented in library")

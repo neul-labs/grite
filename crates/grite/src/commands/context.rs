@@ -1,22 +1,26 @@
+use sha2::{Digest, Sha256};
 use std::process::Command as StdCommand;
-use sha2::{Sha256, Digest};
 
-use libgrite_core::{
-    context::{context_issue_id, PROJECT_CONTEXT_ISSUE_ID},
-    context::extractor::{detect_language, extract_symbols, generate_summary},
-    hash::compute_event_id,
-    types::event::{Event, EventKind},
-    types::ids::{id_to_hex},
-    GriteError,
-};
 use crate::cli::{Cli, ContextCommand};
 use crate::context::GriteContext;
-use crate::output::output_success;
 use crate::event_helper::insert_and_append;
+use crate::output::output_success;
+use libgrite_core::{
+    context::extractor::{detect_language, extract_symbols, generate_summary},
+    context::{context_issue_id, PROJECT_CONTEXT_ISSUE_ID},
+    hash::compute_event_id,
+    types::event::{Event, EventKind},
+    types::ids::id_to_hex,
+    GriteError,
+};
 
 pub fn run(cli: &Cli, cmd: ContextCommand) -> Result<(), GriteError> {
     match cmd {
-        ContextCommand::Index { path, force, pattern } => run_index(cli, path, force, pattern),
+        ContextCommand::Index {
+            path,
+            force,
+            pattern,
+        } => run_index(cli, path, force, pattern),
         ContextCommand::Query { query } => run_query(cli, query),
         ContextCommand::Show { path } => run_show(cli, path),
         ContextCommand::Project { key } => run_project(cli, key),
@@ -31,7 +35,12 @@ fn current_ts() -> u64 {
         .as_millis() as u64
 }
 
-fn run_index(cli: &Cli, paths: Vec<String>, force: bool, pattern: Option<String>) -> Result<(), GriteError> {
+fn run_index(
+    cli: &Cli,
+    paths: Vec<String>,
+    force: bool,
+    pattern: Option<String>,
+) -> Result<(), GriteError> {
     let ctx = GriteContext::resolve(cli)?;
     let store = ctx.open_store()?;
     let wal = ctx.open_wal()?;
@@ -113,12 +122,15 @@ fn run_query(cli: &Cli, query: String) -> Result<(), GriteError> {
 
     let results = store.query_symbols(&query)?;
 
-    let matches: Vec<serde_json::Value> = results.iter().map(|(name, path)| {
-        serde_json::json!({
-            "symbol": name,
-            "path": path,
+    let matches: Vec<serde_json::Value> = results
+        .iter()
+        .map(|(name, path)| {
+            serde_json::json!({
+                "symbol": name,
+                "path": path,
+            })
         })
-    }).collect();
+        .collect();
 
     let output = serde_json::json!({
         "query": query,
@@ -134,17 +146,22 @@ fn run_show(cli: &Cli, path: String) -> Result<(), GriteError> {
     let ctx = GriteContext::resolve(cli)?;
     let store = ctx.open_store()?;
 
-    let file_ctx = store.get_file_context(&path)?
+    let file_ctx = store
+        .get_file_context(&path)?
         .ok_or_else(|| GriteError::NotFound(format!("No context found for '{}'", path)))?;
 
-    let symbols: Vec<serde_json::Value> = file_ctx.symbols.iter().map(|s| {
-        serde_json::json!({
-            "name": s.name,
-            "kind": s.kind,
-            "line_start": s.line_start,
-            "line_end": s.line_end,
+    let symbols: Vec<serde_json::Value> = file_ctx
+        .symbols
+        .iter()
+        .map(|s| {
+            serde_json::json!({
+                "name": s.name,
+                "kind": s.kind,
+                "line_start": s.line_start,
+                "line_end": s.line_end,
+            })
         })
-    }).collect();
+        .collect();
 
     let output = serde_json::json!({
         "path": file_ctx.path,
@@ -164,8 +181,9 @@ fn run_project(cli: &Cli, key: Option<String>) -> Result<(), GriteError> {
     let store = ctx.open_store()?;
 
     if let Some(key) = key {
-        let entry = store.get_project_context(&key)?
-            .ok_or_else(|| GriteError::NotFound(format!("Project context key '{}' not found", key)))?;
+        let entry = store.get_project_context(&key)?.ok_or_else(|| {
+            GriteError::NotFound(format!("Project context key '{}' not found", key))
+        })?;
 
         let output = serde_json::json!({
             "key": key,
@@ -174,12 +192,15 @@ fn run_project(cli: &Cli, key: Option<String>) -> Result<(), GriteError> {
         output_success(cli, &output);
     } else {
         let entries = store.list_project_context()?;
-        let list: Vec<serde_json::Value> = entries.iter().map(|(k, v)| {
-            serde_json::json!({
-                "key": k,
-                "value": v.value,
+        let list: Vec<serde_json::Value> = entries
+            .iter()
+            .map(|(k, v)| {
+                serde_json::json!({
+                    "key": k,
+                    "value": v.value,
+                })
             })
-        }).collect();
+            .collect();
 
         let output = serde_json::json!({
             "entries": list,
@@ -205,7 +226,14 @@ fn run_set(cli: &Cli, key: String, value: String) -> Result<(), GriteError> {
         value: value.clone(),
     };
     let event_id = compute_event_id(&PROJECT_CONTEXT_ISSUE_ID, &actor_id_bytes, ts, None, &kind);
-    let event = Event::new(event_id, PROJECT_CONTEXT_ISSUE_ID, actor_id_bytes, ts, None, kind);
+    let event = Event::new(
+        event_id,
+        PROJECT_CONTEXT_ISSUE_ID,
+        actor_id_bytes,
+        ts,
+        None,
+        kind,
+    );
 
     insert_and_append(&store, &wal, &actor_id_bytes, &event)?;
 
@@ -220,7 +248,10 @@ fn run_set(cli: &Cli, key: String, value: String) -> Result<(), GriteError> {
 }
 
 /// Get the list of files to index, using git ls-files
-fn get_files_to_index(paths: &[String], pattern: &Option<String>) -> Result<Vec<String>, GriteError> {
+fn get_files_to_index(
+    paths: &[String],
+    pattern: &Option<String>,
+) -> Result<Vec<String>, GriteError> {
     let mut cmd = StdCommand::new("git");
     cmd.arg("ls-files");
 
@@ -230,7 +261,8 @@ fn get_files_to_index(paths: &[String], pattern: &Option<String>) -> Result<Vec<
         }
     }
 
-    let output = cmd.output()
+    let output = cmd
+        .output()
         .map_err(|e| GriteError::Internal(format!("Failed to run git ls-files: {}", e)))?;
 
     if !output.status.success() {

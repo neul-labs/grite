@@ -34,19 +34,54 @@ pub fn render(frame: &mut Frame, area: Rect, snapshot: &MetricsSnapshot) {
         .split(inner);
 
     // P50
-    render_percentile(frame, chunks[0], "P50", latencies.p50_ms(), max_latency, Color::Green);
+    render_percentile(
+        frame,
+        chunks[0],
+        "P50",
+        latencies.p50_ms(),
+        max_latency,
+        Color::Green,
+    );
 
     // P95
-    render_percentile(frame, chunks[1], "P95", latencies.p95_ms(), max_latency, Color::Yellow);
+    render_percentile(
+        frame,
+        chunks[1],
+        "P95",
+        latencies.p95_ms(),
+        max_latency,
+        Color::Yellow,
+    );
 
     // P99
-    render_percentile(frame, chunks[2], "P99", latencies.p99_ms(), max_latency, Color::Red);
+    render_percentile(
+        frame,
+        chunks[2],
+        "P99",
+        latencies.p99_ms(),
+        max_latency,
+        Color::Red,
+    );
 
     // Max
-    render_percentile(frame, chunks[3], "Max", latencies.max_ms(), max_latency, Color::Magenta);
+    render_percentile(
+        frame,
+        chunks[3],
+        "Max",
+        latencies.max_ms(),
+        max_latency,
+        Color::Magenta,
+    );
 }
 
-fn render_percentile(frame: &mut Frame, area: Rect, label: &str, value_ms: f64, max_ms: f64, color: Color) {
+fn render_percentile(
+    frame: &mut Frame,
+    area: Rect,
+    label: &str,
+    value_ms: f64,
+    max_ms: f64,
+    color: Color,
+) {
     let chunks = Layout::default()
         .direction(Direction::Horizontal)
         .constraints([
@@ -57,8 +92,8 @@ fn render_percentile(frame: &mut Frame, area: Rect, label: &str, value_ms: f64, 
         .split(area);
 
     // Label
-    let label_widget = Paragraph::new(format!("{}:", label))
-        .style(Style::default().fg(Color::White));
+    let label_widget =
+        Paragraph::new(format!("{}:", label)).style(Style::default().fg(Color::White));
     frame.render_widget(label_widget, chunks[0]);
 
     // Value
@@ -69,8 +104,7 @@ fn render_percentile(frame: &mut Frame, area: Rect, label: &str, value_ms: f64, 
     } else {
         format!("{:.2}s", value_ms / 1000.0)
     };
-    let value_widget = Paragraph::new(value_str)
-        .style(Style::default().fg(color));
+    let value_widget = Paragraph::new(value_str).style(Style::default().fg(color));
     frame.render_widget(value_widget, chunks[1]);
 
     // Bar

@@ -46,10 +46,7 @@ fn setup_repo(dir: &Path) -> (String, String) {
     std::fs::create_dir_all(&actor_dir).unwrap();
 
     // Write actor config
-    let config_content = format!(
-        "actor_id = \"{}\"\nlabel = \"test\"\n",
-        actor_id
-    );
+    let config_content = format!("actor_id = \"{}\"\nlabel = \"test\"\n", actor_id);
     std::fs::write(actor_dir.join("config.toml"), config_content).unwrap();
 
     let repo_root = dir.to_string_lossy().to_string();
@@ -82,8 +79,8 @@ fn send_request(
         command,
     );
 
-    let bytes = rkyv::to_bytes::<rkyv::rancor::Error>(&request)
-        .map_err(|e| format!("serialize: {}", e))?;
+    let bytes =
+        rkyv::to_bytes::<rkyv::rancor::Error>(&request).map_err(|e| format!("serialize: {}", e))?;
 
     write_framed(&mut stream, &bytes).map_err(|e| format!("write: {}", e))?;
 
@@ -98,9 +95,7 @@ fn send_request(
 }
 
 /// Start a supervisor and wait for the socket to appear
-async fn start_supervisor(
-    socket_path: String,
-) -> tokio::task::JoinHandle<()> {
+async fn start_supervisor(socket_path: String) -> tokio::task::JoinHandle<()> {
     use grite_daemon::supervisor::Supervisor;
 
     let sp = socket_path.clone();
@@ -113,9 +108,7 @@ async fn start_supervisor(
 
     // Wait for socket to appear
     let start = Instant::now();
-    while !std::path::Path::new(&socket_path).exists()
-        && start.elapsed() < Duration::from_secs(5)
-    {
+    while !std::path::Path::new(&socket_path).exists() && start.elapsed() < Duration::from_secs(5) {
         tokio::time::sleep(Duration::from_millis(50)).await;
     }
 

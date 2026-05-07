@@ -1,9 +1,9 @@
-use serde::Serialize;
 use crate::error::GriteError;
 use crate::store::{GriteStore, IssueFilter};
 use crate::types::event::{Event, EventKind};
 use crate::types::ids::{id_to_hex, EventId};
 use crate::types::issue::IssueSummary;
+use serde::Serialize;
 
 /// Export metadata
 #[derive(Debug, Serialize)]
@@ -78,7 +78,11 @@ impl From<&Event> for EventJson {
 
 fn event_kind_to_json(kind: &EventKind) -> serde_json::Value {
     match kind {
-        EventKind::IssueCreated { title, body, labels } => {
+        EventKind::IssueCreated {
+            title,
+            body,
+            labels,
+        } => {
             serde_json::json!({
                 "IssueCreated": {
                     "title": title,
@@ -170,7 +174,13 @@ fn event_kind_to_json(kind: &EventKind) -> serde_json::Value {
                 }
             })
         }
-        EventKind::ContextUpdated { path, language, symbols, summary, content_hash } => {
+        EventKind::ContextUpdated {
+            path,
+            language,
+            symbols,
+            summary,
+            content_hash,
+        } => {
             serde_json::json!({
                 "ContextUpdated": {
                     "path": path,
@@ -199,7 +209,10 @@ pub enum ExportSince {
 }
 
 /// Export to JSON format
-pub fn export_json(store: &GriteStore, since: Option<ExportSince>) -> Result<JsonExport, GriteError> {
+pub fn export_json(
+    store: &GriteStore,
+    since: Option<ExportSince>,
+) -> Result<JsonExport, GriteError> {
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
@@ -217,17 +230,14 @@ pub fn export_json(store: &GriteStore, since: Option<ExportSince>) -> Result<Jso
 
     // Apply since filter
     if let Some(since_filter) = since {
-        events = events
-            .into_iter()
-            .filter(|e| match &since_filter {
-                ExportSince::Timestamp(ts) => e.ts_unix_ms > *ts,
-                ExportSince::EventId(event_id) => {
-                    // Include events after the given event_id in sort order
-                    (&e.issue_id, e.ts_unix_ms, &e.actor, &e.event_id)
-                        > (&e.issue_id, e.ts_unix_ms, &e.actor, event_id)
-                }
-            })
-            .collect();
+        events.retain(|e| match &since_filter {
+            ExportSince::Timestamp(ts) => e.ts_unix_ms > *ts,
+            ExportSince::EventId(event_id) => {
+                // Include events after the given event_id in sort order
+                (&e.issue_id, e.ts_unix_ms, &e.actor, &e.event_id)
+                    > (&e.issue_id, e.ts_unix_ms, &e.actor, event_id)
+            }
+        });
     }
 
     let event_jsons: Vec<EventJson> = events.iter().map(EventJson::from).collect();
@@ -245,7 +255,10 @@ pub fn export_json(store: &GriteStore, since: Option<ExportSince>) -> Result<Jso
 }
 
 /// Export to Markdown format
-pub fn export_markdown(store: &GriteStore, _since: Option<ExportSince>) -> Result<String, GriteError> {
+pub fn export_markdown(
+    store: &GriteStore,
+    _since: Option<ExportSince>,
+) -> Result<String, GriteError> {
     let mut md = String::new();
 
     md.push_str("# grite Export\n\n");

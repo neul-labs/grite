@@ -324,16 +324,11 @@ pub struct DbVerifyResult {
 }
 
 /// Export format.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum ExportFormat {
+    #[default]
     Json,
     Md,
-}
-
-impl Default for ExportFormat {
-    fn default() -> Self {
-        ExportFormat::Json
-    }
 }
 
 /// Options for export.

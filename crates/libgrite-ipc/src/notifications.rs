@@ -126,8 +126,7 @@ mod tests {
         };
 
         let bytes = rkyv::to_bytes::<rkyv::rancor::Error>(&notification).unwrap();
-        let archived =
-            rkyv::access::<ArchivedNotification, rkyv::rancor::Error>(&bytes).unwrap();
+        let archived = rkyv::access::<ArchivedNotification, rkyv::rancor::Error>(&bytes).unwrap();
 
         match archived {
             ArchivedNotification::EventApplied {

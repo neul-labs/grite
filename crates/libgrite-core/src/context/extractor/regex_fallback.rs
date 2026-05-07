@@ -55,7 +55,8 @@ fn extract_ts_symbols(content: &str) -> Vec<SymbolInfo> {
     let interface_re = Regex::new(r"(?m)^\s*(?:export\s+)?interface\s+(\w+)").unwrap();
     let type_re = Regex::new(r"(?m)^\s*(?:export\s+)?type\s+(\w+)").unwrap();
     let const_re = Regex::new(r"(?m)^\s*(?:export\s+)?const\s+(\w+)").unwrap();
-    let arrow_re = Regex::new(r"(?m)^\s*(?:export\s+)?(?:const|let)\s+(\w+)\s*=\s*(?:async\s+)?\(").unwrap();
+    let arrow_re =
+        Regex::new(r"(?m)^\s*(?:export\s+)?(?:const|let)\s+(\w+)\s*=\s*(?:async\s+)?\(").unwrap();
 
     add_matches(&mut symbols, content, &fn_re, "function");
     add_matches(&mut symbols, content, &class_re, "class");
@@ -95,7 +96,8 @@ fn add_matches(symbols: &mut Vec<SymbolInfo>, content: &str, re: &Regex, kind: &
             let line_start = content[..name_match.start()].matches('\n').count() as u32 + 1;
             // Estimate end line (next blank line or +10 lines, whichever is smaller)
             let remaining = &content[name_match.end()..];
-            let lines_to_end = remaining.find("\n\n")
+            let lines_to_end = remaining
+                .find("\n\n")
                 .map(|pos| remaining[..pos].matches('\n').count() as u32)
                 .unwrap_or(10)
                 .min(50);

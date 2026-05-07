@@ -1,8 +1,11 @@
 use libgrite_core::{
-    config::{save_repo_config, save_actor_config, load_repo_config, load_actor_config, actor_dir, list_actors},
+    config::{
+        actor_dir, list_actors, load_actor_config, load_repo_config, save_actor_config,
+        save_repo_config,
+    },
+    signing::SigningKeyPair,
     types::actor::ActorConfig,
     types::ids::{generate_actor_id, id_to_hex},
-    signing::SigningKeyPair,
     GriteError,
 };
 
@@ -70,7 +73,10 @@ pub fn actor_list() -> Result<ActorListResult, GriteError> {
 }
 
 /// Show actor details.
-pub fn actor_show(opts: &ActorShowOptions, ctx: &GriteContext) -> Result<ActorShowResult, GriteError> {
+pub fn actor_show(
+    opts: &ActorShowOptions,
+    ctx: &GriteContext,
+) -> Result<ActorShowResult, GriteError> {
     let actor_id = match &opts.id {
         Some(id) => id.clone(),
         None => ctx.actor_id.clone(),
@@ -79,7 +85,10 @@ pub fn actor_show(opts: &ActorShowOptions, ctx: &GriteContext) -> Result<ActorSh
     let data_dir = actor_dir(&ctx.git_dir, &actor_id);
     let config = load_actor_config(&data_dir)?;
 
-    Ok(ActorShowResult { actor: config, source: "".to_string() })
+    Ok(ActorShowResult {
+        actor: config,
+        source: "".to_string(),
+    })
 }
 
 /// Show current actor.
@@ -87,7 +96,10 @@ pub fn actor_current(ctx: &GriteContext) -> Result<ActorShowResult, GriteError> 
     let data_dir = actor_dir(&ctx.git_dir, &ctx.actor_id);
     let config = load_actor_config(&data_dir)?;
 
-    Ok(ActorShowResult { actor: config, source: ctx.source.as_str().to_string() })
+    Ok(ActorShowResult {
+        actor: config,
+        source: ctx.source.as_str().to_string(),
+    })
 }
 
 /// Set the default actor.

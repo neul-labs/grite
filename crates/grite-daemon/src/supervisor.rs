@@ -34,6 +34,7 @@ struct WorkerHandle {
     tx: mpsc::Sender<WorkerMessage>,
     join_handle: Option<tokio::task::JoinHandle<()>>,
     repo_root: PathBuf,
+    #[allow(dead_code)]
     state: Option<Arc<crate::state::AtomicWorkerState>>,
 }
 
@@ -194,10 +195,7 @@ impl Supervisor {
         });
 
         // Spawn notification consumer (just logs for now since PUB socket is removed)
-        let mut notify_rx = std::mem::replace(
-            &mut self.notify_rx,
-            mpsc::channel(1).1,
-        );
+        let mut notify_rx = std::mem::replace(&mut self.notify_rx, mpsc::channel(1).1);
         let mut notify_shutdown = self.state.shutdown_tx.subscribe();
         tokio::spawn(async move {
             loop {
@@ -278,7 +276,9 @@ impl Supervisor {
         // connection task inserts a new worker after we drain the map.
         let _ = tokio::time::timeout(
             Duration::from_secs(10),
-            self.state.conn_semaphore.acquire_many(MAX_CONNECTIONS as u32),
+            self.state
+                .conn_semaphore
+                .acquire_many(MAX_CONNECTIONS as u32),
         )
         .await;
 
@@ -328,22 +328,18 @@ async fn shutdown_workers(state: &DaemonState) {
 /// Handle a single client connection: read one request, send one response
 async fn handle_connection(mut stream: UnixStream, state: &DaemonState) {
     // Read request with timeout
-    let request_bytes = match tokio::time::timeout(
-        Duration::from_secs(30),
-        read_framed_async(&mut stream),
-    )
-    .await
-    {
-        Ok(Ok(bytes)) => bytes,
-        Ok(Err(e)) => {
-            debug!("Failed to read request: {}", e);
-            return;
-        }
-        Err(_) => {
-            debug!("Request read timed out");
-            return;
-        }
-    };
+    let request_bytes =
+        match tokio::time::timeout(Duration::from_secs(30), read_framed_async(&mut stream)).await {
+            Ok(Ok(bytes)) => bytes,
+            Ok(Err(e)) => {
+                debug!("Failed to read request: {}", e);
+                return;
+            }
+            Err(_) => {
+                debug!("Request read timed out");
+                return;
+            }
+        };
 
     let response = process_request(&request_bytes, state).await;
 
@@ -390,17 +386,16 @@ async fn process_request(raw: &[u8], state: &DaemonState) -> IpcResponse {
     }
 
     // Deserialize to owned type
-    let request: IpcRequest =
-        match rkyv::deserialize::<IpcRequest, rkyv::rancor::Error>(archived) {
-            Ok(r) => r,
-            Err(e) => {
-                return IpcResponse::error(
-                    archived.request_id.to_string(),
-                    "deserialization".to_string(),
-                    format!("Failed to deserialize request: {}", e),
-                );
-            }
-        };
+    let request: IpcRequest = match rkyv::deserialize::<IpcRequest, rkyv::rancor::Error>(archived) {
+        Ok(r) => r,
+        Err(e) => {
+            return IpcResponse::error(
+                archived.request_id.to_string(),
+                "deserialization".to_string(),
+                format!("Failed to deserialize request: {}", e),
+            );
+        }
+    };
 
     debug!(
         request_id = %request.request_id,
@@ -491,10 +486,9 @@ async fn route_to_worker(request: IpcRequest, state: &DaemonState) -> IpcRespons
     let hid = state.host_id.clone();
     let ipc = state.socket_path.clone();
 
-    let worker_result = tokio::task::spawn_blocking(move || {
-        Worker::new(repo_root, actor_id, rx, ntx, hid, ipc)
-    })
-    .await;
+    let worker_result =
+        tokio::task::spawn_blocking(move || Worker::new(repo_root, actor_id, rx, ntx, hid, ipc))
+            .await;
 
     let worker = match worker_result {
         Ok(Ok(w)) => w,
@@ -559,10 +553,7 @@ async fn route_to_worker(request: IpcRequest, state: &DaemonState) -> IpcRespons
 }
 
 /// Send a request to an existing worker and wait for the response
-async fn send_to_worker(
-    request: &IpcRequest,
-    tx: mpsc::Sender<WorkerMessage>,
-) -> IpcResponse {
+async fn send_to_worker(request: &IpcRequest, tx: mpsc::Sender<WorkerMessage>) -> IpcResponse {
     let (response_tx, response_rx) = tokio::sync::oneshot::channel();
     let msg = WorkerMessage::Command {
         request_id: request.request_id.clone(),

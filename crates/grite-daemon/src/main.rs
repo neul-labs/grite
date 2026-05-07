@@ -78,7 +78,9 @@ async fn main() {
     } else {
         None
     };
-    let endpoint = cli.endpoint.unwrap_or_else(libgrite_ipc::default_socket_path);
+    let endpoint = cli
+        .endpoint
+        .unwrap_or_else(libgrite_ipc::default_socket_path);
     let supervisor = Supervisor::new(endpoint, idle_timeout);
 
     if let Err(e) = supervisor.run(shutdown).await {

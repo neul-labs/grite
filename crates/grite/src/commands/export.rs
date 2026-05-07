@@ -1,12 +1,12 @@
+use crate::cli::{Cli, ExportFormat};
+use crate::context::GriteContext;
+use crate::output::output_success;
 use libgrite_core::{
     export::{export_json, export_markdown, ExportSince},
     types::ids::hex_to_id,
     GriteError,
 };
 use serde::Serialize;
-use crate::cli::{Cli, ExportFormat};
-use crate::context::GriteContext;
-use crate::output::output_success;
 
 #[derive(Serialize)]
 struct ExportOutput {
@@ -28,7 +28,8 @@ pub fn run(cli: &Cli, format: ExportFormat, since: Option<String>) -> Result<(),
                 let event_id = hex_to_id(&s)?;
                 Some(ExportSince::EventId(event_id))
             } else {
-                let ts: u64 = s.parse()
+                let ts: u64 = s
+                    .parse()
                     .map_err(|_| GriteError::InvalidArgs(format!("Invalid since value: {}", s)))?;
                 Some(ExportSince::Timestamp(ts))
             }
@@ -37,10 +38,9 @@ pub fn run(cli: &Cli, format: ExportFormat, since: Option<String>) -> Result<(),
     };
 
     // Create .grite directory if needed
-    let repo_root = ctx.git_dir.parent()
-        .ok_or_else(|| GriteError::Internal(
-            "Cannot determine repository root from git directory".to_string()
-        ))?;
+    let repo_root = ctx.git_dir.parent().ok_or_else(|| {
+        GriteError::Internal("Cannot determine repository root from git directory".to_string())
+    })?;
     let grite_export_dir = repo_root.join(".grite");
     std::fs::create_dir_all(&grite_export_dir)?;
 
@@ -62,12 +62,15 @@ pub fn run(cli: &Cli, format: ExportFormat, since: Option<String>) -> Result<(),
         }
     };
 
-    output_success(cli, ExportOutput {
-        format: format_str,
-        output_path: output_path.to_string_lossy().to_string(),
-        wal_head: None,
-        event_count,
-    });
+    output_success(
+        cli,
+        ExportOutput {
+            format: format_str,
+            output_path: output_path.to_string_lossy().to_string(),
+            wal_head: None,
+            event_count,
+        },
+    );
 
     Ok(())
 }

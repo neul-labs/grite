@@ -3,12 +3,12 @@
 //! Handles synchronization with remote repositories including
 //! conflict resolution for non-fast-forward pushes.
 
+use git2::{FetchOptions, Oid, PushOptions, RemoteCallbacks, Repository};
+use libgrite_core::types::event::Event;
+use libgrite_core::types::ids::ActorId;
 use std::cell::RefCell;
 use std::path::Path;
 use std::rc::Rc;
-use git2::{Oid, Repository, FetchOptions, PushOptions, RemoteCallbacks};
-use libgrite_core::types::event::Event;
-use libgrite_core::types::ids::ActorId;
 
 use crate::wal::WalManager;
 use crate::GitError;
@@ -122,7 +122,9 @@ impl SyncManager {
     /// Push grite refs to a remote
     pub fn push(&self, remote_name: &str) -> Result<PushResult, GitError> {
         // Enumerate concrete grite refs (libgit2 push doesn't expand globs)
-        let refspecs: Vec<String> = self.repo.references()?
+        let refspecs: Vec<String> = self
+            .repo
+            .references()?
             .filter_map(Result::ok)
             .filter_map(|r| r.name().map(|n| n.to_string()))
             .filter(|n| n.starts_with("refs/grite/"))
@@ -257,7 +259,10 @@ impl SyncManager {
             rebased: true,
             events_rebased,
             message: if retry_result.success {
-                format!("Push successful after rebase ({} events rebased)", events_rebased)
+                format!(
+                    "Push successful after rebase ({} events rebased)",
+                    events_rebased
+                )
             } else {
                 retry_result.message
             },
@@ -290,8 +295,8 @@ mod tests {
 
     #[test]
     fn test_sync_manager_opens() {
-        use tempfile::TempDir;
         use std::process::Command;
+        use tempfile::TempDir;
 
         let temp = TempDir::new().unwrap();
         Command::new("git")

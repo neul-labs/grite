@@ -1,7 +1,7 @@
 pub mod extractor;
 
-use blake2::{Blake2b, Digest};
 use blake2::digest::consts::U16;
+use blake2::{Blake2b, Digest};
 
 use crate::types::ids::IssueId;
 

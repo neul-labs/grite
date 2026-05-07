@@ -1,11 +1,7 @@
 //! Helper for inserting events into both sled store and Git WAL
 
-use libgrite_core::{
-    types::event::Event,
-    types::ids::ActorId,
-    GriteStore, GriteError,
-};
-use libgrite_git::{WalManager, GitError};
+use libgrite_core::{types::event::Event, types::ids::ActorId, GriteError, GriteStore};
+use libgrite_git::{GitError, WalManager};
 
 /// Result of inserting an event
 pub struct InsertResult {
@@ -32,7 +28,7 @@ pub fn insert_and_append(
     store.flush()?;
 
     // Append to WAL (may fail if git issues)
-    let wal_head = match wal.append(actor, &[event.clone()]) {
+    let wal_head = match wal.append(actor, std::slice::from_ref(event)) {
         Ok(oid) => Some(oid.to_string()),
         Err(e) => {
             // Log error but don't fail - event is in sled

@@ -1,5 +1,5 @@
-use serde::{Deserialize, Serialize};
 use super::ids::ActorId;
+use serde::{Deserialize, Serialize};
 
 /// Actor configuration stored in .git/grite/actors/<actor_id>/config.toml
 #[derive(Debug, Clone, Serialize, Deserialize)]

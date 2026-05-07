@@ -6,12 +6,12 @@ use std::time::{Duration, Instant};
 use fs2::FileExt;
 
 use crate::error::GriteError;
+use crate::types::context::{FileContext, ProjectContextEntry};
+use crate::types::event::IssueState;
 use crate::types::event::{DependencyType, Event, EventKind};
 use crate::types::ids::{EventId, IssueId};
-use crate::types::issue::{IssueProjection, IssueSummary};
-use crate::types::event::IssueState;
-use crate::types::context::{FileContext, ProjectContextEntry};
 use crate::types::issue::Version;
+use crate::types::issue::{IssueProjection, IssueSummary};
 
 /// Default threshold for events since rebuild before recommending rebuild
 pub const DEFAULT_REBUILD_EVENTS_THRESHOLD: usize = 10000;
@@ -215,13 +215,18 @@ impl GriteStore {
 
     /// Increment the events_since_rebuild counter
     fn increment_events_since_rebuild(&self) -> Result<(), GriteError> {
-        let current = self.metadata.get("events_since_rebuild")?.map(|bytes| {
-            let arr: [u8; 8] = bytes.as_ref().try_into().unwrap_or([0; 8]);
-            u64::from_le_bytes(arr)
-        }).unwrap_or(0);
+        let current = self
+            .metadata
+            .get("events_since_rebuild")?
+            .map(|bytes| {
+                let arr: [u8; 8] = bytes.as_ref().try_into().unwrap_or([0; 8]);
+                u64::from_le_bytes(arr)
+            })
+            .unwrap_or(0);
 
         let new_count = current + 1;
-        self.metadata.insert("events_since_rebuild", &new_count.to_le_bytes())?;
+        self.metadata
+            .insert("events_since_rebuild", &new_count.to_le_bytes())?;
         Ok(())
     }
 
@@ -229,8 +234,21 @@ impl GriteStore {
     fn update_projection(&self, event: &Event) -> Result<(), GriteError> {
         // Handle context events separately (they don't have issue projections)
         match &event.kind {
-            EventKind::ContextUpdated { path, language, symbols, summary, content_hash } => {
-                return self.update_file_context(event, path, language, symbols, summary, content_hash);
+            EventKind::ContextUpdated {
+                path,
+                language,
+                symbols,
+                summary,
+                content_hash,
+            } => {
+                return self.update_file_context(
+                    event,
+                    path,
+                    language,
+                    symbols,
+                    summary,
+                    content_hash,
+                );
             }
             EventKind::ProjectContextUpdated { key, value } => {
                 return self.update_project_context(event, key, value);
@@ -326,7 +344,8 @@ impl GriteStore {
             };
 
             // Insert file context
-            self.context_files.insert(&file_key, serde_json::to_vec(&ctx)?)?;
+            self.context_files
+                .insert(&file_key, serde_json::to_vec(&ctx)?)?;
 
             // Insert symbol index entries
             for sym in symbols {
@@ -361,7 +380,8 @@ impl GriteStore {
                 value: value.to_string(),
                 version: new_version,
             };
-            self.context_project.insert(&proj_key, serde_json::to_vec(&entry)?)?;
+            self.context_project
+                .insert(&proj_key, serde_json::to_vec(&entry)?)?;
         }
 
         Ok(())
@@ -386,20 +406,20 @@ impl GriteStore {
 
         // Full ID — parse directly
         if hex_prefix.len() == 32 {
-            return hex_to_id::<16>(hex_prefix)
-                .map_err(|e| GriteError::InvalidArgs(e.to_string()));
+            return hex_to_id::<16>(hex_prefix).map_err(|e| GriteError::InvalidArgs(e.to_string()));
         }
 
         // Validate hex characters
         if !hex_prefix.chars().all(|c| c.is_ascii_hexdigit()) {
             return Err(GriteError::InvalidArgs(format!(
-                "invalid hex prefix: {}", hex_prefix
+                "invalid hex prefix: {}",
+                hex_prefix
             )));
         }
 
         if hex_prefix.len() < 4 {
             return Err(GriteError::InvalidArgs(
-                "issue ID prefix must be at least 4 characters".to_string()
+                "issue ID prefix must be at least 4 characters".to_string(),
             ));
         }
 
@@ -431,11 +451,13 @@ impl GriteStore {
 
         match matches.len() {
             0 => Err(GriteError::NotFound(format!(
-                "no issue matching prefix {}", hex_prefix
+                "no issue matching prefix {}",
+                hex_prefix
             ))),
             1 => Ok(matches[0]),
             n => Err(GriteError::InvalidArgs(format!(
-                "ambiguous prefix {} matches {} issues", hex_prefix, n
+                "ambiguous prefix {} matches {} issues",
+                hex_prefix, n
             ))),
         }
     }
@@ -510,8 +532,12 @@ impl GriteStore {
         }
         // Sort by (issue_id, ts, actor, event_id)
         events.sort_by(|a, b| {
-            (&a.issue_id, a.ts_unix_ms, &a.actor, &a.event_id)
-                .cmp(&(&b.issue_id, b.ts_unix_ms, &b.actor, &b.event_id))
+            (&a.issue_id, a.ts_unix_ms, &a.actor, &a.event_id).cmp(&(
+                &b.issue_id,
+                b.ts_unix_ms,
+                &b.actor,
+                &b.event_id,
+            ))
         });
         Ok(events)
     }
@@ -532,8 +558,12 @@ impl GriteStore {
 
         // Sort events by (issue_id, ts, actor, event_id) for deterministic ordering
         events.sort_by(|a, b| {
-            (&a.issue_id, a.ts_unix_ms, &a.actor, &a.event_id)
-                .cmp(&(&b.issue_id, b.ts_unix_ms, &b.actor, &b.event_id))
+            (&a.issue_id, a.ts_unix_ms, &a.actor, &a.event_id).cmp(&(
+                &b.issue_id,
+                b.ts_unix_ms,
+                &b.actor,
+                &b.event_id,
+            ))
         });
 
         // Rebuild projections
@@ -548,8 +578,10 @@ impl GriteStore {
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap_or_default()
             .as_millis() as u64;
-        self.metadata.insert("last_rebuild_ts", &now.to_le_bytes())?;
-        self.metadata.insert("events_since_rebuild", &0u64.to_le_bytes())?;
+        self.metadata
+            .insert("last_rebuild_ts", &now.to_le_bytes())?;
+        self.metadata
+            .insert("events_since_rebuild", &0u64.to_le_bytes())?;
 
         Ok(RebuildStats {
             event_count: events.len(),
@@ -575,8 +607,12 @@ impl GriteStore {
         // Sort events by (issue_id, ts, actor, event_id) for deterministic ordering
         let mut sorted_events: Vec<_> = events.to_vec();
         sorted_events.sort_by(|a, b| {
-            (&a.issue_id, a.ts_unix_ms, &a.actor, &a.event_id)
-                .cmp(&(&b.issue_id, b.ts_unix_ms, &b.actor, &b.event_id))
+            (&a.issue_id, a.ts_unix_ms, &a.actor, &a.event_id).cmp(&(
+                &b.issue_id,
+                b.ts_unix_ms,
+                &b.actor,
+                &b.event_id,
+            ))
         });
 
         // Insert events and rebuild projections
@@ -601,8 +637,10 @@ impl GriteStore {
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap_or_default()
             .as_millis() as u64;
-        self.metadata.insert("last_rebuild_ts", &now.to_le_bytes())?;
-        self.metadata.insert("events_since_rebuild", &0u64.to_le_bytes())?;
+        self.metadata
+            .insert("last_rebuild_ts", &now.to_le_bytes())?;
+        self.metadata
+            .insert("events_since_rebuild", &0u64.to_le_bytes())?;
 
         Ok(RebuildStats {
             event_count: sorted_events.len(),
@@ -623,10 +661,14 @@ impl GriteStore {
             u64::from_le_bytes(arr)
         });
 
-        let events_since_rebuild = self.metadata.get("events_since_rebuild")?.map(|bytes| {
-            let arr: [u8; 8] = bytes.as_ref().try_into().unwrap_or([0; 8]);
-            u64::from_le_bytes(arr) as usize
-        }).unwrap_or(event_count); // If never rebuilt, assume all events are since rebuild
+        let events_since_rebuild = self
+            .metadata
+            .get("events_since_rebuild")?
+            .map(|bytes| {
+                let arr: [u8; 8] = bytes.as_ref().try_into().unwrap_or([0; 8]);
+                u64::from_le_bytes(arr) as usize
+            })
+            .unwrap_or(event_count); // If never rebuilt, assume all events are since rebuild
 
         // Calculate days since last rebuild
         let now_ms = std::time::SystemTime::now()
@@ -641,7 +683,9 @@ impl GriteStore {
 
         // Recommend rebuild if events > 10000 or days > 7
         let rebuild_recommended = events_since_rebuild > DEFAULT_REBUILD_EVENTS_THRESHOLD
-            || days_since_rebuild.map(|d| d > DEFAULT_REBUILD_DAYS_THRESHOLD).unwrap_or(false);
+            || days_since_rebuild
+                .map(|d| d > DEFAULT_REBUILD_DAYS_THRESHOLD)
+                .unwrap_or(false);
 
         Ok(DbStats {
             path: path.to_string_lossy().to_string(),
@@ -658,7 +702,10 @@ impl GriteStore {
     // --- Dependency Query Methods ---
 
     /// Get all outgoing dependencies for an issue
-    pub fn get_dependencies(&self, issue_id: &IssueId) -> Result<Vec<(IssueId, DependencyType)>, GriteError> {
+    pub fn get_dependencies(
+        &self,
+        issue_id: &IssueId,
+    ) -> Result<Vec<(IssueId, DependencyType)>, GriteError> {
         let prefix = dep_forward_prefix(issue_id);
         let mut deps = Vec::new();
 
@@ -673,7 +720,10 @@ impl GriteStore {
     }
 
     /// Get all incoming dependencies (what depends on this issue)
-    pub fn get_dependents(&self, issue_id: &IssueId) -> Result<Vec<(IssueId, DependencyType)>, GriteError> {
+    pub fn get_dependents(
+        &self,
+        issue_id: &IssueId,
+    ) -> Result<Vec<(IssueId, DependencyType)>, GriteError> {
         let prefix = dep_reverse_prefix(issue_id);
         let mut deps = Vec::new();
 
@@ -727,8 +777,10 @@ impl GriteStore {
         let issue_ids: HashSet<IssueId> = issues.iter().map(|i| i.issue_id).collect();
 
         // Build in-degree map (only count edges within the filtered set)
-        let mut in_degree: std::collections::HashMap<IssueId, usize> = std::collections::HashMap::new();
-        let mut adj: std::collections::HashMap<IssueId, Vec<IssueId>> = std::collections::HashMap::new();
+        let mut in_degree: std::collections::HashMap<IssueId, usize> =
+            std::collections::HashMap::new();
+        let mut adj: std::collections::HashMap<IssueId, Vec<IssueId>> =
+            std::collections::HashMap::new();
 
         for issue in &issues {
             in_degree.entry(issue.issue_id).or_insert(0);
@@ -744,7 +796,8 @@ impl GriteStore {
         }
 
         // Kahn's algorithm
-        let mut queue: std::collections::VecDeque<IssueId> = in_degree.iter()
+        let mut queue: std::collections::VecDeque<IssueId> = in_degree
+            .iter()
             .filter(|(_, &deg)| deg == 0)
             .map(|(&id, _)| id)
             .collect();
@@ -774,7 +827,8 @@ impl GriteStore {
         // Map back to summaries in sorted order
         let issue_map: std::collections::HashMap<IssueId, &IssueSummary> =
             issues.iter().map(|i| (i.issue_id, i)).collect();
-        let result = sorted_ids.iter()
+        let result = sorted_ids
+            .iter()
             .filter_map(|id| issue_map.get(id).map(|s| (*s).clone()))
             .collect();
 
@@ -829,7 +883,10 @@ impl GriteStore {
     }
 
     /// Get a project context entry by key
-    pub fn get_project_context(&self, key: &str) -> Result<Option<ProjectContextEntry>, GriteError> {
+    pub fn get_project_context(
+        &self,
+        key: &str,
+    ) -> Result<Option<ProjectContextEntry>, GriteError> {
         let k = context_project_key(key);
         match self.context_project.get(&k)? {
             Some(bytes) => Ok(Some(serde_json::from_slice(&bytes)?)),

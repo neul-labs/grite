@@ -1,11 +1,11 @@
 //! Thread-safe metrics collection
 
+use hdrhistogram::Histogram;
+use serde::{Deserialize, Serialize};
+use std::collections::VecDeque;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::RwLock;
 use std::time::{Duration, Instant};
-use std::collections::VecDeque;
-use serde::{Deserialize, Serialize};
-use hdrhistogram::Histogram;
 
 use super::scenario::OpType;
 
@@ -76,9 +76,7 @@ impl MetricsCollector {
             issues_closed: AtomicU64::new(0),
 
             // 1 microsecond to 60 seconds, 3 significant figures
-            latency_histogram: RwLock::new(
-                Histogram::new_with_bounds(1, 60_000_000, 3).unwrap()
-            ),
+            latency_histogram: RwLock::new(Histogram::new_with_bounds(1, 60_000_000, 3).unwrap()),
 
             agent_metrics: RwLock::new(agent_metrics),
             throughput_history: RwLock::new(ThroughputHistory::new(60)),
@@ -95,12 +93,24 @@ impl MetricsCollector {
             self.successful_operations.fetch_add(1, Ordering::Relaxed);
 
             match op_type {
-                OpType::CreateIssue => { self.issues_created.fetch_add(1, Ordering::Relaxed); }
-                OpType::AddComment => { self.comments_added.fetch_add(1, Ordering::Relaxed); }
-                OpType::AddLabel => { self.labels_added.fetch_add(1, Ordering::Relaxed); }
-                OpType::RemoveLabel => { self.labels_removed.fetch_add(1, Ordering::Relaxed); }
-                OpType::UpdateIssue => { self.issues_updated.fetch_add(1, Ordering::Relaxed); }
-                OpType::CloseIssue => { self.issues_closed.fetch_add(1, Ordering::Relaxed); }
+                OpType::CreateIssue => {
+                    self.issues_created.fetch_add(1, Ordering::Relaxed);
+                }
+                OpType::AddComment => {
+                    self.comments_added.fetch_add(1, Ordering::Relaxed);
+                }
+                OpType::AddLabel => {
+                    self.labels_added.fetch_add(1, Ordering::Relaxed);
+                }
+                OpType::RemoveLabel => {
+                    self.labels_removed.fetch_add(1, Ordering::Relaxed);
+                }
+                OpType::UpdateIssue => {
+                    self.issues_updated.fetch_add(1, Ordering::Relaxed);
+                }
+                OpType::CloseIssue => {
+                    self.issues_closed.fetch_add(1, Ordering::Relaxed);
+                }
             }
         } else {
             self.failed_operations.fetch_add(1, Ordering::Relaxed);
@@ -204,15 +214,21 @@ impl MetricsCollector {
 
     /// Take a snapshot of all metrics
     pub fn snapshot(&self) -> MetricsSnapshot {
-        let throughput_data = self.throughput_history.read()
+        let throughput_data = self
+            .throughput_history
+            .read()
             .map(|h| h.samples.iter().copied().collect())
             .unwrap_or_default();
 
-        let current_throughput = self.throughput_history.read()
+        let current_throughput = self
+            .throughput_history
+            .read()
             .map(|h| h.current_rate())
             .unwrap_or(0.0);
 
-        let peak_throughput = self.throughput_history.read()
+        let peak_throughput = self
+            .throughput_history
+            .read()
             .map(|h| h.peak_rate())
             .unwrap_or(0.0);
 
@@ -237,11 +253,15 @@ impl MetricsCollector {
             current_throughput,
             peak_throughput,
 
-            agent_metrics: self.agent_metrics.read()
+            agent_metrics: self
+                .agent_metrics
+                .read()
                 .map(|m| m.clone())
                 .unwrap_or_default(),
 
-            event_log: self.event_log.read()
+            event_log: self
+                .event_log
+                .read()
                 .map(|l| l.recent())
                 .unwrap_or_default(),
 

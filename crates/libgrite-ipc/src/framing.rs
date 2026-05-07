@@ -12,13 +12,20 @@ pub fn write_framed(stream: &mut impl Write, data: &[u8]) -> io::Result<()> {
     let len: u32 = data.len().try_into().map_err(|_| {
         io::Error::new(
             io::ErrorKind::InvalidInput,
-            format!("Message too large: {} bytes (max {})", data.len(), MAX_MESSAGE_SIZE),
+            format!(
+                "Message too large: {} bytes (max {})",
+                data.len(),
+                MAX_MESSAGE_SIZE
+            ),
         )
     })?;
     if len > MAX_MESSAGE_SIZE {
         return Err(io::Error::new(
             io::ErrorKind::InvalidInput,
-            format!("Message too large: {} bytes (max {})", len, MAX_MESSAGE_SIZE),
+            format!(
+                "Message too large: {} bytes (max {})",
+                len, MAX_MESSAGE_SIZE
+            ),
         ));
     }
     stream.write_all(&len.to_be_bytes())?;
@@ -35,7 +42,10 @@ pub fn read_framed(stream: &mut impl Read) -> io::Result<Vec<u8>> {
     if len > MAX_MESSAGE_SIZE {
         return Err(io::Error::new(
             io::ErrorKind::InvalidData,
-            format!("Message too large: {} bytes (max {})", len, MAX_MESSAGE_SIZE),
+            format!(
+                "Message too large: {} bytes (max {})",
+                len, MAX_MESSAGE_SIZE
+            ),
         ));
     }
 
@@ -52,13 +62,20 @@ pub async fn write_framed_async(
     let len: u32 = data.len().try_into().map_err(|_| {
         io::Error::new(
             io::ErrorKind::InvalidInput,
-            format!("Message too large: {} bytes (max {})", data.len(), MAX_MESSAGE_SIZE),
+            format!(
+                "Message too large: {} bytes (max {})",
+                data.len(),
+                MAX_MESSAGE_SIZE
+            ),
         )
     })?;
     if len > MAX_MESSAGE_SIZE {
         return Err(io::Error::new(
             io::ErrorKind::InvalidInput,
-            format!("Message too large: {} bytes (max {})", len, MAX_MESSAGE_SIZE),
+            format!(
+                "Message too large: {} bytes (max {})",
+                len, MAX_MESSAGE_SIZE
+            ),
         ));
     }
     stream.write_all(&len.to_be_bytes()).await?;
@@ -77,7 +94,10 @@ pub async fn read_framed_async(
     if len > MAX_MESSAGE_SIZE {
         return Err(io::Error::new(
             io::ErrorKind::InvalidData,
-            format!("Message too large: {} bytes (max {})", len, MAX_MESSAGE_SIZE),
+            format!(
+                "Message too large: {} bytes (max {})",
+                len, MAX_MESSAGE_SIZE
+            ),
         ));
     }
 

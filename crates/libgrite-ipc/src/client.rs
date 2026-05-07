@@ -110,9 +110,8 @@ impl IpcClient {
         })?;
 
         // Deserialize the response
-        let archived =
-            rkyv::access::<ArchivedIpcResponse, rkyv::rancor::Error>(&response_bytes)
-                .map_err(|e| IpcError::Deserialization(e.to_string()))?;
+        let archived = rkyv::access::<ArchivedIpcResponse, rkyv::rancor::Error>(&response_bytes)
+            .map_err(|e| IpcError::Deserialization(e.to_string()))?;
 
         // Check version
         let actual_version: u32 = archived.ipc_schema_version.into();
@@ -124,9 +123,8 @@ impl IpcClient {
         }
 
         // Deserialize to owned type
-        let response: IpcResponse =
-            rkyv::deserialize::<IpcResponse, rkyv::rancor::Error>(archived)
-                .map_err(|e| IpcError::Deserialization(e.to_string()))?;
+        let response: IpcResponse = rkyv::deserialize::<IpcResponse, rkyv::rancor::Error>(archived)
+            .map_err(|e| IpcError::Deserialization(e.to_string()))?;
 
         // Check for daemon error
         if !response.ok {
@@ -182,7 +180,8 @@ impl IpcClient {
             }
         }
 
-        Err(last_error.unwrap_or_else(|| IpcError::ConnectionFailed("all retries exhausted".to_string())))
+        Err(last_error
+            .unwrap_or_else(|| IpcError::ConnectionFailed("all retries exhausted".to_string())))
     }
 }
 
@@ -194,6 +193,7 @@ pub fn try_connect(endpoint: &str) -> Option<IpcClient> {
 #[cfg(test)]
 mod tests {
     #[test]
+    #[allow(clippy::assertions_on_constants)]
     fn test_timeout_config() {
         assert!(super::DEFAULT_TIMEOUT_MS > 0);
         assert!(super::DEFAULT_TIMEOUT_MS <= 60_000);

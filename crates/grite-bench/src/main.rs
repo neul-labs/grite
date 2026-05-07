@@ -48,10 +48,12 @@ fn main() -> Result<()> {
 
     // Parse scenario
     let scenario = BenchmarkScenario::from_name(&cli.scenario, cli.agents, cli.operations)
-        .ok_or_else(|| error::BenchError::Config(format!(
-            "Unknown scenario: '{}'. Use: burst, sustained, or ramp",
-            cli.scenario
-        )))?;
+        .ok_or_else(|| {
+            error::BenchError::Config(format!(
+                "Unknown scenario: '{}'. Use: burst, sustained, or ramp",
+                cli.scenario
+            ))
+        })?;
 
     let config = BenchmarkConfig {
         scenario,

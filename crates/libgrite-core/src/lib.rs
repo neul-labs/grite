@@ -21,28 +21,34 @@
 //! - **Commutative sets** for labels, assignees, dependencies
 //! - **Append-only** for comments, links, attachments
 
-pub mod types;
-pub mod hash;
-pub mod projection;
-pub mod store;
 pub mod config;
-pub mod export;
-pub mod error;
-pub mod lock;
-pub mod signing;
-pub mod integrity;
 pub mod context;
+pub mod error;
+pub mod export;
+pub mod hash;
+pub mod integrity;
+pub mod lock;
+pub mod projection;
+pub mod signing;
+pub mod store;
+pub mod types;
 
+pub use config::{
+    actor_dir, list_actors, load_repo_config, load_signing_key, repo_sled_path, save_repo_config,
+    RepoConfig,
+};
 pub use error::GriteError;
-pub use types::{ActorId, EventId, IssueId};
-pub use types::event::{Event, EventKind, IssueState, DependencyType, SymbolInfo};
-pub use types::issue::{IssueProjection, IssueSummary, Version};
-pub use types::actor::ActorConfig;
-pub use types::ids::{generate_actor_id, generate_issue_id, id_to_hex, hex_to_id};
-pub use types::context::{FileContext, ProjectContextEntry, ProjectContext};
-pub use store::{GriteStore, LockedStore, IssueFilter, DbStats, RebuildStats};
-pub use config::{RepoConfig, load_repo_config, save_repo_config, load_signing_key, repo_sled_path, actor_dir, list_actors};
 pub use export::{export_json, export_markdown, ExportSince};
-pub use integrity::{verify_event_hash, check_store_integrity, verify_store_signatures, IntegrityReport, CorruptEvent, CorruptionKind, SignatureError};
-pub use lock::{Lock, LockPolicy, LockCheckResult, LockStatus, resource_hash, DEFAULT_LOCK_TTL_MS};
-pub use signing::{SigningKeyPair, VerificationPolicy, SigningError, verify_signature};
+pub use integrity::{
+    check_store_integrity, verify_event_hash, verify_store_signatures, CorruptEvent,
+    CorruptionKind, IntegrityReport, SignatureError,
+};
+pub use lock::{resource_hash, Lock, LockCheckResult, LockPolicy, LockStatus, DEFAULT_LOCK_TTL_MS};
+pub use signing::{verify_signature, SigningError, SigningKeyPair, VerificationPolicy};
+pub use store::{DbStats, GriteStore, IssueFilter, LockedStore, RebuildStats};
+pub use types::actor::ActorConfig;
+pub use types::context::{FileContext, ProjectContext, ProjectContextEntry};
+pub use types::event::{DependencyType, Event, EventKind, IssueState, SymbolInfo};
+pub use types::ids::{generate_actor_id, generate_issue_id, hex_to_id, id_to_hex};
+pub use types::issue::{IssueProjection, IssueSummary, Version};
+pub use types::{ActorId, EventId, IssueId};

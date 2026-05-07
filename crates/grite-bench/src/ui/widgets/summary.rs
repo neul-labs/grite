@@ -30,11 +30,7 @@ pub fn render(frame: &mut Frame, area: Rect, config: &BenchmarkConfig, snapshot:
         .split(inner);
 
     // Progress
-    let progress_text = format!(
-        "Total: {}/{}",
-        snapshot.total_operations,
-        total_expected
-    );
+    let progress_text = format!("Total: {}/{}", snapshot.total_operations, total_expected);
     let progress = Paragraph::new(progress_text)
         .style(Style::default().fg(Color::White))
         .alignment(Alignment::Center);

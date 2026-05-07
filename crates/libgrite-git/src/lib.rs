@@ -6,16 +6,16 @@
 //! - Snapshot management via `refs/grite/snapshots/<ts>`
 //! - Push/pull sync operations with conflict handling
 
-mod error;
 mod chunk;
-mod wal;
+mod error;
+mod lock_manager;
 mod snapshot;
 mod sync;
-mod lock_manager;
+mod wal;
 
+pub use chunk::{chunk_hash, decode_chunk, encode_chunk, CHUNK_CODEC, CHUNK_MAGIC, CHUNK_VERSION};
 pub use error::GitError;
-pub use chunk::{encode_chunk, decode_chunk, chunk_hash, CHUNK_MAGIC, CHUNK_VERSION, CHUNK_CODEC};
-pub use wal::{WalManager, WalCommit};
-pub use snapshot::{SnapshotManager, SnapshotRef, SnapshotMeta};
-pub use sync::{SyncManager, PullResult, PushResult};
-pub use lock_manager::{LockManager, LockGcStats};
+pub use lock_manager::{LockGcStats, LockManager};
+pub use snapshot::{SnapshotManager, SnapshotMeta, SnapshotRef};
+pub use sync::{PullResult, PushResult, SyncManager};
+pub use wal::{WalCommit, WalManager};

@@ -2,7 +2,7 @@
 
 use ratatui::{
     prelude::*,
-    widgets::{Block, Borders, Row, Table, Cell},
+    widgets::{Block, Borders, Cell, Row, Table},
 };
 
 use crate::bench::{AgentStatus, MetricsSnapshot};
@@ -19,17 +19,47 @@ pub fn render(frame: &mut Frame, area: Rect, snapshot: &MetricsSnapshot, scroll_
 
     // Header
     let header = Row::new(vec![
-        Cell::from("ID").style(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
-        Cell::from("Actor").style(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
-        Cell::from("Status").style(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
-        Cell::from("Events").style(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
-        Cell::from("Success").style(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
-        Cell::from("Failed").style(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
-        Cell::from("Contention").style(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
-    ]).height(1);
+        Cell::from("ID").style(
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::BOLD),
+        ),
+        Cell::from("Actor").style(
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::BOLD),
+        ),
+        Cell::from("Status").style(
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::BOLD),
+        ),
+        Cell::from("Events").style(
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::BOLD),
+        ),
+        Cell::from("Success").style(
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::BOLD),
+        ),
+        Cell::from("Failed").style(
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::BOLD),
+        ),
+        Cell::from("Contention").style(
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::BOLD),
+        ),
+    ])
+    .height(1);
 
     // Rows
-    let rows: Vec<Row> = snapshot.agent_metrics
+    let rows: Vec<Row> = snapshot
+        .agent_metrics
         .iter()
         .skip(scroll_offset)
         .map(|agent| {
@@ -46,13 +76,18 @@ pub fn render(frame: &mut Frame, area: Rect, snapshot: &MetricsSnapshot, scroll_
                 Cell::from(agent.actor_id_short.clone()),
                 Cell::from(agent.status.as_str()).style(status_style),
                 Cell::from(agent.events_total.to_string()),
-                Cell::from(agent.events_success.to_string()).style(Style::default().fg(Color::Green)),
-                Cell::from(agent.events_failed.to_string()).style(
-                    if agent.events_failed > 0 { Style::default().fg(Color::Red) } else { Style::default() }
-                ),
-                Cell::from(agent.contentions.to_string()).style(
-                    if agent.contentions > 0 { Style::default().fg(Color::Yellow) } else { Style::default() }
-                ),
+                Cell::from(agent.events_success.to_string())
+                    .style(Style::default().fg(Color::Green)),
+                Cell::from(agent.events_failed.to_string()).style(if agent.events_failed > 0 {
+                    Style::default().fg(Color::Red)
+                } else {
+                    Style::default()
+                }),
+                Cell::from(agent.contentions.to_string()).style(if agent.contentions > 0 {
+                    Style::default().fg(Color::Yellow)
+                } else {
+                    Style::default()
+                }),
             ])
         })
         .collect();

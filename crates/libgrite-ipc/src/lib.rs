@@ -16,7 +16,7 @@ pub mod notifications;
 pub use client::IpcClient;
 pub use error::IpcError;
 pub use lock::DaemonLock;
-pub use messages::{IpcCommand, IpcRequest, IpcResponse, IpcErrorPayload};
+pub use messages::{IpcCommand, IpcErrorPayload, IpcRequest, IpcResponse};
 pub use notifications::Notification;
 
 /// Current IPC schema version

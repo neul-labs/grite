@@ -12,13 +12,14 @@ fn test_daemon_lock_lifecycle() {
     let data_dir = temp.path().to_path_buf();
 
     // Acquire lock
-    let lock = DaemonLock::acquire(
+    let _lock = DaemonLock::acquire(
         &data_dir,
         "/tmp/test-repo".to_string(),
         "abc123".to_string(),
         "test-host".to_string(),
         "/tmp/test.sock".to_string(),
-    ).unwrap();
+    )
+    .unwrap();
 
     // Verify lock file was created
     let lock_path = data_dir.join("daemon.lock");
@@ -50,7 +51,8 @@ fn test_daemon_lock_double_acquire_fails() {
         "abc123".to_string(),
         "test-host".to_string(),
         "/tmp/test1.sock".to_string(),
-    ).unwrap();
+    )
+    .unwrap();
 
     // Try to acquire second lock - should fail
     let result = DaemonLock::acquire(
@@ -87,13 +89,14 @@ fn test_daemon_lock_expired_takeover() {
     assert!(read_lock.is_expired());
 
     // Acquire new lock - should succeed because old one expired
-    let new_lock = DaemonLock::acquire(
+    let _new_lock = DaemonLock::acquire(
         &data_dir,
         "/tmp/test-repo".to_string(),
         "abc123".to_string(),
         "new-host".to_string(),
         "/tmp/new.sock".to_string(),
-    ).unwrap();
+    )
+    .unwrap();
 
     // Verify new lock is in place
     let read_lock = DaemonLock::read(&data_dir).unwrap().unwrap();
@@ -114,7 +117,8 @@ fn test_daemon_lock_heartbeat_refresh() {
         "abc123".to_string(),
         "test-host".to_string(),
         "/tmp/test.sock".to_string(),
-    ).unwrap();
+    )
+    .unwrap();
 
     let original_expires = lock.expires_ts;
     let original_heartbeat = lock.last_heartbeat_ts;
@@ -158,20 +162,21 @@ fn test_ipc_message_roundtrip() {
 
     // Deserialize
     let archived = rkyv::access::<rkyv::Archived<IpcRequest>, rkyv::rancor::Error>(&bytes).unwrap();
-    let restored: IpcRequest = rkyv::deserialize::<IpcRequest, rkyv::rancor::Error>(archived).unwrap();
+    let restored: IpcRequest =
+        rkyv::deserialize::<IpcRequest, rkyv::rancor::Error>(archived).unwrap();
 
     assert_eq!(restored.request_id, "req-123");
     assert_eq!(restored.repo_root, "/tmp/repo");
 
     // Test response
-    let response = IpcResponse::success(
-        "req-123".to_string(),
-        Some(r#"{"issues":[]}"#.to_string()),
-    );
+    let response =
+        IpcResponse::success("req-123".to_string(), Some(r#"{"issues":[]}"#.to_string()));
 
     let bytes = rkyv::to_bytes::<rkyv::rancor::Error>(&response).unwrap();
-    let archived = rkyv::access::<rkyv::Archived<IpcResponse>, rkyv::rancor::Error>(&bytes).unwrap();
-    let restored: IpcResponse = rkyv::deserialize::<IpcResponse, rkyv::rancor::Error>(archived).unwrap();
+    let archived =
+        rkyv::access::<rkyv::Archived<IpcResponse>, rkyv::rancor::Error>(&bytes).unwrap();
+    let restored: IpcResponse =
+        rkyv::deserialize::<IpcResponse, rkyv::rancor::Error>(archived).unwrap();
 
     assert!(restored.ok);
     assert_eq!(restored.data, Some(r#"{"issues":[]}"#.to_string()));
@@ -189,11 +194,17 @@ fn test_notification_roundtrip() {
     };
 
     let bytes = rkyv::to_bytes::<rkyv::rancor::Error>(&notification).unwrap();
-    let archived = rkyv::access::<rkyv::Archived<Notification>, rkyv::rancor::Error>(&bytes).unwrap();
-    let restored: Notification = rkyv::deserialize::<Notification, rkyv::rancor::Error>(archived).unwrap();
+    let archived =
+        rkyv::access::<rkyv::Archived<Notification>, rkyv::rancor::Error>(&bytes).unwrap();
+    let restored: Notification =
+        rkyv::deserialize::<Notification, rkyv::rancor::Error>(archived).unwrap();
 
     match restored {
-        Notification::EventApplied { issue_id, event_id, ts_unix_ms } => {
+        Notification::EventApplied {
+            issue_id,
+            event_id,
+            ts_unix_ms,
+        } => {
             assert_eq!(issue_id, "issue123");
             assert_eq!(event_id, "event456");
             assert_eq!(ts_unix_ms, 1700000000000);

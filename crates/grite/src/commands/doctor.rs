@@ -3,9 +3,9 @@
 use std::collections::HashSet;
 use std::fs;
 
-use libgrite_core::config::{list_actors, actor_sled_path};
+use libgrite_core::config::{actor_sled_path, list_actors};
 use libgrite_core::integrity::check_store_integrity;
-use libgrite_core::{EventId, GriteStore, GriteError};
+use libgrite_core::{EventId, GriteError, GriteStore};
 use libgrite_git::WalManager;
 use serde::Serialize;
 
@@ -60,10 +60,12 @@ impl CheckResult {
 
 fn store_held_by_daemon(cli: &Cli) -> bool {
     GriteContext::resolve(cli)
-        .map(|ctx| matches!(
-            ctx.execution_mode(cli.no_daemon),
-            ExecutionMode::Daemon { .. } | ExecutionMode::Blocked { .. }
-        ))
+        .map(|ctx| {
+            matches!(
+                ctx.execution_mode(cli.no_daemon),
+                ExecutionMode::Daemon { .. } | ExecutionMode::Blocked { .. }
+            )
+        })
         .unwrap_or(false)
 }
 
@@ -120,13 +122,20 @@ pub fn run(cli: &Cli, fix: bool) -> Result<(), GriteError> {
             Ok(count) if count > 0 => {
                 applied.push(format!("backfilled {} event(s) to WAL", count));
                 if let Some(c) = checks.iter_mut().find(|c| c.id == "wal_ref") {
-                    *c = CheckResult::ok("wal_ref", &format!("WAL backfilled with {} event(s)", count));
+                    *c = CheckResult::ok(
+                        "wal_ref",
+                        &format!("WAL backfilled with {} event(s)", count),
+                    );
                 }
             }
             Ok(_) => {}
             Err(e) => {
                 if let Some(c) = checks.iter_mut().find(|c| c.id == "wal_ref") {
-                    *c = CheckResult::error("wal_ref", &format!("WAL backfill failed: {}", e), vec![]);
+                    *c = CheckResult::error(
+                        "wal_ref",
+                        &format!("WAL backfill failed: {}", e),
+                        vec![],
+                    );
                 }
             }
         }
@@ -143,8 +152,12 @@ pub fn run(cli: &Cli, fix: bool) -> Result<(), GriteError> {
                 }
                 if let Some(c) = checks.iter_mut().find(|c| c.id == "legacy_actor_sleds") {
                     let msg = match (merged, cleaned) {
-                        (m, c) if m > 0 && c > 0 => format!("merged {} event(s), cleaned {} legacy sled(s)", m, c),
-                        (m, _) if m > 0 => format!("merged {} legacy event(s) into shared store", m),
+                        (m, c) if m > 0 && c > 0 => {
+                            format!("merged {} event(s), cleaned {} legacy sled(s)", m, c)
+                        }
+                        (m, _) if m > 0 => {
+                            format!("merged {} legacy event(s) into shared store", m)
+                        }
                         (_, c) => format!("cleaned {} legacy sled(s)", c),
                     };
                     *c = CheckResult::ok("legacy_actor_sleds", &msg);
@@ -230,10 +243,14 @@ fn check_wal_ref(cli: &Cli) -> (CheckResult, bool) {
     let git_dir = ctx.repo_root().join(".git");
     match WalManager::open(&git_dir) {
         Ok(wal) => match wal.head() {
-            Ok(Some(_)) => (CheckResult::ok("wal_ref", "WAL ref exists and is readable"), false),
+            Ok(Some(_)) => (
+                CheckResult::ok("wal_ref", "WAL ref exists and is readable"),
+                false,
+            ),
             Ok(None) => {
                 // WAL is empty — check if sled has events that need backfilling
-                let sled_events = ctx.open_store()
+                let sled_events = ctx
+                    .open_store()
                     .ok()
                     .and_then(|s| s.get_all_events().ok())
                     .map(|e| e.len())
@@ -249,7 +266,10 @@ fn check_wal_ref(cli: &Cli) -> (CheckResult, bool) {
                         true,
                     )
                 } else {
-                    (CheckResult::ok("wal_ref", "WAL ref not yet created (empty)"), false)
+                    (
+                        CheckResult::ok("wal_ref", "WAL ref not yet created (empty)"),
+                        false,
+                    )
                 }
             }
             Err(e) => (
@@ -284,7 +304,10 @@ fn check_actor_config(cli: &Cli) -> CheckResult {
             } else {
                 CheckResult::ok(
                     "actor_config",
-                    &format!("Actor configured: {}", &ctx.actor_id[..8.min(ctx.actor_id.len())]),
+                    &format!(
+                        "Actor configured: {}",
+                        &ctx.actor_id[..8.min(ctx.actor_id.len())]
+                    ),
                 )
             }
         }
@@ -443,7 +466,11 @@ fn check_legacy_actor_sleds(cli: &Cli) -> (CheckResult, bool) {
         Ok(d) => d,
         Err(_) => {
             return (
-                CheckResult::warn("legacy_actor_sleds", "Cannot check - no git context", vec![]),
+                CheckResult::warn(
+                    "legacy_actor_sleds",
+                    "Cannot check - no git context",
+                    vec![],
+                ),
                 false,
             )
         }
@@ -484,7 +511,10 @@ fn check_legacy_actor_sleds(cli: &Cli) -> (CheckResult, bool) {
         .collect();
 
     if legacy.is_empty() {
-        return (CheckResult::ok("legacy_actor_sleds", "No legacy per-actor sleds"), false);
+        return (
+            CheckResult::ok("legacy_actor_sleds", "No legacy per-actor sleds"),
+            false,
+        );
     }
 
     // Can't inspect shared sled directly while the daemon holds the lock.
@@ -604,7 +634,9 @@ fn fix_legacy_actor_sleds(cli: &Cli) -> Result<(usize, usize), GriteError> {
         let events = legacy_store.get_all_events().unwrap_or_default();
 
         // Check if all events are already in shared store
-        let all_merged = events.iter().all(|e| current_event_ids.contains(&e.event_id));
+        let all_merged = events
+            .iter()
+            .all(|e| current_event_ids.contains(&e.event_id));
 
         for event in &events {
             if !current_event_ids.contains(&event.event_id) {
@@ -630,10 +662,10 @@ fn fix_legacy_actor_sleds(cli: &Cli) -> Result<(usize, usize), GriteError> {
         if path.exists() {
             if let Ok(canonical) = path.canonicalize() {
                 // Safety check: only delete paths under .git/grite/actors/
-                if canonical.to_string_lossy().contains("/.git/grite/actors/") {
-                    if fs::remove_dir_all(&path).is_ok() {
-                        cleaned += 1;
-                    }
+                if canonical.to_string_lossy().contains("/.git/grite/actors/")
+                    && fs::remove_dir_all(&path).is_ok()
+                {
+                    cleaned += 1;
                 }
             }
         }

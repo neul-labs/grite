@@ -8,15 +8,15 @@
 //! creation time, reflecting the shared-sled model where actor identity
 //! is authorship metadata rather than a storage partition.
 
-use std::path::PathBuf;
-use std::sync::Arc;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Arc;
 use std::time::Duration;
 
 use libgrite_core::config::repo_sled_path;
+use libgrite_core::store::IssueFilter;
 use libgrite_core::types::ids::{hex_to_id, ActorId};
 use libgrite_core::{GriteError, GriteStore, LockedStore};
-use libgrite_core::store::IssueFilter;
 use libgrite_ipc::{DaemonLock, IpcCommand, IpcResponse, Notification};
 use tokio::sync::mpsc;
 use tracing::{debug, error, info, warn};
@@ -280,8 +280,8 @@ impl Worker {
 fn execute_command(
     store: &LockedStore,
     actor_id_bytes: ActorId,
-    sled_path: &PathBuf,
-    git_dir: &PathBuf,
+    sled_path: &Path,
+    git_dir: &Path,
     request_id: &str,
     command: &IpcCommand,
 ) -> IpcResponse {
@@ -300,15 +300,15 @@ fn execute_command(
 fn execute_command_inner(
     store: &LockedStore,
     actor_id_bytes: ActorId,
-    sled_path: &PathBuf,
-    git_dir: &PathBuf,
+    sled_path: &Path,
+    git_dir: &Path,
     command: &IpcCommand,
 ) -> Result<Option<String>, DaemonError> {
+    use libgrite_core::export::{export_json, export_markdown, ExportSince};
     use libgrite_core::hash::compute_event_id;
     use libgrite_core::types::event::{Event, EventKind, IssueState};
     use libgrite_core::types::ids::{generate_issue_id, id_to_hex};
     use libgrite_core::types::issue::IssueProjection;
-    use libgrite_core::export::{export_json, export_markdown, ExportSince};
     use libgrite_git::{SyncManager, WalManager};
 
     // Open WAL (best-effort — sled operations work without it)
@@ -353,31 +353,45 @@ fn execute_command_inner(
                 label: label.clone(),
             };
             let issues = store.list_issues(&filter)?;
-            let summaries: Vec<serde_json::Value> = issues.iter().map(|s| serde_json::json!({
-                "issue_id": id_to_hex(&s.issue_id),
-                "title": s.title,
-                "state": format!("{:?}", s.state).to_lowercase(),
-                "labels": s.labels,
-                "assignees": s.assignees,
-                "created_ts": s.created_ts,
-                "updated_ts": s.updated_ts,
-                "comment_count": s.comment_count,
-            })).collect();
+            let summaries: Vec<serde_json::Value> = issues
+                .iter()
+                .map(|s| {
+                    serde_json::json!({
+                        "issue_id": id_to_hex(&s.issue_id),
+                        "title": s.title,
+                        "state": format!("{:?}", s.state).to_lowercase(),
+                        "labels": s.labels,
+                        "assignees": s.assignees,
+                        "created_ts": s.created_ts,
+                        "updated_ts": s.updated_ts,
+                        "comment_count": s.comment_count,
+                    })
+                })
+                .collect();
             let json = serde_json::to_string(&serde_json::json!({ "issues": summaries }))?;
             Ok(Some(json))
         }
 
         IpcCommand::IssueShow { issue_id } => {
-            let id = store.resolve_issue_id(issue_id)
+            let id = store
+                .resolve_issue_id(issue_id)
                 .map_err(DaemonError::Core)?;
-            let p = store.get_issue(&id)?
-                .ok_or_else(|| DaemonError::Core(GriteError::NotFound(format!("Issue {} not found", issue_id))))?;
+            let p = store.get_issue(&id)?.ok_or_else(|| {
+                DaemonError::Core(GriteError::NotFound(format!(
+                    "Issue {} not found",
+                    issue_id
+                )))
+            })?;
 
             let json = serde_json::to_string(&projection_to_json(&p))?;
             Ok(Some(json))
         }
 
-        IpcCommand::IssueCreate { title, body, labels } => {
+        IpcCommand::IssueCreate {
+            title,
+            body,
+            labels,
+        } => {
             let issue_id = generate_issue_id();
             let ts = current_time_ms();
             let kind = EventKind::IssueCreated {
@@ -388,27 +402,42 @@ fn execute_command_inner(
             let event_id = compute_event_id(&issue_id, &actor_id_bytes, ts, None, &kind);
             let event = Event::new(event_id, issue_id, actor_id_bytes, ts, None, kind);
 
-            persist_events(&store, wal.as_ref(), &actor_id_bytes, &[event.clone()])?;
+            persist_events(
+                store,
+                wal.as_ref(),
+                &actor_id_bytes,
+                std::slice::from_ref(&event),
+            )?;
 
             let projection = IssueProjection::from_event(&event)?;
             let mut json_val = projection_to_json(&projection);
             json_val["event_id"] = serde_json::Value::String(id_to_hex(&event_id));
-            json_val["action"] = serde_json::Value::String(libgrite_ipc::issue_action::CREATED.to_string());
+            json_val["action"] =
+                serde_json::Value::String(libgrite_ipc::issue_action::CREATED.to_string());
             let json = serde_json::to_string(&json_val)?;
             Ok(Some(json))
         }
 
-        IpcCommand::IssueUpdate { issue_id, title, body } => {
+        IpcCommand::IssueUpdate {
+            issue_id,
+            title,
+            body,
+        } => {
             if title.is_none() && body.is_none() {
                 return Err(DaemonError::Core(GriteError::InvalidArgs(
-                    "At least one of title or body must be provided".to_string()
+                    "At least one of title or body must be provided".to_string(),
                 )));
             }
 
-            let id = store.resolve_issue_id(issue_id)
+            let id = store
+                .resolve_issue_id(issue_id)
                 .map_err(DaemonError::Core)?;
-            store.get_issue(&id)?
-                .ok_or_else(|| DaemonError::Core(GriteError::NotFound(format!("Issue {} not found", issue_id))))?;
+            store.get_issue(&id)?.ok_or_else(|| {
+                DaemonError::Core(GriteError::NotFound(format!(
+                    "Issue {} not found",
+                    issue_id
+                )))
+            })?;
 
             let ts = current_time_ms();
             let kind = EventKind::IssueUpdated {
@@ -418,7 +447,12 @@ fn execute_command_inner(
             let event_id = compute_event_id(&id, &actor_id_bytes, ts, None, &kind);
             let event = Event::new(event_id, id, actor_id_bytes, ts, None, kind);
 
-            persist_events(&store, wal.as_ref(), &actor_id_bytes, &[event.clone()])?;
+            persist_events(
+                store,
+                wal.as_ref(),
+                &actor_id_bytes,
+                std::slice::from_ref(&event),
+            )?;
 
             let json = serde_json::to_string(&serde_json::json!({
                 "issue_id": issue_id,
@@ -428,17 +462,27 @@ fn execute_command_inner(
         }
 
         IpcCommand::IssueComment { issue_id, body } => {
-            let id = store.resolve_issue_id(issue_id)
+            let id = store
+                .resolve_issue_id(issue_id)
                 .map_err(DaemonError::Core)?;
-            store.get_issue(&id)?
-                .ok_or_else(|| DaemonError::Core(GriteError::NotFound(format!("Issue {} not found", issue_id))))?;
+            store.get_issue(&id)?.ok_or_else(|| {
+                DaemonError::Core(GriteError::NotFound(format!(
+                    "Issue {} not found",
+                    issue_id
+                )))
+            })?;
 
             let ts = current_time_ms();
             let kind = EventKind::CommentAdded { body: body.clone() };
             let event_id = compute_event_id(&id, &actor_id_bytes, ts, None, &kind);
             let event = Event::new(event_id, id, actor_id_bytes, ts, None, kind);
 
-            persist_events(&store, wal.as_ref(), &actor_id_bytes, &[event.clone()])?;
+            persist_events(
+                store,
+                wal.as_ref(),
+                &actor_id_bytes,
+                std::slice::from_ref(&event),
+            )?;
 
             let json = serde_json::to_string(&serde_json::json!({
                 "issue_id": issue_id,
@@ -448,17 +492,29 @@ fn execute_command_inner(
         }
 
         IpcCommand::IssueClose { issue_id } => {
-            let id = store.resolve_issue_id(issue_id)
+            let id = store
+                .resolve_issue_id(issue_id)
                 .map_err(DaemonError::Core)?;
-            store.get_issue(&id)?
-                .ok_or_else(|| DaemonError::Core(GriteError::NotFound(format!("Issue {} not found", issue_id))))?;
+            store.get_issue(&id)?.ok_or_else(|| {
+                DaemonError::Core(GriteError::NotFound(format!(
+                    "Issue {} not found",
+                    issue_id
+                )))
+            })?;
 
             let ts = current_time_ms();
-            let kind = EventKind::StateChanged { state: IssueState::Closed };
+            let kind = EventKind::StateChanged {
+                state: IssueState::Closed,
+            };
             let event_id = compute_event_id(&id, &actor_id_bytes, ts, None, &kind);
             let event = Event::new(event_id, id, actor_id_bytes, ts, None, kind);
 
-            persist_events(&store, wal.as_ref(), &actor_id_bytes, &[event.clone()])?;
+            persist_events(
+                store,
+                wal.as_ref(),
+                &actor_id_bytes,
+                std::slice::from_ref(&event),
+            )?;
 
             let json = serde_json::to_string(&serde_json::json!({
                 "issue_id": issue_id,
@@ -470,17 +526,29 @@ fn execute_command_inner(
         }
 
         IpcCommand::IssueReopen { issue_id } => {
-            let id = store.resolve_issue_id(issue_id)
+            let id = store
+                .resolve_issue_id(issue_id)
                 .map_err(DaemonError::Core)?;
-            store.get_issue(&id)?
-                .ok_or_else(|| DaemonError::Core(GriteError::NotFound(format!("Issue {} not found", issue_id))))?;
+            store.get_issue(&id)?.ok_or_else(|| {
+                DaemonError::Core(GriteError::NotFound(format!(
+                    "Issue {} not found",
+                    issue_id
+                )))
+            })?;
 
             let ts = current_time_ms();
-            let kind = EventKind::StateChanged { state: IssueState::Open };
+            let kind = EventKind::StateChanged {
+                state: IssueState::Open,
+            };
             let event_id = compute_event_id(&id, &actor_id_bytes, ts, None, &kind);
             let event = Event::new(event_id, id, actor_id_bytes, ts, None, kind);
 
-            persist_events(&store, wal.as_ref(), &actor_id_bytes, &[event.clone()])?;
+            persist_events(
+                store,
+                wal.as_ref(),
+                &actor_id_bytes,
+                std::slice::from_ref(&event),
+            )?;
 
             let json = serde_json::to_string(&serde_json::json!({
                 "issue_id": issue_id,
@@ -491,18 +559,29 @@ fn execute_command_inner(
             Ok(Some(json))
         }
 
-        IpcCommand::IssueLabel { issue_id, add, remove } => {
-            let id = store.resolve_issue_id(issue_id)
+        IpcCommand::IssueLabel {
+            issue_id,
+            add,
+            remove,
+        } => {
+            let id = store
+                .resolve_issue_id(issue_id)
                 .map_err(DaemonError::Core)?;
-            store.get_issue(&id)?
-                .ok_or_else(|| DaemonError::Core(GriteError::NotFound(format!("Issue {} not found", issue_id))))?;
+            store.get_issue(&id)?.ok_or_else(|| {
+                DaemonError::Core(GriteError::NotFound(format!(
+                    "Issue {} not found",
+                    issue_id
+                )))
+            })?;
 
             let mut event_ids = Vec::new();
             let mut events = Vec::new();
             let ts = current_time_ms();
 
             for label in add {
-                let kind = EventKind::LabelAdded { label: label.clone() };
+                let kind = EventKind::LabelAdded {
+                    label: label.clone(),
+                };
                 let event_id = compute_event_id(&id, &actor_id_bytes, ts, None, &kind);
                 let event = Event::new(event_id, id, actor_id_bytes, ts, None, kind);
                 event_ids.push(id_to_hex(&event_id));
@@ -510,14 +589,16 @@ fn execute_command_inner(
             }
 
             for label in remove {
-                let kind = EventKind::LabelRemoved { label: label.clone() };
+                let kind = EventKind::LabelRemoved {
+                    label: label.clone(),
+                };
                 let event_id = compute_event_id(&id, &actor_id_bytes, ts, None, &kind);
                 let event = Event::new(event_id, id, actor_id_bytes, ts, None, kind);
                 event_ids.push(id_to_hex(&event_id));
                 events.push(event);
             }
 
-            persist_events(&store, wal.as_ref(), &actor_id_bytes, &events)?;
+            persist_events(store, wal.as_ref(), &actor_id_bytes, &events)?;
 
             let json = serde_json::to_string(&serde_json::json!({
                 "issue_id": issue_id,
@@ -526,11 +607,20 @@ fn execute_command_inner(
             Ok(Some(json))
         }
 
-        IpcCommand::IssueAssign { issue_id, add, remove } => {
-            let id = store.resolve_issue_id(issue_id)
+        IpcCommand::IssueAssign {
+            issue_id,
+            add,
+            remove,
+        } => {
+            let id = store
+                .resolve_issue_id(issue_id)
                 .map_err(DaemonError::Core)?;
-            store.get_issue(&id)?
-                .ok_or_else(|| DaemonError::Core(GriteError::NotFound(format!("Issue {} not found", issue_id))))?;
+            store.get_issue(&id)?.ok_or_else(|| {
+                DaemonError::Core(GriteError::NotFound(format!(
+                    "Issue {} not found",
+                    issue_id
+                )))
+            })?;
 
             let mut event_ids = Vec::new();
             let mut events = Vec::new();
@@ -552,7 +642,7 @@ fn execute_command_inner(
                 events.push(event);
             }
 
-            persist_events(&store, wal.as_ref(), &actor_id_bytes, &events)?;
+            persist_events(store, wal.as_ref(), &actor_id_bytes, &events)?;
 
             let json = serde_json::to_string(&serde_json::json!({
                 "issue_id": issue_id,
@@ -561,11 +651,20 @@ fn execute_command_inner(
             Ok(Some(json))
         }
 
-        IpcCommand::IssueLink { issue_id, url, note } => {
-            let id = store.resolve_issue_id(issue_id)
+        IpcCommand::IssueLink {
+            issue_id,
+            url,
+            note,
+        } => {
+            let id = store
+                .resolve_issue_id(issue_id)
                 .map_err(DaemonError::Core)?;
-            store.get_issue(&id)?
-                .ok_or_else(|| DaemonError::Core(GriteError::NotFound(format!("Issue {} not found", issue_id))))?;
+            store.get_issue(&id)?.ok_or_else(|| {
+                DaemonError::Core(GriteError::NotFound(format!(
+                    "Issue {} not found",
+                    issue_id
+                )))
+            })?;
 
             let ts = current_time_ms();
             let kind = EventKind::LinkAdded {
@@ -575,7 +674,12 @@ fn execute_command_inner(
             let event_id = compute_event_id(&id, &actor_id_bytes, ts, None, &kind);
             let event = Event::new(event_id, id, actor_id_bytes, ts, None, kind);
 
-            persist_events(&store, wal.as_ref(), &actor_id_bytes, &[event.clone()])?;
+            persist_events(
+                store,
+                wal.as_ref(),
+                &actor_id_bytes,
+                std::slice::from_ref(&event),
+            )?;
 
             let json = serde_json::to_string(&serde_json::json!({
                 "issue_id": issue_id,
@@ -584,16 +688,24 @@ fn execute_command_inner(
             Ok(Some(json))
         }
 
-        IpcCommand::IssueAttach { issue_id, file_path } => {
-            let id = store.resolve_issue_id(issue_id)
+        IpcCommand::IssueAttach {
+            issue_id,
+            file_path,
+        } => {
+            let id = store
+                .resolve_issue_id(issue_id)
                 .map_err(DaemonError::Core)?;
-            store.get_issue(&id)?
-                .ok_or_else(|| DaemonError::Core(GriteError::NotFound(format!("Issue {} not found", issue_id))))?;
+            store.get_issue(&id)?.ok_or_else(|| {
+                DaemonError::Core(GriteError::NotFound(format!(
+                    "Issue {} not found",
+                    issue_id
+                )))
+            })?;
 
             let parts: Vec<&str> = file_path.splitn(3, ':').collect();
             if parts.len() != 3 {
                 return Err(DaemonError::Core(GriteError::InvalidArgs(
-                    "file_path must be in format 'name:sha256:mime'".to_string()
+                    "file_path must be in format 'name:sha256:mime'".to_string(),
                 )));
             }
 
@@ -607,7 +719,12 @@ fn execute_command_inner(
             let event_id = compute_event_id(&id, &actor_id_bytes, ts, None, &kind);
             let event = Event::new(event_id, id, actor_id_bytes, ts, None, kind);
 
-            persist_events(&store, wal.as_ref(), &actor_id_bytes, &[event.clone()])?;
+            persist_events(
+                store,
+                wal.as_ref(),
+                &actor_id_bytes,
+                std::slice::from_ref(&event),
+            )?;
 
             let json = serde_json::to_string(&serde_json::json!({
                 "issue_id": issue_id,
@@ -638,7 +755,8 @@ fn execute_command_inner(
         }
 
         IpcCommand::Export { format, since } => {
-            let since_opt = since.as_ref()
+            let since_opt = since
+                .as_ref()
                 .and_then(|s| s.parse::<u64>().ok())
                 .map(ExportSince::Timestamp);
 
@@ -648,42 +766,71 @@ fn execute_command_inner(
                     serde_json::to_string(&export)?
                 }
                 "md" | "markdown" => export_markdown(store, since_opt)?,
-                _ => return Err(DaemonError::Core(GriteError::InvalidArgs(
-                    format!("Unknown format: {}", format)
-                ))),
+                _ => {
+                    return Err(DaemonError::Core(GriteError::InvalidArgs(format!(
+                        "Unknown format: {}",
+                        format
+                    ))))
+                }
             };
             Ok(Some(output))
         }
 
-        IpcCommand::IssueDepAdd { issue_id, target_id, dep_type } => {
+        IpcCommand::IssueDepAdd {
+            issue_id,
+            target_id,
+            dep_type,
+        } => {
             use libgrite_core::hash::compute_event_id;
-            use libgrite_core::types::event::{Event, EventKind, DependencyType};
+            use libgrite_core::types::event::{DependencyType, Event, EventKind};
             use libgrite_core::types::ids::id_to_hex;
 
-            let id = store.resolve_issue_id(issue_id)
+            let id = store
+                .resolve_issue_id(issue_id)
                 .map_err(DaemonError::Core)?;
-            let target = store.resolve_issue_id(target_id)
+            let target = store
+                .resolve_issue_id(target_id)
                 .map_err(DaemonError::Core)?;
             let dep = DependencyType::from_str(dep_type).ok_or_else(|| {
-                DaemonError::Core(GriteError::InvalidArgs(format!("Invalid dep type: {}", dep_type)))
+                DaemonError::Core(GriteError::InvalidArgs(format!(
+                    "Invalid dep type: {}",
+                    dep_type
+                )))
             })?;
 
-            store.get_issue(&id)?
-                .ok_or_else(|| DaemonError::Core(GriteError::NotFound(format!("Issue {} not found", issue_id))))?;
-            store.get_issue(&target)?
-                .ok_or_else(|| DaemonError::Core(GriteError::NotFound(format!("Target {} not found", target_id))))?;
+            store.get_issue(&id)?.ok_or_else(|| {
+                DaemonError::Core(GriteError::NotFound(format!(
+                    "Issue {} not found",
+                    issue_id
+                )))
+            })?;
+            store.get_issue(&target)?.ok_or_else(|| {
+                DaemonError::Core(GriteError::NotFound(format!(
+                    "Target {} not found",
+                    target_id
+                )))
+            })?;
 
             if store.would_create_cycle(&id, &target, &dep)? {
                 return Err(DaemonError::Core(GriteError::InvalidArgs(format!(
-                    "Adding this dependency would create a cycle in the {} graph", dep.as_str()
+                    "Adding this dependency would create a cycle in the {} graph",
+                    dep.as_str()
                 ))));
             }
 
             let ts = current_time_ms();
-            let kind = EventKind::DependencyAdded { target, dep_type: dep };
+            let kind = EventKind::DependencyAdded {
+                target,
+                dep_type: dep,
+            };
             let event_id = compute_event_id(&id, &actor_id_bytes, ts, None, &kind);
             let event = Event::new(event_id, id, actor_id_bytes, ts, None, kind);
-            persist_events(&store, wal.as_ref(), &actor_id_bytes, &[event.clone()])?;
+            persist_events(
+                store,
+                wal.as_ref(),
+                &actor_id_bytes,
+                std::slice::from_ref(&event),
+            )?;
 
             let json = serde_json::to_string(&serde_json::json!({
                 "event_id": id_to_hex(&event_id),
@@ -695,24 +842,41 @@ fn execute_command_inner(
             Ok(Some(json))
         }
 
-        IpcCommand::IssueDepRemove { issue_id, target_id, dep_type } => {
+        IpcCommand::IssueDepRemove {
+            issue_id,
+            target_id,
+            dep_type,
+        } => {
             use libgrite_core::hash::compute_event_id;
-            use libgrite_core::types::event::{Event, EventKind, DependencyType};
+            use libgrite_core::types::event::{DependencyType, Event, EventKind};
             use libgrite_core::types::ids::id_to_hex;
 
-            let id = store.resolve_issue_id(issue_id)
+            let id = store
+                .resolve_issue_id(issue_id)
                 .map_err(DaemonError::Core)?;
-            let target = store.resolve_issue_id(target_id)
+            let target = store
+                .resolve_issue_id(target_id)
                 .map_err(DaemonError::Core)?;
             let dep = DependencyType::from_str(dep_type).ok_or_else(|| {
-                DaemonError::Core(GriteError::InvalidArgs(format!("Invalid dep type: {}", dep_type)))
+                DaemonError::Core(GriteError::InvalidArgs(format!(
+                    "Invalid dep type: {}",
+                    dep_type
+                )))
             })?;
 
             let ts = current_time_ms();
-            let kind = EventKind::DependencyRemoved { target, dep_type: dep };
+            let kind = EventKind::DependencyRemoved {
+                target,
+                dep_type: dep,
+            };
             let event_id = compute_event_id(&id, &actor_id_bytes, ts, None, &kind);
             let event = Event::new(event_id, id, actor_id_bytes, ts, None, kind);
-            persist_events(&store, wal.as_ref(), &actor_id_bytes, &[event.clone()])?;
+            persist_events(
+                store,
+                wal.as_ref(),
+                &actor_id_bytes,
+                std::slice::from_ref(&event),
+            )?;
 
             let json = serde_json::to_string(&serde_json::json!({
                 "event_id": id_to_hex(&event_id),
@@ -727,7 +891,8 @@ fn execute_command_inner(
         IpcCommand::IssueDepList { issue_id, reverse } => {
             use libgrite_core::types::ids::id_to_hex;
 
-            let id = store.resolve_issue_id(issue_id)
+            let id = store
+                .resolve_issue_id(issue_id)
                 .map_err(DaemonError::Core)?;
             let deps = if *reverse {
                 store.get_dependents(&id)?
@@ -769,12 +934,17 @@ fn execute_command_inner(
                 label: label.clone(),
             };
             let sorted = store.topological_order(&filter)?;
-            let issues: Vec<serde_json::Value> = sorted.iter().map(|s| serde_json::json!({
-                "issue_id": id_to_hex(&s.issue_id),
-                "title": s.title,
-                "state": format!("{:?}", s.state).to_lowercase(),
-                "labels": s.labels,
-            })).collect();
+            let issues: Vec<serde_json::Value> = sorted
+                .iter()
+                .map(|s| {
+                    serde_json::json!({
+                        "issue_id": id_to_hex(&s.issue_id),
+                        "title": s.title,
+                        "state": format!("{:?}", s.state).to_lowercase(),
+                        "labels": s.labels,
+                    })
+                })
+                .collect();
             let json = serde_json::to_string(&serde_json::json!({
                 "issues": issues,
                 "order": "topological",
@@ -784,11 +954,9 @@ fn execute_command_inner(
 
         // DaemonStatus and DaemonStop are handled at the supervisor level
         // in process_request() and never reach the worker.
-        IpcCommand::DaemonStatus | IpcCommand::DaemonStop => {
-            Err(DaemonError::Core(GriteError::Internal(
-                "supervisor-only command received by worker".to_string()
-            )))
-        }
+        IpcCommand::DaemonStatus | IpcCommand::DaemonStop => Err(DaemonError::Core(
+            GriteError::Internal("supervisor-only command received by worker".to_string()),
+        )),
 
         IpcCommand::Sync { remote, pull, push } => {
             let sync_mgr = SyncManager::open(git_dir)?;
@@ -838,7 +1006,8 @@ fn execute_command_inner(
                 })
             } else {
                 // Full sync: pull then push with auto-rebase
-                let (pull_result, push_result) = sync_mgr.sync_with_rebase(remote, &actor_id_bytes)?;
+                let (pull_result, push_result) =
+                    sync_mgr.sync_with_rebase(remote, &actor_id_bytes)?;
                 let wal_head: Option<String> = pull_result.new_wal_head.map(|oid| oid.to_string());
                 serde_json::json!({
                     "pulled": true,
@@ -857,7 +1026,7 @@ fn execute_command_inner(
 
         IpcCommand::SnapshotCreate | IpcCommand::SnapshotList | IpcCommand::SnapshotGc { .. } => {
             Err(DaemonError::Core(GriteError::Internal(
-                "Snapshot through daemon not yet implemented - use --no-daemon".to_string()
+                "Snapshot through daemon not yet implemented - use --no-daemon".to_string(),
             )))
         }
     }
@@ -867,27 +1036,51 @@ fn execute_command_inner(
 fn projection_to_json(p: &libgrite_core::types::issue::IssueProjection) -> serde_json::Value {
     use libgrite_core::types::ids::id_to_hex;
 
-    let comments: Vec<serde_json::Value> = p.comments.iter().map(|c| serde_json::json!({
-        "event_id": id_to_hex(&c.event_id),
-        "actor": id_to_hex(&c.actor),
-        "ts_unix_ms": c.ts_unix_ms,
-        "body": c.body,
-    })).collect();
-    let links: Vec<serde_json::Value> = p.links.iter().map(|l| serde_json::json!({
-        "event_id": id_to_hex(&l.event_id),
-        "url": l.url,
-        "note": l.note,
-    })).collect();
-    let attachments: Vec<serde_json::Value> = p.attachments.iter().map(|a| serde_json::json!({
-        "event_id": id_to_hex(&a.event_id),
-        "name": a.name,
-        "sha256": hex::encode(a.sha256),
-        "mime": a.mime,
-    })).collect();
-    let deps: Vec<serde_json::Value> = p.dependencies.iter().map(|d| serde_json::json!({
-        "target": id_to_hex(&d.target),
-        "dep_type": d.dep_type.as_str(),
-    })).collect();
+    let comments: Vec<serde_json::Value> = p
+        .comments
+        .iter()
+        .map(|c| {
+            serde_json::json!({
+                "event_id": id_to_hex(&c.event_id),
+                "actor": id_to_hex(&c.actor),
+                "ts_unix_ms": c.ts_unix_ms,
+                "body": c.body,
+            })
+        })
+        .collect();
+    let links: Vec<serde_json::Value> = p
+        .links
+        .iter()
+        .map(|l| {
+            serde_json::json!({
+                "event_id": id_to_hex(&l.event_id),
+                "url": l.url,
+                "note": l.note,
+            })
+        })
+        .collect();
+    let attachments: Vec<serde_json::Value> = p
+        .attachments
+        .iter()
+        .map(|a| {
+            serde_json::json!({
+                "event_id": id_to_hex(&a.event_id),
+                "name": a.name,
+                "sha256": hex::encode(a.sha256),
+                "mime": a.mime,
+            })
+        })
+        .collect();
+    let deps: Vec<serde_json::Value> = p
+        .dependencies
+        .iter()
+        .map(|d| {
+            serde_json::json!({
+                "target": id_to_hex(&d.target),
+                "dep_type": d.dep_type.as_str(),
+            })
+        })
+        .collect();
 
     serde_json::json!({
         "issue_id": id_to_hex(&p.issue_id),
@@ -919,7 +1112,9 @@ fn error_to_code_message(e: &DaemonError) -> (String, String) {
 
     match e {
         DaemonError::Core(GriteError::NotFound(_)) => (codes::NOT_FOUND.to_string(), e.to_string()),
-        DaemonError::Core(GriteError::InvalidArgs(_)) => (codes::INVALID_INPUT.to_string(), e.to_string()),
+        DaemonError::Core(GriteError::InvalidArgs(_)) => {
+            (codes::INVALID_INPUT.to_string(), e.to_string())
+        }
         DaemonError::Core(GriteError::Io(_)) => (codes::IO_ERROR.to_string(), e.to_string()),
         DaemonError::Git(_) => (codes::GIT_ERROR.to_string(), e.to_string()),
         DaemonError::Ipc(_) => (codes::IPC_ERROR.to_string(), e.to_string()),

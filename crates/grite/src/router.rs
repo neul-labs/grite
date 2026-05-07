@@ -48,16 +48,17 @@ pub fn route_command(
             // Fall back to local execution
             Ok(RouteResult::Local)
         }
-        ExecutionMode::Daemon { mut client, endpoint: _ } => {
+        ExecutionMode::Daemon {
+            mut client,
+            endpoint: _,
+        } => {
             let response = send_to_daemon(ctx, &mut client, command)?;
             Ok(RouteResult::DaemonResponse(response))
         }
-        ExecutionMode::Blocked { lock } => {
-            Ok(RouteResult::Blocked {
-                pid: lock.pid,
-                expires_in_ms: lock.time_remaining_ms(),
-            })
-        }
+        ExecutionMode::Blocked { lock } => Ok(RouteResult::Blocked {
+            pid: lock.pid,
+            expires_in_ms: lock.time_remaining_ms(),
+        }),
     }
 }
 
@@ -144,12 +145,18 @@ pub fn cli_to_ipc_command(cmd: &crate::cli::Command) -> Option<IpcCommand> {
         }),
         Command::Snapshot { cmd: snap_cmd } => Some(snapshot_to_ipc(snap_cmd)),
         // These don't route through daemon
-        Command::Init { .. } | Command::Actor { .. } | Command::Daemon { .. } | Command::Lock { .. } | Command::Doctor { .. } | Command::Context { .. } | Command::InstallSkill { .. } => None,
+        Command::Init { .. }
+        | Command::Actor { .. }
+        | Command::Daemon { .. }
+        | Command::Lock { .. }
+        | Command::Doctor { .. }
+        | Command::Context { .. }
+        | Command::InstallSkill { .. } => None,
     }
 }
 
 fn issue_to_ipc(cmd: &crate::cli::IssueCommand) -> IpcCommand {
-    use crate::cli::{IssueCommand, LabelCommand, AssigneeCommand, LinkCommand, AttachmentCommand};
+    use crate::cli::{AssigneeCommand, AttachmentCommand, IssueCommand, LabelCommand, LinkCommand};
 
     match cmd {
         IssueCommand::Create { title, body, label } => IpcCommand::IssueCreate {
@@ -164,7 +171,9 @@ fn issue_to_ipc(cmd: &crate::cli::IssueCommand) -> IpcCommand {
         IssueCommand::Show { id } => IpcCommand::IssueShow {
             issue_id: id.clone(),
         },
-        IssueCommand::Update { id, title, body, .. } => IpcCommand::IssueUpdate {
+        IssueCommand::Update {
+            id, title, body, ..
+        } => IpcCommand::IssueUpdate {
             issue_id: id.clone(),
             title: title.clone(),
             body: body.clone(),
@@ -211,7 +220,13 @@ fn issue_to_ipc(cmd: &crate::cli::IssueCommand) -> IpcCommand {
             },
         },
         IssueCommand::Attachment { cmd: attach_cmd } => match attach_cmd {
-            AttachmentCommand::Add { id, name, sha256, mime, .. } => IpcCommand::IssueAttach {
+            AttachmentCommand::Add {
+                id,
+                name,
+                sha256,
+                mime,
+                ..
+            } => IpcCommand::IssueAttach {
                 issue_id: id.clone(),
                 file_path: format!("{}:{}:{}", name, sha256, mime),
             },
@@ -226,9 +241,7 @@ fn db_to_ipc(cmd: &crate::cli::DbCommand) -> IpcCommand {
     match cmd {
         DbCommand::Stats => IpcCommand::DbStats,
         // Check and Verify are local-only, shouldn't reach here
-        DbCommand::Check { .. } | DbCommand::Verify { .. } => {
-            IpcCommand::DbStats
-        }
+        DbCommand::Check { .. } | DbCommand::Verify { .. } => IpcCommand::DbStats,
     }
 }
 
@@ -236,12 +249,16 @@ fn dep_to_ipc(cmd: &crate::cli::DepCommand) -> IpcCommand {
     use crate::cli::DepCommand;
 
     match cmd {
-        DepCommand::Add { id, target, r#type, .. } => IpcCommand::IssueDepAdd {
+        DepCommand::Add {
+            id, target, r#type, ..
+        } => IpcCommand::IssueDepAdd {
             issue_id: id.clone(),
             target_id: target.clone(),
             dep_type: r#type.clone(),
         },
-        DepCommand::Remove { id, target, r#type, .. } => IpcCommand::IssueDepRemove {
+        DepCommand::Remove {
+            id, target, r#type, ..
+        } => IpcCommand::IssueDepRemove {
             issue_id: id.clone(),
             target_id: target.clone(),
             dep_type: r#type.clone(),
@@ -263,8 +280,6 @@ fn snapshot_to_ipc(cmd: &crate::cli::SnapshotCommand) -> IpcCommand {
     match cmd {
         SnapshotCommand::Create => IpcCommand::SnapshotCreate,
         SnapshotCommand::List => IpcCommand::SnapshotList,
-        SnapshotCommand::Gc { keep } => IpcCommand::SnapshotGc {
-            keep: *keep as u32,
-        },
+        SnapshotCommand::Gc { keep } => IpcCommand::SnapshotGc { keep: *keep as u32 },
     }
 }

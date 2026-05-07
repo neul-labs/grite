@@ -1,3 +1,6 @@
+use crate::cli::{Cli, DbCommand};
+use crate::context::GriteContext;
+use crate::output::output_success;
 use libgrite_core::{
     config::list_actors,
     integrity::{check_store_integrity, verify_store_signatures, CorruptionKind},
@@ -6,9 +9,6 @@ use libgrite_core::{
 };
 use serde::Serialize;
 use std::collections::HashMap;
-use crate::cli::{Cli, DbCommand};
-use crate::context::GriteContext;
-use crate::output::output_success;
 
 #[derive(Serialize)]
 struct DbStatsOutput {
@@ -37,16 +37,19 @@ fn run_stats(cli: &Cli) -> Result<(), GriteError> {
 
     let stats = store.stats(&sled_path)?;
 
-    output_success(cli, DbStatsOutput {
-        path: stats.path,
-        size_bytes: stats.size_bytes,
-        event_count: stats.event_count,
-        issue_count: stats.issue_count,
-        last_rebuild_ts: stats.last_rebuild_ts,
-        events_since_rebuild: stats.events_since_rebuild,
-        days_since_rebuild: stats.days_since_rebuild,
-        rebuild_recommended: stats.rebuild_recommended,
-    });
+    output_success(
+        cli,
+        DbStatsOutput {
+            path: stats.path,
+            size_bytes: stats.size_bytes,
+            event_count: stats.event_count,
+            issue_count: stats.issue_count,
+            last_rebuild_ts: stats.last_rebuild_ts,
+            events_since_rebuild: stats.events_since_rebuild,
+            days_since_rebuild: stats.days_since_rebuild,
+            rebuild_recommended: stats.rebuild_recommended,
+        },
+    );
 
     Ok(())
 }
@@ -96,12 +99,15 @@ fn run_check(cli: &Cli, verify_parents: bool) -> Result<(), GriteError> {
         })
         .collect();
 
-    output_success(cli, DbCheckOutput {
-        events_checked: report.events_checked,
-        events_valid: report.events_valid,
-        corrupt_count: report.corrupt_events.len(),
-        errors,
-    });
+    output_success(
+        cli,
+        DbCheckOutput {
+            events_checked: report.events_checked,
+            events_valid: report.events_valid,
+            corrupt_count: report.corrupt_events.len(),
+            errors,
+        },
+    );
 
     if !report.is_healthy() {
         return Err(GriteError::Internal(format!(
@@ -143,9 +149,7 @@ fn run_verify(cli: &Cli, verbose: bool) -> Result<(), GriteError> {
         }
     }
 
-    let get_public_key = |actor_id: &str| -> Option<String> {
-        public_keys.get(actor_id).cloned()
-    };
+    let get_public_key = |actor_id: &str| -> Option<String> { public_keys.get(actor_id).cloned() };
 
     let report = verify_store_signatures(&store, get_public_key)?;
 
@@ -173,13 +177,16 @@ fn run_verify(cli: &Cli, verbose: bool) -> Result<(), GriteError> {
             .collect()
     };
 
-    output_success(cli, DbVerifyOutput {
-        events_checked: report.events_checked,
-        signatures_checked: report.signatures_checked,
-        signatures_valid: report.signatures_valid,
-        error_count: report.signature_errors.len(),
-        errors,
-    });
+    output_success(
+        cli,
+        DbVerifyOutput {
+            events_checked: report.events_checked,
+            signatures_checked: report.signatures_checked,
+            signatures_valid: report.signatures_valid,
+            error_count: report.signature_errors.len(),
+            errors,
+        },
+    );
 
     if report.signature_error_count() > 0 {
         eprintln!(

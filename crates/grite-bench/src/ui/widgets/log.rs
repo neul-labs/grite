@@ -22,7 +22,8 @@ pub fn render(frame: &mut Frame, area: Rect, snapshot: &MetricsSnapshot) {
     let events: Vec<&String> = snapshot.event_log.iter().rev().take(max_lines).collect();
     let events: Vec<&String> = events.into_iter().rev().collect();
 
-    let text: String = events.iter()
+    let text: String = events
+        .iter()
         .map(|e| e.as_str())
         .collect::<Vec<&str>>()
         .join("\n");

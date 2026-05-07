@@ -1,10 +1,10 @@
 //! Snapshot command implementation
 
-use libgrite_core::GriteError;
-use serde::Serialize;
 use crate::cli::{Cli, SnapshotCommand};
 use crate::context::GriteContext;
 use crate::output::output_success;
+use libgrite_core::GriteError;
+use serde::Serialize;
 
 #[derive(Serialize)]
 struct SnapshotCreateOutput {
@@ -46,7 +46,8 @@ fn run_create(cli: &Cli) -> Result<(), GriteError> {
     let snapshot_mgr = ctx.open_snapshot()?;
 
     // Get current WAL head
-    let wal_head = wal.head()?
+    let wal_head = wal
+        .head()?
         .ok_or_else(|| GriteError::NotFound("No WAL commits found".to_string()))?;
 
     // Read all events from WAL
@@ -57,14 +58,16 @@ fn run_create(cli: &Cli) -> Result<(), GriteError> {
     }
 
     // Create snapshot
-    let oid = snapshot_mgr.create(wal_head, &events)
-        ?;
+    let oid = snapshot_mgr.create(wal_head, &events)?;
 
-    output_success(cli, SnapshotCreateOutput {
-        oid: oid.to_string(),
-        event_count: events.len(),
-        wal_head: wal_head.to_string(),
-    });
+    output_success(
+        cli,
+        SnapshotCreateOutput {
+            oid: oid.to_string(),
+            event_count: events.len(),
+            wal_head: wal_head.to_string(),
+        },
+    );
 
     Ok(())
 }
@@ -76,7 +79,8 @@ fn run_list(cli: &Cli) -> Result<(), GriteError> {
     let snapshots = snapshot_mgr.list()?;
     let total = snapshots.len();
 
-    let snapshot_infos: Vec<SnapshotInfo> = snapshots.into_iter()
+    let snapshot_infos: Vec<SnapshotInfo> = snapshots
+        .into_iter()
         .map(|s| SnapshotInfo {
             oid: s.oid.to_string(),
             timestamp: s.timestamp,
@@ -84,10 +88,13 @@ fn run_list(cli: &Cli) -> Result<(), GriteError> {
         })
         .collect();
 
-    output_success(cli, SnapshotListOutput {
-        snapshots: snapshot_infos,
-        total,
-    });
+    output_success(
+        cli,
+        SnapshotListOutput {
+            snapshots: snapshot_infos,
+            total,
+        },
+    );
 
     Ok(())
 }
@@ -98,10 +105,13 @@ fn run_gc(cli: &Cli, keep: usize) -> Result<(), GriteError> {
 
     let stats = snapshot_mgr.gc(keep)?;
 
-    output_success(cli, SnapshotGcOutput {
-        deleted: stats.deleted,
-        kept: stats.kept,
-    });
+    output_success(
+        cli,
+        SnapshotGcOutput {
+            deleted: stats.deleted,
+            kept: stats.kept,
+        },
+    );
 
     Ok(())
 }

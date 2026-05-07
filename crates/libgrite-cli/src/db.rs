@@ -76,7 +76,10 @@ pub fn db_check(ctx: &GriteContext, opts: &DbCheckOptions) -> Result<DbCheckResu
 }
 
 /// Verify event signatures.
-pub fn db_verify(ctx: &GriteContext, opts: &DbVerifyOptions) -> Result<DbVerifyResult, GriteError> {
+pub fn db_verify(
+    ctx: &GriteContext,
+    _opts: &DbVerifyOptions,
+) -> Result<DbVerifyResult, GriteError> {
     let store = ctx.open_store()?;
 
     let actors = list_actors(&ctx.git_dir)?;
@@ -88,9 +91,7 @@ pub fn db_verify(ctx: &GriteContext, opts: &DbVerifyOptions) -> Result<DbVerifyR
         }
     }
 
-    let get_public_key = |actor_id: &str| -> Option<String> {
-        public_keys.get(actor_id).cloned()
-    };
+    let get_public_key = |actor_id: &str| -> Option<String> { public_keys.get(actor_id).cloned() };
 
     let report = verify_store_signatures(&store, get_public_key)?;
 

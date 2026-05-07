@@ -6,8 +6,8 @@
 compile_error!("daemon commands require a Unix platform");
 
 use std::process::{Command, Stdio};
-use std::time::{Duration, Instant};
 use std::thread;
+use std::time::{Duration, Instant};
 
 use libgrite_core::GriteError;
 use std::os::unix::net::UnixStream;
@@ -67,12 +67,15 @@ fn start_internal(cli: &Cli, idle_timeout: u64) -> Result<(), GriteError> {
             // Try to connect to verify it's actually running
             if UnixStream::connect(&lock.ipc_endpoint).is_ok() {
                 if cli.json {
-                    println!("{}", serde_json::json!({
-                        "started": false,
-                        "reason": "Daemon already running",
-                        "pid": lock.pid,
-                        "endpoint": lock.ipc_endpoint,
-                    }));
+                    println!(
+                        "{}",
+                        serde_json::json!({
+                            "started": false,
+                            "reason": "Daemon already running",
+                            "pid": lock.pid,
+                            "endpoint": lock.ipc_endpoint,
+                        })
+                    );
                 } else if !cli.quiet {
                     println!("Daemon already running (PID {})", lock.pid);
                 }
@@ -92,19 +95,24 @@ fn start_internal(cli: &Cli, idle_timeout: u64) -> Result<(), GriteError> {
 
     if ready {
         if cli.json {
-            println!("{}", serde_json::json!({
-                "started": true,
-                "pid": result.pid,
-                "endpoint": endpoint,
-                "idle_timeout_secs": idle_timeout,
-            }));
+            println!(
+                "{}",
+                serde_json::json!({
+                    "started": true,
+                    "pid": result.pid,
+                    "endpoint": endpoint,
+                    "idle_timeout_secs": idle_timeout,
+                })
+            );
         } else if !cli.quiet {
             println!("Daemon started (PID {})", result.pid);
             println!("  Endpoint: {}", endpoint);
             println!("  Idle timeout: {}s", idle_timeout);
         }
     } else {
-        return Err(GriteError::Internal("Daemon started but failed to become ready".to_string()));
+        return Err(GriteError::Internal(
+            "Daemon started but failed to become ready".to_string(),
+        ));
     }
 
     Ok(())
@@ -302,7 +310,10 @@ fn stop_internal(cli: &Cli) -> Result<(), GriteError> {
                     // Clean up stale lock file
                     let _ = DaemonLock::remove(&grite_dir);
                     if cli.json {
-                        println!("{}", serde_json::json!({"stopped": false, "reason": "Daemon not reachable, cleaned up stale lock"}));
+                        println!(
+                            "{}",
+                            serde_json::json!({"stopped": false, "reason": "Daemon not reachable, cleaned up stale lock"})
+                        );
                     } else if !cli.quiet {
                         println!("Daemon not reachable (cleaned up stale lock)");
                     }
@@ -324,7 +335,10 @@ fn stop_internal(cli: &Cli) -> Result<(), GriteError> {
         }
         _ => {
             if cli.json {
-                println!("{}", serde_json::json!({"stopped": false, "reason": "Daemon not running"}));
+                println!(
+                    "{}",
+                    serde_json::json!({"stopped": false, "reason": "Daemon not running"})
+                );
             } else if !cli.quiet {
                 println!("Daemon is not running");
             }

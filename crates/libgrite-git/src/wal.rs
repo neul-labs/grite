@@ -5,14 +5,14 @@
 //! - meta.json with commit metadata
 //! - events/YYYY/MM/DD/<chunk_hash>.bin with the actual events
 
-use std::path::Path;
+use chrono::{DateTime, Datelike, Utc};
 use git2::{Oid, Repository, Signature};
-use serde::{Deserialize, Serialize};
-use chrono::{DateTime, Utc, Datelike};
 use libgrite_core::types::event::Event;
 use libgrite_core::types::ids::ActorId;
+use serde::{Deserialize, Serialize};
+use std::path::Path;
 
-use crate::chunk::{encode_chunk, decode_chunk, chunk_hash};
+use crate::chunk::{chunk_hash, decode_chunk, encode_chunk};
 use crate::GitError;
 
 /// WAL reference name
@@ -54,9 +54,9 @@ impl WalManager {
     pub fn head(&self) -> Result<Option<Oid>, GitError> {
         match self.repo.find_reference(WAL_REF) {
             Ok(reference) => {
-                let oid = reference.target().ok_or_else(|| {
-                    GitError::Wal("WAL ref has no target".to_string())
-                })?;
+                let oid = reference
+                    .target()
+                    .ok_or_else(|| GitError::Wal("WAL ref has no target".to_string()))?;
                 Ok(Some(oid))
             }
             Err(e) if e.code() == git2::ErrorCode::NotFound => Ok(None),
@@ -76,13 +76,15 @@ impl WalManager {
         let hash_hex = hex::encode(hash);
 
         // Get current head (will be parent)
-        let parent_commit = self.head()?.map(|oid| self.repo.find_commit(oid)).transpose()?;
+        let parent_commit = self
+            .head()?
+            .map(|oid| self.repo.find_commit(oid))
+            .transpose()?;
         let prev_wal = parent_commit.as_ref().map(|c| c.id());
 
         // Determine chunk path based on timestamp of first event
         let ts = events[0].ts_unix_ms;
-        let dt: DateTime<Utc> = DateTime::from_timestamp_millis(ts as i64)
-            .unwrap_or_else(|| Utc::now());
+        let dt: DateTime<Utc> = DateTime::from_timestamp_millis(ts as i64).unwrap_or_else(Utc::now);
         let chunk_path = format!(
             "events/{:04}/{:02}/{:02}/{}.bin",
             dt.year(),
@@ -118,15 +120,11 @@ impl WalManager {
         let sig = Signature::now("grite", "grit@local")?;
         let message = format!("WAL: {} events from {}", events.len(), &actor_id_hex[..8]);
 
-        let parents: Vec<&git2::Commit> = parent_commit.as_ref().map(|c| vec![c]).unwrap_or_default();
-        let commit_oid = self.repo.commit(
-            Some(WAL_REF),
-            &sig,
-            &sig,
-            &message,
-            &tree,
-            &parents,
-        )?;
+        let parents: Vec<&git2::Commit> =
+            parent_commit.as_ref().map(|c| vec![c]).unwrap_or_default();
+        let commit_oid = self
+            .repo
+            .commit(Some(WAL_REF), &sig, &sig, &message, &tree, &parents)?;
 
         Ok(commit_oid)
     }
@@ -169,7 +167,8 @@ impl WalManager {
             let tree = commit.tree()?;
 
             // Read meta.json to get chunk path
-            let meta_entry = tree.get_name("meta.json")
+            let meta_entry = tree
+                .get_name("meta.json")
                 .ok_or_else(|| GitError::Wal("Missing meta.json in WAL commit".to_string()))?;
             let meta_blob = self.repo.find_blob(meta_entry.id())?;
             let meta: WalMeta = serde_json::from_slice(meta_blob.content())?;
@@ -179,7 +178,8 @@ impl WalManager {
             all_events.extend(events);
 
             // Move to parent
-            current_oid = meta.prev_wal
+            current_oid = meta
+                .prev_wal
                 .as_ref()
                 .map(|s| Oid::from_str(s))
                 .transpose()?;
@@ -199,7 +199,11 @@ impl WalManager {
     }
 
     /// Recursively walk tree looking for .bin chunks
-    fn walk_tree_for_chunks(&self, tree: &git2::Tree, events: &mut Vec<Event>) -> Result<(), GitError> {
+    fn walk_tree_for_chunks(
+        &self,
+        tree: &git2::Tree,
+        events: &mut Vec<Event>,
+    ) -> Result<(), GitError> {
         for entry in tree.iter() {
             let name = entry.name().unwrap_or("");
             match entry.kind() {
@@ -274,8 +278,8 @@ mod tests {
     use libgrite_core::hash::compute_event_id;
     use libgrite_core::types::event::EventKind;
     use libgrite_core::types::ids::generate_issue_id;
-    use tempfile::TempDir;
     use std::process::Command;
+    use tempfile::TempDir;
 
     fn setup_test_repo() -> (TempDir, Repository) {
         let temp = TempDir::new().unwrap();
@@ -317,7 +321,7 @@ mod tests {
         });
         let actor = [1u8; 16];
 
-        let oid = wal.append(&actor, &[event.clone()]).unwrap();
+        let oid = wal.append(&actor, std::slice::from_ref(&event)).unwrap();
         assert!(wal.head().unwrap().is_some());
         assert_eq!(wal.head().unwrap().unwrap(), oid);
 
@@ -341,13 +345,13 @@ mod tests {
             body: "Body 1".to_string(),
             labels: vec![],
         });
-        let oid1 = wal.append(&actor, &[event1.clone()]).unwrap();
+        let oid1 = wal.append(&actor, std::slice::from_ref(&event1)).unwrap();
 
         // Append second event
         let event2 = make_test_event(EventKind::CommentAdded {
             body: "A comment".to_string(),
         });
-        let _oid2 = wal.append(&actor, &[event2.clone()]).unwrap();
+        let _oid2 = wal.append(&actor, std::slice::from_ref(&event2)).unwrap();
 
         // Read all - should get both in order
         let events = wal.read_all().unwrap();
