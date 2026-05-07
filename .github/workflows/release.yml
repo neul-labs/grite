@@ -6,6 +6,9 @@ on:
     paths:
       - 'Cargo.toml'
 
+permissions:
+  contents: write
+
 env:
   CARGO_TERM_COLOR: always
 
