@@ -1,12 +1,12 @@
 # grite-cli
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](../LICENSE)
-[![PyPI](https://img.shields.io/pypi/v/grite-cli)](https://pypi.org/project/grite-cli/)
+[![RubyGems](https://img.shields.io/gem/v/grite-cli)](https://rubygems.org/gems/grite-cli)
 [![Build Status](https://img.shields.io/github/actions/workflow/status/neul-labs/grite/ci.yml?branch=main)](https://github.com/neul-labs/grite/actions)
 
-**Git-backed issue tracking for coding agents and humans — distributed via PyPI.**
+**Git-backed issue tracking for coding agents and humans — distributed via RubyGems.**
 
-This package provides the `grite` and `grite-daemon` binaries as a pip-installable Python package. It is a thin wrapper around the native Rust binaries, automatically downloading the correct platform-specific binary during installation.
+This gem provides the `grite` and `grite-daemon` binaries as a RubyGems-installable package. It is a thin wrapper around the native Rust binaries, automatically downloading the correct platform-specific binary during installation.
 
 ---
 
@@ -14,12 +14,10 @@ This package provides the `grite` and `grite-daemon` binaries as a pip-installab
 
 ```bash
 # Install globally
-pip install grite-cli
+gem install grite-cli
 
-# Or install in a virtual environment
-python -m venv .venv
-source .venv/bin/activate
-pip install grite-cli
+# Or add to your Gemfile
+gem 'grite-cli'
 ```
 
 ## Usage
@@ -58,41 +56,19 @@ The install script automatically detects your platform and downloads the appropr
 
 ## Requirements
 
-- Python 3.8 or later
+- Ruby 2.7 or later
 - Git 2.38 or later
 
 ## How It Works
 
-This Python package contains a post-install hook that runs during `pip install`. It:
+This gem contains a post-install hook that runs during `gem install`. It:
 
 1. Detects your operating system and CPU architecture
 2. Downloads the matching pre-built binary from GitHub Releases
-3. Places the binary in a platform-specific directory within the package
-4. Creates entry-point scripts for `grite` and `grite-daemon`
+3. Places the binary in a platform-specific directory within the gem
+4. Creates wrapper executables in the gem's `bin/` directory
 
 No compilation is required. The binaries are pure native code with zero runtime dependencies.
-
-## Python API
-
-While this package primarily provides CLI binaries, you can also invoke grite programmatically from Python:
-
-```python
-import subprocess
-import json
-
-# List issues as JSON
-result = subprocess.run(
-    ["grite", "issue", "list", "--json"],
-    capture_output=True,
-    text=True,
-    check=True,
-)
-issues = json.loads(result.stdout)
-for issue in issues:
-    print(f"{issue['id']}: {issue['title']}")
-```
-
-For deeper integration, consider using the Rust library [`libgrite-cli`](https://crates.io/crates/libgrite-cli) via PyO3 or calling the JSON CLI interface.
 
 ## Documentation
 
