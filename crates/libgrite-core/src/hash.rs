@@ -127,6 +127,7 @@ pub fn kind_to_tag_and_payload(kind: &EventKind) -> (u32, ciborium::Value) {
                 Value::Text(dep_type.as_str().to_string()),
             ]),
         ),
+        #[cfg(feature = "context")]
         EventKind::ContextUpdated {
             path,
             language,
@@ -161,6 +162,7 @@ pub fn kind_to_tag_and_payload(kind: &EventKind) -> (u32, ciborium::Value) {
                 ]),
             )
         }
+        #[cfg(feature = "context")]
         EventKind::ProjectContextUpdated { key, value } => (
             14,
             Value::Array(vec![Value::Text(key.clone()), Value::Text(value.clone())]),
@@ -497,6 +499,7 @@ mod tests {
         assert_ne!(id1, id_add);
     }
 
+    #[cfg(feature = "context")]
     #[test]
     fn test_vector_13_context_updated() {
         use crate::types::event::SymbolInfo;
@@ -553,6 +556,7 @@ mod tests {
         assert_eq!(id1, id3, "Symbol order should not affect hash");
     }
 
+    #[cfg(feature = "context")]
     #[test]
     fn test_vector_14_project_context_updated() {
         let issue_id: IssueId = hex_to_id("000102030405060708090a0b0c0d0e0f").unwrap();

@@ -50,6 +50,7 @@ fn run_command(cli: &Cli) -> Result<(), GriteError> {
         Command::Daemon { cmd } => commands::daemon::run(cli, cmd.clone()),
         Command::Lock { cmd } => commands::lock::run(cli, cmd.clone()),
         Command::Doctor { fix } => commands::doctor::run(cli, *fix),
+        #[cfg(feature = "context")]
         Command::Context { cmd } => commands::context::run(cli, cmd.clone()),
         Command::InstallSkill { global, force } => {
             commands::install_skill::run(cli, *global, *force)
