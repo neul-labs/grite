@@ -1,5 +1,5 @@
 {
-  "name": "@neul-labs/grite",
+  "name": "grite",
   "version": "0.5.1",
   "description": "Git-backed issue tracking for coding agents and humans",
   "keywords": [

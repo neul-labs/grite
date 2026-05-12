@@ -50,13 +50,13 @@ brew install neul-labs/tap/grite
 cargo install grite
 
 # Node.js via npm
-npm install -g @neul-labs/grite
+npm install -g grite
 
 # Python via pip
-pip install grite-cli
+pip install grite
 
 # Ruby via RubyGems
-gem install grite-cli
+gem install grite
 ```
 
 **Prerequisites:** Git 2.38+.

@@ -331,17 +331,17 @@ jobs:
       - name: Update version
         run: |
           cd packaging/gem
-          sed -i "s/spec.version = .*/spec.version = '${{ needs.check-version.outputs.version }}'/" grite-cli.gemspec
+          sed -i "s/spec.version = .*/spec.version = '${{ needs.check-version.outputs.version }}'/" grite.gemspec
 
       - name: Build gem
         run: |
           cd packaging/gem
-          gem build grite-cli.gemspec
+          gem build grite.gemspec
 
       - name: Publish gem
         run: |
           cd packaging/gem
-          gem push grite-cli-*.gem
+          gem push grite-*.gem
 
   publish-homebrew:
     name: Update Homebrew Tap

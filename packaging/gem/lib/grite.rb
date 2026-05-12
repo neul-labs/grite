@@ -21,7 +21,7 @@ module GriteCli
                ENV.fetch('XDG_CACHE_HOME', File.join(Dir.home, '.cache'))
              end
 
-      dir = File.join(base, 'grite-cli')
+      dir = File.join(base, 'grite')
       FileUtils.mkdir_p(dir)
       dir
     end

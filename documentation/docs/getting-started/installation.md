@@ -31,19 +31,19 @@ This downloads the pre-built binary for your platform and installs to `~/.local/
 === "npm"
 
     ```bash
-    npm install -g @neul-labs/grite
+    npm install -g grite
     ```
 
 === "pip"
 
     ```bash
-    pip install grite-cli
+    pip install grite
     ```
 
 === "gem"
 
     ```bash
-    gem install grite-cli
+    gem install grite
     ```
 
 === "Chocolatey (Windows)"
@@ -116,7 +116,7 @@ To update grite to the latest version:
 === "npm"
 
     ```bash
-    npm update -g @neul-labs/grite
+    npm update -g grite
     ```
 
 ## Uninstalling
@@ -143,7 +143,7 @@ To update grite to the latest version:
 === "npm"
 
     ```bash
-    npm uninstall -g @neul-labs/grite
+    npm uninstall -g grite
     ```
 
 ## Next Steps

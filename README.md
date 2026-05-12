@@ -4,9 +4,9 @@
 [![Crates.io](https://img.shields.io/crates/v/grite.svg)](https://crates.io/crates/grite)
 [![Build Status](https://img.shields.io/github/actions/workflow/status/neul-labs/grite/ci.yml?branch=main)](https://github.com/neul-labs/grite/actions)
 [![Documentation](https://img.shields.io/badge/docs-neullabs.com-green.svg)](https://docs.neullabs.com/grite)
-[![npm](https://img.shields.io/npm/v/@neul-labs/grite)](https://www.npmjs.com/package/@neul-labs/grite)
-[![PyPI](https://img.shields.io/pypi/v/grite-cli)](https://pypi.org/project/grite-cli/)
-[![RubyGems](https://img.shields.io/gem/v/grite-cli)](https://rubygems.org/gems/grite-cli)
+[![npm](https://img.shields.io/npm/v/grite)](https://www.npmjs.com/package/grite)
+[![PyPI](https://img.shields.io/pypi/v/grite)](https://pypi.org/project/grite/)
+[![RubyGems](https://img.shields.io/gem/v/grite)](https://rubygems.org/gems/grite)
 
 **The issue tracker that lives in your repo. Built for AI agents. Works for humans.**
 
@@ -204,13 +204,13 @@ brew install neul-labs/tap/grite
 cargo install grite grite-daemon
 
 # Node.js via npm
-npm install -g @neul-labs/grite
+npm install -g grite
 
 # Python via pip
-pip install grite-cli
+pip install grite
 
 # Ruby via RubyGems
-gem install grite-cli
+gem install grite
 
 # Windows via Chocolatey
 choco install grite
