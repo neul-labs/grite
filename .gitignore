@@ -1,9 +1,71 @@
 /target
-memista.*
-*.usearch
+Cargo.lock
+
+# IDE
 .vscode
+.idea
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
 *.env
-~/
+.env.local
+.env.*.local
 
 # Grite data (development artifacts)
 .grite/
+
+# Documentation build artifacts
+documentation/site/
+documentation/.cache/
+
+# Packaging artifacts
+packaging/npm/node_modules/
+packaging/npm/package-lock.json
+packaging/npm/*.tgz
+packaging/pip/dist/
+packaging/pip/build/
+packaging/pip/*.egg-info/
+packaging/pip/.eggs/
+packaging/pip/__pycache__/
+packaging/pip/*.whl
+packaging/pip/*.tar.gz
+packaging/gem/*.gem
+packaging/gem/pkg/
+
+# Test artifacts
+*.profraw
+*.profdata
+coverage/
+lcov.info
+
+# Temporary files
+/tmp/
+temp/
+*.tmp
+*.bak
+
+# Benchmark output
+*.bench
+bench-results/
+
+# Nix
+result
+result-*
+
+# macOS
+*.dSYM/
+
+# Windows
+*.exe
+*.dll
+*.pdb
+
+# Misc development
+memo.*
+*.usearch
