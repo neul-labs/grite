@@ -31,19 +31,19 @@ This downloads the pre-built binary for your platform and installs to `~/.local/
 === "npm"
 
     ```bash
-    npm install -g grite
+    npm install -g grite-cli
     ```
 
 === "pip"
 
     ```bash
-    pip install grite
+    pip install grite-cli
     ```
 
 === "gem"
 
     ```bash
-    gem install grite
+    gem install grite-cli
     ```
 
 === "Chocolatey (Windows)"

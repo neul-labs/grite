@@ -1,7 +1,7 @@
-# grite
+# grite-cli
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](../LICENSE)
-[![RubyGems](https://img.shields.io/gem/v/grite)](https://rubygems.org/gems/grite)
+[![RubyGems](https://img.shields.io/gem/v/grite-cli)](https://rubygems.org/gems/grite-cli)
 [![Build Status](https://img.shields.io/github/actions/workflow/status/neul-labs/grite/ci.yml?branch=main)](https://github.com/neul-labs/grite/actions)
 
 **Git-backed issue tracking for coding agents and humans — distributed via RubyGems.**
@@ -14,10 +14,10 @@ This gem provides the `grite` and `grite-daemon` binaries as a RubyGems-installa
 
 ```bash
 # Install globally
-gem install grite
+gem install grite-cli
 
 # Or add to your Gemfile
-gem 'grite'
+gem 'grite-cli'
 ```
 
 ## Usage

@@ -1,7 +1,7 @@
-# grite
+# grite-cli
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](../LICENSE)
-[![PyPI](https://img.shields.io/pypi/v/grite)](https://pypi.org/project/grite/)
+[![PyPI](https://img.shields.io/pypi/v/grite-cli)](https://pypi.org/project/grite-cli/)
 [![Build Status](https://img.shields.io/github/actions/workflow/status/neul-labs/grite/ci.yml?branch=main)](https://github.com/neul-labs/grite/actions)
 
 **Git-backed issue tracking for coding agents and humans — distributed via PyPI.**
@@ -14,12 +14,12 @@ This package provides the `grite` and `grite-daemon` binaries as a pip-installab
 
 ```bash
 # Install globally
-pip install grite
+pip install grite-cli
 
 # Or install in a virtual environment
 python -m venv .venv
 source .venv/bin/activate
-pip install grite
+pip install grite-cli
 ```
 
 ## Usage

@@ -1,5 +1,5 @@
 """
-grite: Git-backed issue tracking for coding agents and humans
+grite-cli: Git-backed issue tracking for coding agents and humans
 
 This package provides a wrapper around the grite binary.
 """
@@ -29,7 +29,7 @@ def get_cache_dir() -> Path:
     else:
         base = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache"))
 
-    cache_dir = base / "grite"
+    cache_dir = base / "grite-cli"
     cache_dir.mkdir(parents=True, exist_ok=True)
     return cache_dir
 

@@ -1,5 +1,5 @@
 Gem::Specification.new do |spec|
-  spec.name          = 'grite'
+  spec.name          = 'grite-cli'
   spec.version       = '0.5.1'
   spec.authors       = ['Neul Labs']
   spec.email         = ['hello@neul.com']

@@ -1,7 +1,7 @@
-# grite
+# grite-cli
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](../LICENSE)
-[![npm](https://img.shields.io/npm/v/grite)](https://www.npmjs.com/package/grite)
+[![npm](https://img.shields.io/npm/v/grite-cli)](https://www.npmjs.com/package/grite-cli)
 [![Build Status](https://img.shields.io/github/actions/workflow/status/neul-labs/grite/ci.yml?branch=main)](https://github.com/neul-labs/grite/actions)
 
 **Git-backed issue tracking for coding agents and humans — distributed via npm.**
@@ -14,10 +14,10 @@ This package provides the `grite` and `grite-daemon` binaries as an npm-installa
 
 ```bash
 # Install globally
-npm install -g grite
+npm install -g grite-cli
 
 # Or install locally in a project
-npm install --save-dev grite
+npm install --save-dev grite-cli
 ```
 
 ## Usage
