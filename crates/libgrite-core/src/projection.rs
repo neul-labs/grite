@@ -105,6 +105,7 @@ impl IssueProjection {
                 });
             }
 
+            #[cfg(feature = "context")]
             EventKind::ContextUpdated { .. } | EventKind::ProjectContextUpdated { .. } => {
                 // Context events are handled by the context store, not issue projections
                 return Ok(());
