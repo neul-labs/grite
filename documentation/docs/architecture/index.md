@@ -15,8 +15,8 @@ Grite is split into three layers:
 ```
 
 1. **[Git-backed WAL](three-layer.md)** - Append-only events in `refs/grite/wal`
-2. **[Materialized View](three-layer.md#layer-2-materialized-view)** - Fast local queries via sled database
-3. **[Optional Daemon](three-layer.md#layer-3-cli--daemon)** - Performance optimization
+2. **[Materialized View](three-layer.md#layer-2-materialized-view-fast-queries)** - Fast local queries via sled database
+3. **[Optional Daemon](three-layer.md#layer-3-cli-daemon-user-interface)** - Performance optimization
 
 Correctness never depends on the daemon; the CLI can always rebuild state from the WAL.
 

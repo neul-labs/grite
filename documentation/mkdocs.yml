@@ -1,6 +1,6 @@
 site_name: Grite Documentation
 site_description: A repo-local, git-backed issue/task system for AI coding agents and humans
-site_url: https://docs.neullabs.com/grite/
+site_url: https://grite.docs.neullabs.com/
 repo_url: https://github.com/neul-labs/grite
 repo_name: neul-labs/grite
 edit_uri: edit/main/documentation/docs/
