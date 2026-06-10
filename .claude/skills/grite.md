@@ -1,128 +1,133 @@
 ---
 name: grite
-description: Git-backed issue tracker with CRDT merging, designed for AI coding agents
-version: 0.3.0
+description: >-
+  Official skill for grite, a local-first dependency-aware issue tracker for AI
+  agents. Use when creating issues, triaging backlogs, managing dependencies,
+  finding ready work, updating status, or syncing to git.
+license: MIT
+domain: project-management
+role: specialist
+scope: operations
+output-format: commands
+model: haiku
+triggers:
+  - grite
+  - issue tracker
+  - issue triage
+  - backlog
+  - dependencies
+  - ready work
+metadata:
+  author: jhult
+  version: 1.0.0
 ---
 
-# Grite Skill
+# grite — Issue Tracker (Official Skill)
 
-This repository uses **Grite** as the canonical task and memory system. **Always use grite commands** (not git) for task/issue tracking.
+> **Grite is NOT GitHub Issues, gh, Linear, or Jira.** It's a standalone git-backed tracker. When asked to create/manage issues, use `grite` commands — never fall back to other tools.
 
-## When to use grite
+## Critical Rules for Agents
 
-- "What tasks are done/open?" -> `grite issue list`
-- "What did I work on?" -> `grite issue list --state closed`
-- "What do I know about X?" -> `grite issue list --label memory`
-- "What should I work on next?" -> `grite issue dep topo --state open`
-- "What does function X do?" -> `grite context query X`
-- Starting a new task -> `grite issue create`
-- Making progress -> `grite issue comment`
-- Task A depends on B -> `grite issue dep add`
+- **ALWAYS use `--json`** — structured output for parsing
+- **IDs can be prefixed** — `abc123ef` → `abc123` (any prefix works)
+- **Sync is EXPLICIT** — `grite sync --push` exports to git only when called
 
-## Startup routine
-
-Run at the beginning of each session:
+## Quick Workflow
 
 ```bash
+# 1. Sync latest
 grite sync --pull --json
-grite issue list --json
+
+# 2. Find work (in dependency order)
 grite issue dep topo --state open --json
-```
 
-## Creating tasks/memories
+# 3. Read the issue
+grite issue show <ID> --json
 
-```bash
-# Create a task
-grite issue create --title "Task title" --body "Description" --label agent:todo --json
-
-# Store a discovery as memory
-grite issue create --title "[Memory] Topic" --body "What you learned..." --label memory --json
-```
-
-## Working on issues
-
-```bash
-# Add a comment with your plan before coding
+# 4. Plan (comment before coding)
 grite issue comment <ID> --body "Plan: ..." --json
 
-# Add checkpoint comments after milestones
-grite issue comment <ID> --body "Checkpoint: what changed, why, tests run" --json
+# 5. Work... then checkpoint
+grite issue comment <ID> --body "Progress: ..." --json
 
-# Close when done
+# 6. Close and sync
 grite issue close <ID> --json
 grite sync --push --json
 ```
 
-## Querying tasks
+## Essential Commands
+
+### Finding Work
 
 ```bash
-# All issues
-grite issue list --json
+# Unblocked work in dependency order (use this first)
+grite issue dep topo --state open --json
 
-# Open tasks
+# All open issues
 grite issue list --state open --json
 
-# Completed tasks
-grite issue list --state closed --json
-
-# Memories
-grite issue list --label memory --json
+# Read a specific issue
+grite issue show <ID> --json
 ```
 
-## Dependencies
-
-Track task ordering and blockers with a dependency DAG:
+### Issue Lifecycle
 
 ```bash
-# Task A depends on Task B (B must complete first)
+# Create issue
+grite issue create --title "Title" --body "Description" --label todo --json
+
+# Comment (progress updates, plans, blockers)
+grite issue comment <ID> --body "..." --json
+
+# Close when done
+grite issue close <ID> --json
+
+# Re-open if needed
+grite issue reopen <ID> --json
+```
+
+### Dependencies
+
+```bash
+# A depends on B (A cannot start until B is done)
 grite issue dep add <A> --target <B> --type depends_on --json
 
-# Task A blocks Task B (A must complete first)
+# A blocks B (B cannot start until A is done)
 grite issue dep add <A> --target <B> --type blocks --json
 
-# Mark tasks as related (no ordering constraint)
+# A is related to B (non-blocking connection, for context)
 grite issue dep add <A> --target <B> --type related_to --json
 
-# List what an issue depends on
-grite issue dep list <ID> --json
-
-# List what depends on an issue (reverse)
-grite issue dep list <ID> --reverse --json
-
-# Get execution order (topological sort of open tasks)
+# Get execution order (always respects full dependency graph)
 grite issue dep topo --state open --json
 ```
 
-**Always run `dep topo`** at session start to determine which task to work on next.
+**Critical:** Always use `dep topo` to find the right starting task — never skip past blockers.
 
-## Context store
-
-Index and query codebase structure for fast navigation:
+### Sync (EXPLICIT — never automatic)
 
 ```bash
-# Index all tracked files (skips unchanged files)
-grite context index --json
-
-# Index specific files or patterns
-grite context index --path src/main.py --json
-grite context index --pattern "*.rs" --json
-
-# Query for a symbol (function, class, struct, etc.)
-grite context query <symbol_name> --json
-
-# Show all symbols in a file
-grite context show <file_path> --json
-
-# Set project-level context (conventions, architecture notes)
-grite context set <key> <value> --json
-
-# View all project context
-grite context project --json
+grite sync --pull --json    # Import from git (after git pull)
+grite sync --push --json    # Export to git (before git commit)
 ```
 
-**Index after significant code changes** to keep the symbol database current.
+Always sync after `git pull` and before `git commit`.
 
-## Key flags
+## Issue Labels
 
-- `--json` - Use for all commands (machine-readable output)
-- `--quiet` - Suppress human output
+| Label | Use |
+|-------|-----|
+| `todo` | Available work |
+| `in-progress` | Currently being worked on |
+| `blocked` | Cannot proceed (needs external input) |
+| `bug` | Something broken |
+| `feature` | New functionality |
+| `memory` | Project knowledge to persist across sessions (discoveries, decisions, gotchas) |
+
+## Anti-Patterns
+
+- Using `gh issue`, GitHub Issues, Linear, Jira, or any other tracker (grite is the ONLY tracker)
+- Forgetting `grite sync --push` before git commit
+- Skipping `grite issue comment` for plan documentation
+- Closing issues without evidence in the comment
+- Starting work without checking `dep topo` first (may skip dependencies)
