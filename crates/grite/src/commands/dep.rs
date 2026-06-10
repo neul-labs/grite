@@ -204,6 +204,8 @@ fn run_topo(cli: &Cli, state: Option<String>, label: Option<String>) -> Result<(
                 "title": s.title,
                 "state": format!("{:?}", s.state).to_lowercase(),
                 "labels": s.labels,
+                "created_ts": s.created_ts,
+                "updated_ts": s.updated_ts,
             })
         })
         .collect();
