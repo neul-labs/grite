@@ -9,6 +9,7 @@
 
 pub mod actor;
 pub mod context;
+#[cfg(feature = "context")]
 pub mod context_cmd;
 pub mod daemon;
 pub mod db;

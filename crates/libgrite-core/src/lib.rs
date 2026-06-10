@@ -22,6 +22,7 @@
 //! - **Append-only** for comments, links, attachments
 
 pub mod config;
+#[cfg(feature = "context")]
 pub mod context;
 pub mod error;
 pub mod export;
@@ -47,8 +48,11 @@ pub use lock::{resource_hash, Lock, LockCheckResult, LockPolicy, LockStatus, DEF
 pub use signing::{verify_signature, SigningError, SigningKeyPair, VerificationPolicy};
 pub use store::{DbStats, GriteStore, IssueFilter, LockedStore, RebuildStats};
 pub use types::actor::ActorConfig;
+#[cfg(feature = "context")]
 pub use types::context::{FileContext, ProjectContext, ProjectContextEntry};
-pub use types::event::{DependencyType, Event, EventKind, IssueState, SymbolInfo};
+#[cfg(feature = "context")]
+pub use types::event::SymbolInfo;
+pub use types::event::{DependencyType, Event, EventKind, IssueState};
 pub use types::ids::{generate_actor_id, generate_issue_id, hex_to_id, id_to_hex};
 pub use types::issue::{IssueProjection, IssueSummary, Version};
 pub use types::{ActorId, EventId, IssueId};

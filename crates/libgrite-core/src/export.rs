@@ -174,6 +174,7 @@ fn event_kind_to_json(kind: &EventKind) -> serde_json::Value {
                 }
             })
         }
+        #[cfg(feature = "context")]
         EventKind::ContextUpdated {
             path,
             language,
@@ -191,6 +192,7 @@ fn event_kind_to_json(kind: &EventKind) -> serde_json::Value {
                 }
             })
         }
+        #[cfg(feature = "context")]
         EventKind::ProjectContextUpdated { key, value } => {
             serde_json::json!({
                 "ProjectContextUpdated": {

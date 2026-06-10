@@ -107,6 +107,7 @@ pub fn should_route_through_daemon(cmd: &crate::cli::Command) -> bool {
         Command::Doctor { .. } => false,
 
         // Context commands are local-only (need filesystem access)
+        #[cfg(feature = "context")]
         Command::Context { .. } => false,
 
         // Install-skill is local-only
@@ -150,8 +151,9 @@ pub fn cli_to_ipc_command(cmd: &crate::cli::Command) -> Option<IpcCommand> {
         | Command::Daemon { .. }
         | Command::Lock { .. }
         | Command::Doctor { .. }
-        | Command::Context { .. }
         | Command::InstallSkill { .. } => None,
+        #[cfg(feature = "context")]
+        Command::Context { .. } => None,
     }
 }
 

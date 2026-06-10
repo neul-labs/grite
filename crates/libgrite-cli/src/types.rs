@@ -501,6 +501,7 @@ pub struct DoctorCheckResult {
 }
 
 /// Options for context index.
+#[cfg(feature = "context")]
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct ContextIndexOptions {
     pub paths: Vec<String>,
@@ -509,6 +510,7 @@ pub struct ContextIndexOptions {
 }
 
 /// Result of context index.
+#[cfg(feature = "context")]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ContextIndexResult {
     pub indexed_files: usize,
@@ -516,42 +518,49 @@ pub struct ContextIndexResult {
 }
 
 /// Options for context query.
+#[cfg(feature = "context")]
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct ContextQueryOptions {
     pub query: String,
 }
 
 /// Result of context query.
+#[cfg(feature = "context")]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ContextQueryResult {
     pub symbols: Vec<libgrite_core::SymbolInfo>,
 }
 
 /// Options for context show.
+#[cfg(feature = "context")]
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct ContextShowOptions {
     pub path: String,
 }
 
 /// Result of context show.
+#[cfg(feature = "context")]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ContextShowResult {
     pub file: libgrite_core::FileContext,
 }
 
 /// Options for context project.
+#[cfg(feature = "context")]
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct ContextProjectOptions {
     pub key: Option<String>,
 }
 
 /// Result of context project.
+#[cfg(feature = "context")]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ContextProjectResult {
     pub entries: Vec<libgrite_core::ProjectContextEntry>,
 }
 
 /// Options for context set.
+#[cfg(feature = "context")]
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct ContextSetOptions {
     pub key: String,
@@ -559,6 +568,7 @@ pub struct ContextSetOptions {
 }
 
 /// Result of context set.
+#[cfg(feature = "context")]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ContextSetResult {
     pub key: String,

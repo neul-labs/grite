@@ -114,6 +114,7 @@ pub enum Command {
     },
 
     /// Context store management (file/symbol indexing)
+    #[cfg(feature = "context")]
     Context {
         #[command(subcommand)]
         cmd: ContextCommand,
@@ -541,6 +542,7 @@ pub enum DepCommand {
     },
 }
 
+#[cfg(feature = "context")]
 #[derive(Clone, Subcommand)]
 pub enum ContextCommand {
     /// Index files in the repository
