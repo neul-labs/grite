@@ -17,6 +17,10 @@ authors.workspace = true
 name = "grite"
 path = "src/main.rs"
 
+[features]
+default = ["context"]
+context = ["libgrite-core/context", "libgrite-cli/context", "libgrite-git/context"]
+
 [dependencies]
 libgrite-core = { path = "../libgrite-core", version = "0.5.1" }
 libgrite-git = { path = "../libgrite-git", version = "0.5.1" }

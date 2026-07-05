@@ -6,12 +6,11 @@ use std::time::{Duration, Instant};
 use fs2::FileExt;
 
 use crate::error::GriteError;
+#[cfg(feature = "context")]
 use crate::types::context::{FileContext, ProjectContextEntry};
-use crate::types::event::IssueState;
-use crate::types::event::{DependencyType, Event, EventKind};
+use crate::types::event::{DependencyType, Event, EventKind, IssueState};
 use crate::types::ids::{EventId, IssueId};
-use crate::types::issue::Version;
-use crate::types::issue::{IssueProjection, IssueSummary};
+use crate::types::issue::{IssueProjection, IssueSummary, Version};
 
 /// Default threshold for events since rebuild before recommending rebuild
 pub const DEFAULT_REBUILD_EVENTS_THRESHOLD: usize = 10000;
@@ -100,8 +99,11 @@ pub struct GriteStore {
     metadata: sled::Tree,
     dep_forward: sled::Tree,
     dep_reverse: sled::Tree,
+    #[cfg(feature = "context")]
     context_files: sled::Tree,
+    #[cfg(feature = "context")]
     context_symbols: sled::Tree,
+    #[cfg(feature = "context")]
     context_project: sled::Tree,
 }
 
@@ -116,8 +118,11 @@ impl GriteStore {
         let metadata = db.open_tree("metadata")?;
         let dep_forward = db.open_tree("dep_forward")?;
         let dep_reverse = db.open_tree("dep_reverse")?;
+        #[cfg(feature = "context")]
         let context_files = db.open_tree("context_files")?;
+        #[cfg(feature = "context")]
         let context_symbols = db.open_tree("context_symbols")?;
+        #[cfg(feature = "context")]
         let context_project = db.open_tree("context_project")?;
 
         Ok(Self {
@@ -129,8 +134,11 @@ impl GriteStore {
             metadata,
             dep_forward,
             dep_reverse,
+            #[cfg(feature = "context")]
             context_files,
+            #[cfg(feature = "context")]
             context_symbols,
+            #[cfg(feature = "context")]
             context_project,
         })
     }
@@ -233,6 +241,7 @@ impl GriteStore {
     /// Update the issue projection for an event
     fn update_projection(&self, event: &Event) -> Result<(), GriteError> {
         // Handle context events separately (they don't have issue projections)
+        #[cfg(feature = "context")]
         match &event.kind {
             EventKind::ContextUpdated {
                 path,
@@ -302,6 +311,7 @@ impl GriteStore {
     }
 
     /// Update file context (LWW per path)
+    #[cfg(feature = "context")]
     fn update_file_context(
         &self,
         event: &Event,
@@ -358,6 +368,7 @@ impl GriteStore {
     }
 
     /// Update project context (LWW per key)
+    #[cfg(feature = "context")]
     fn update_project_context(
         &self,
         event: &Event,
@@ -549,8 +560,11 @@ impl GriteStore {
         self.label_index.clear()?;
         self.dep_forward.clear()?;
         self.dep_reverse.clear()?;
+        #[cfg(feature = "context")]
         self.context_files.clear()?;
+        #[cfg(feature = "context")]
         self.context_symbols.clear()?;
+        #[cfg(feature = "context")]
         self.context_project.clear()?;
 
         // Collect all events
@@ -599,8 +613,11 @@ impl GriteStore {
         self.label_index.clear()?;
         self.dep_forward.clear()?;
         self.dep_reverse.clear()?;
+        #[cfg(feature = "context")]
         self.context_files.clear()?;
+        #[cfg(feature = "context")]
         self.context_symbols.clear()?;
+        #[cfg(feature = "context")]
         self.context_project.clear()?;
         self.events.clear()?;
 
@@ -838,6 +855,7 @@ impl GriteStore {
     // --- Context Query Methods ---
 
     /// Get file context for a specific path
+    #[cfg(feature = "context")]
     pub fn get_file_context(&self, path: &str) -> Result<Option<FileContext>, GriteError> {
         let key = context_file_key(path);
         match self.context_files.get(&key)? {
@@ -847,6 +865,7 @@ impl GriteStore {
     }
 
     /// Query symbols by name prefix
+    #[cfg(feature = "context")]
     pub fn query_symbols(&self, query: &str) -> Result<Vec<(String, String)>, GriteError> {
         let prefix = context_symbol_prefix(query);
         let mut results = Vec::new();
@@ -869,6 +888,7 @@ impl GriteStore {
     }
 
     /// List all indexed file paths
+    #[cfg(feature = "context")]
     pub fn list_context_files(&self) -> Result<Vec<String>, GriteError> {
         let mut paths = Vec::new();
         for result in self.context_files.iter() {
@@ -883,6 +903,7 @@ impl GriteStore {
     }
 
     /// Get a project context entry by key
+    #[cfg(feature = "context")]
     pub fn get_project_context(
         &self,
         key: &str,
@@ -895,6 +916,7 @@ impl GriteStore {
     }
 
     /// List all project context entries
+    #[cfg(feature = "context")]
     pub fn list_project_context(&self) -> Result<Vec<(String, ProjectContextEntry)>, GriteError> {
         let mut entries = Vec::new();
         for result in self.context_project.iter() {
@@ -1024,6 +1046,7 @@ fn parse_dep_key_suffix(key: &[u8], prefix_len: usize) -> Option<(IssueId, Depen
 
 // Context key helpers
 
+#[cfg(feature = "context")]
 fn context_file_key(path: &str) -> Vec<u8> {
     let mut key = Vec::new();
     key.extend_from_slice(b"ctx/file/");
@@ -1031,6 +1054,7 @@ fn context_file_key(path: &str) -> Vec<u8> {
     key
 }
 
+#[cfg(feature = "context")]
 fn context_symbol_prefix(name: &str) -> Vec<u8> {
     let mut key = Vec::new();
     key.extend_from_slice(b"ctx/sym/");
@@ -1038,6 +1062,7 @@ fn context_symbol_prefix(name: &str) -> Vec<u8> {
     key
 }
 
+#[cfg(feature = "context")]
 fn context_symbol_key(name: &str, path: &str) -> Vec<u8> {
     let mut key = context_symbol_prefix(name);
     key.push(b'/');
@@ -1045,6 +1070,7 @@ fn context_symbol_key(name: &str, path: &str) -> Vec<u8> {
     key
 }
 
+#[cfg(feature = "context")]
 fn context_project_key(key_name: &str) -> Vec<u8> {
     let mut key = Vec::new();
     key.extend_from_slice(b"ctx/proj/");

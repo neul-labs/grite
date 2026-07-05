@@ -14,8 +14,9 @@ readme = "README.md"
 authors.workspace = true
 
 [features]
-default = []
+default = ["context"]
 async = ["dep:tokio"]
+context = ["libgrite-core/context"]
 
 [dependencies]
 libgrite-core = { path = "../libgrite-core", version = "0.5.1" }

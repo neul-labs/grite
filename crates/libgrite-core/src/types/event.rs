@@ -298,25 +298,28 @@ mod tests {
             .kind_tag(),
             12
         );
-        assert_eq!(
-            EventKind::ContextUpdated {
-                path: String::new(),
-                language: String::new(),
-                symbols: vec![],
-                summary: String::new(),
-                content_hash: [0; 32]
-            }
-            .kind_tag(),
-            13
-        );
-        assert_eq!(
-            EventKind::ProjectContextUpdated {
-                key: String::new(),
-                value: String::new()
-            }
-            .kind_tag(),
-            14
-        );
+        #[cfg(feature = "context")]
+        {
+            assert_eq!(
+                EventKind::ContextUpdated {
+                    path: String::new(),
+                    language: String::new(),
+                    symbols: vec![],
+                    summary: String::new(),
+                    content_hash: [0; 32]
+                }
+                .kind_tag(),
+                13
+            );
+            assert_eq!(
+                EventKind::ProjectContextUpdated {
+                    key: String::new(),
+                    value: String::new()
+                }
+                .kind_tag(),
+                14
+            );
+        }
     }
 
     #[test]

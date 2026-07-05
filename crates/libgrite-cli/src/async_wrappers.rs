@@ -140,6 +140,7 @@ pub async fn rebuild_async(
 }
 
 /// Async: index context.
+#[cfg(feature = "context")]
 pub async fn context_index_async(
     ctx: &GriteContext,
     opts: ContextIndexOptions,

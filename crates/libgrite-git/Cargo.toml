@@ -13,6 +13,10 @@ description = "Git WAL, sync, and snapshot operations for grite"
 readme = "README.md"
 authors.workspace = true
 
+[features]
+default = ["context"]
+context = ["libgrite-core/context"]
+
 [dependencies]
 libgrite-core = { path = "../libgrite-core", version = "0.5.1" }
 git2 = { workspace = true }

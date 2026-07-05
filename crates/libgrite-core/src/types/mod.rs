@@ -1,4 +1,5 @@
 pub mod actor;
+#[cfg(feature = "context")]
 pub mod context;
 pub mod event;
 pub mod ids;
