@@ -11,6 +11,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use serde::{Deserialize, Serialize};
 
 use crate::error::IpcError;
+use crate::host::{host_id, process_alive};
 use crate::DEFAULT_LEASE_MS;
 
 /// Daemon lock stored at `.git/grite/actors/<actor_id>/daemon.lock`
@@ -70,6 +71,40 @@ impl DaemonLock {
     /// Check if the lock has expired
     pub fn is_expired(&self) -> bool {
         current_time_ms() > self.expires_ts
+    }
+
+    /// Whether this lock was written by a process on the current host.
+    ///
+    /// PIDs are only comparable within a host, so every liveness check has to
+    /// be gated on this.
+    pub fn is_local_host(&self) -> bool {
+        self.host_id == host_id()
+    }
+
+    /// Whether the process that wrote this lock is still running.
+    ///
+    /// Returns `true` for locks written on another host: we cannot verify
+    /// them, so we must not assume they are dead.
+    pub fn holder_alive(&self) -> bool {
+        if !self.is_local_host() {
+            return true;
+        }
+        process_alive(self.pid)
+    }
+
+    /// Whether this lock can be reclaimed.
+    ///
+    /// A lock is stale when its lease has run out *or* when the process that
+    /// wrote it is gone. The second condition is what makes recovery from a
+    /// crashed daemon immediate instead of waiting out the full lease, during
+    /// which every command would otherwise fail with `db_busy`.
+    pub fn is_stale(&self) -> bool {
+        self.is_expired() || !self.holder_alive()
+    }
+
+    /// Whether this lock still represents a live holder.
+    pub fn is_live(&self) -> bool {
+        !self.is_stale()
     }
 
     /// Check if the lock is held by this process
@@ -141,13 +176,14 @@ impl DaemonLock {
 
         // Check for existing lock
         if let Some(existing) = Self::read(data_dir)? {
-            if !existing.is_expired() {
+            if existing.is_live() {
                 return Err(IpcError::LockHeld {
                     pid: existing.pid,
                     expires_in_ms: existing.time_remaining_ms(),
                 });
             }
-            // Lock is expired — remove it so we can create exclusively
+            // Lock is stale (lease expired, or the holder process is gone)
+            // — remove it so we can create exclusively.
             let _ = std::fs::remove_file(&path);
         }
 
@@ -173,6 +209,42 @@ impl DaemonLock {
                 Err(IpcError::LockRace)
             }
             Err(e) => Err(e.into()),
+        }
+    }
+
+    /// Remove the lock if it is stale, leaving live locks untouched.
+    ///
+    /// Returns the stale lock that was removed, if any. Used by the CLI to
+    /// recover after a daemon crash without stepping on a running daemon.
+    pub fn remove_if_stale(data_dir: &Path) -> Result<Option<Self>, IpcError> {
+        match Self::read(data_dir)? {
+            Some(lock) if lock.is_stale() => {
+                Self::remove(data_dir)?;
+                Ok(Some(lock))
+            }
+            _ => Ok(None),
+        }
+    }
+
+    /// Remove the lock if nothing can be using it, and report what was removed.
+    ///
+    /// Stronger than [`remove_if_stale`](Self::remove_if_stale): it also
+    /// clears a lock whose holder cannot be *verified* — one written on
+    /// another host, or naming a PID that has since been recycled — when
+    /// nothing is serving the endpoint that lock recorded. Such a lock cannot
+    /// be doing its job, whoever wrote it.
+    ///
+    /// This is the operator escape hatch, reached only from an explicit
+    /// `grite daemon stop`. Routing must stay conservative and use
+    /// `remove_if_stale`, so that a daemon which is merely wedged is reported
+    /// rather than having its lease pulled out from under it.
+    pub fn remove_if_unusable(data_dir: &Path) -> Result<Option<Self>, IpcError> {
+        match Self::read(data_dir)? {
+            Some(lock) if lock.is_stale() || !crate::probe::is_listening(&lock.ipc_endpoint) => {
+                Self::remove(data_dir)?;
+                Ok(Some(lock))
+            }
+            _ => Ok(None),
         }
     }
 
@@ -308,6 +380,204 @@ mod tests {
         .unwrap();
 
         assert!(new_lock.is_owned_by_current_process());
+    }
+
+    /// Spawn and reap a process so we have a PID that is certainly dead.
+    fn dead_pid() -> u32 {
+        let mut child = std::process::Command::new("true")
+            .spawn()
+            .expect("spawn /usr/bin/true");
+        let pid = child.id();
+        child.wait().expect("wait for child");
+        pid
+    }
+
+    #[test]
+    fn test_lock_with_dead_holder_is_stale_before_lease_expiry() {
+        let lock = DaemonLock::new(
+            dead_pid(),
+            "/repo".to_string(),
+            "actor".to_string(),
+            crate::host::host_id(),
+            "/tmp/test.sock".to_string(),
+        );
+
+        // The lease is still valid on the clock...
+        assert!(!lock.is_expired(), "lease should not have expired yet");
+        // ...but the holder is gone, so the lock must not be trusted.
+        assert!(!lock.holder_alive());
+        assert!(lock.is_stale());
+        assert!(!lock.is_live());
+    }
+
+    #[test]
+    fn test_lock_with_live_holder_is_not_stale() {
+        let lock = DaemonLock::new(
+            std::process::id(),
+            "/repo".to_string(),
+            "actor".to_string(),
+            crate::host::host_id(),
+            "/tmp/test.sock".to_string(),
+        );
+
+        assert!(lock.is_live());
+        assert!(!lock.is_stale());
+    }
+
+    #[test]
+    fn test_lock_from_foreign_host_is_not_probed_for_liveness() {
+        // A PID from another machine is meaningless here; the lock must be
+        // honoured until its lease runs out rather than assumed dead.
+        let lock = DaemonLock::new(
+            dead_pid(),
+            "/repo".to_string(),
+            "actor".to_string(),
+            "some-other-machine".to_string(),
+            "/tmp/test.sock".to_string(),
+        );
+
+        assert!(!lock.is_local_host());
+        assert!(lock.holder_alive());
+        assert!(lock.is_live());
+    }
+
+    #[test]
+    fn test_acquire_reclaims_lock_held_by_dead_process() {
+        let temp = TempDir::new().unwrap();
+        let data_dir = temp.path();
+
+        // A crashed daemon leaves a lock with a live lease but a dead PID.
+        DaemonLock::new(
+            dead_pid(),
+            "/repo".to_string(),
+            "actor".to_string(),
+            crate::host::host_id(),
+            "/tmp/old.sock".to_string(),
+        )
+        .write(data_dir)
+        .unwrap();
+
+        let new_lock = DaemonLock::acquire(
+            data_dir,
+            "/repo".to_string(),
+            "actor".to_string(),
+            crate::host::host_id(),
+            "/tmp/new.sock".to_string(),
+        )
+        .expect("should reclaim a lock whose holder is dead");
+
+        assert!(new_lock.is_owned_by_current_process());
+        assert_eq!(new_lock.ipc_endpoint, "/tmp/new.sock");
+    }
+
+    #[test]
+    fn test_acquire_refuses_lock_held_by_live_process() {
+        let temp = TempDir::new().unwrap();
+        let data_dir = temp.path();
+
+        DaemonLock::new(
+            std::process::id(),
+            "/repo".to_string(),
+            "actor".to_string(),
+            crate::host::host_id(),
+            "/tmp/live.sock".to_string(),
+        )
+        .write(data_dir)
+        .unwrap();
+
+        let result = DaemonLock::acquire(
+            data_dir,
+            "/repo".to_string(),
+            "actor".to_string(),
+            crate::host::host_id(),
+            "/tmp/new.sock".to_string(),
+        );
+
+        assert!(matches!(result, Err(IpcError::LockHeld { .. })));
+    }
+
+    #[test]
+    fn test_remove_if_stale_keeps_live_lock_and_drops_dead_one() {
+        let temp = TempDir::new().unwrap();
+        let data_dir = temp.path();
+
+        // Live holder: must survive.
+        DaemonLock::new(
+            std::process::id(),
+            "/repo".to_string(),
+            "actor".to_string(),
+            crate::host::host_id(),
+            "/tmp/live.sock".to_string(),
+        )
+        .write(data_dir)
+        .unwrap();
+        assert!(DaemonLock::remove_if_stale(data_dir).unwrap().is_none());
+        assert!(DaemonLock::read(data_dir).unwrap().is_some());
+
+        // Dead holder: must be cleaned up and reported.
+        DaemonLock::new(
+            dead_pid(),
+            "/repo".to_string(),
+            "actor".to_string(),
+            crate::host::host_id(),
+            "/tmp/dead.sock".to_string(),
+        )
+        .write(data_dir)
+        .unwrap();
+        let removed = DaemonLock::remove_if_stale(data_dir).unwrap();
+        assert_eq!(
+            removed.map(|l| l.ipc_endpoint).as_deref(),
+            Some("/tmp/dead.sock")
+        );
+        assert!(DaemonLock::read(data_dir).unwrap().is_none());
+    }
+
+    #[test]
+    fn test_remove_if_unusable_clears_a_foreign_host_lock_with_no_listener() {
+        let temp = TempDir::new().unwrap();
+        let data_dir = temp.path();
+
+        // A lock we cannot verify: another host, live lease, live-looking PID.
+        // Nothing is serving its endpoint, so it cannot be doing its job.
+        DaemonLock::new(
+            std::process::id(),
+            "/repo".to_string(),
+            "actor".to_string(),
+            "some-other-machine".to_string(),
+            "/tmp/grite-nothing-here-8c1d.sock".to_string(),
+        )
+        .write(data_dir)
+        .unwrap();
+
+        // The conservative path leaves it alone...
+        assert!(DaemonLock::remove_if_stale(data_dir).unwrap().is_none());
+        assert!(DaemonLock::read(data_dir).unwrap().is_some());
+
+        // ...and the operator escape hatch clears it.
+        let removed = DaemonLock::remove_if_unusable(data_dir).unwrap();
+        assert!(removed.is_some(), "an unreachable lock must be clearable");
+        assert!(DaemonLock::read(data_dir).unwrap().is_none());
+    }
+
+    #[test]
+    fn test_remove_if_unusable_keeps_a_lock_whose_endpoint_answers() {
+        let temp = TempDir::new().unwrap();
+        let data_dir = temp.path();
+        let socket = temp.path().join("live.sock");
+        let _listener = std::os::unix::net::UnixListener::bind(&socket).unwrap();
+
+        DaemonLock::new(
+            std::process::id(),
+            "/repo".to_string(),
+            "actor".to_string(),
+            crate::host::host_id(),
+            socket.to_str().unwrap().to_string(),
+        )
+        .write(data_dir)
+        .unwrap();
+
+        assert!(DaemonLock::remove_if_unusable(data_dir).unwrap().is_none());
+        assert!(DaemonLock::read(data_dir).unwrap().is_some());
     }
 
     #[test]

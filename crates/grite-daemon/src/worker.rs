@@ -76,7 +76,7 @@ impl Worker {
         host_id: String,
         ipc_endpoint: String,
     ) -> Result<Self, DaemonError> {
-        let git_dir = repo_root.join(".git");
+        let git_dir = resolve_git_dir(&repo_root)?;
         let grite_dir = git_dir.join("grite");
         let sled_path = repo_sled_path(&git_dir);
 
@@ -272,6 +272,82 @@ impl Worker {
             "Worker stopped"
         );
     }
+}
+
+/// Resolve the shared git directory for a repository root.
+///
+/// The CLI always sends the main repository root (it derives it from
+/// `commondir`), so `<root>/.git` is normally a directory. Resolve the two
+/// other shapes anyway so a worker never opens a sled store at a nonsense
+/// path and fails with a confusing I/O error:
+///
+/// - `<root>/.git` is a file (a linked worktree passed through directly):
+///   follow the `gitdir:` pointer, then its `commondir` to reach the shared
+///   directory where `refs/grite/wal` and the sled cache live.
+/// - `<root>` is itself a git directory (bare repository).
+///
+/// All grite state is keyed off the shared directory, so every linked
+/// worktree of a repository resolves to the same store.
+fn resolve_git_dir(repo_root: &Path) -> Result<PathBuf, DaemonError> {
+    let dot_git = repo_root.join(".git");
+
+    if dot_git.is_dir() {
+        return Ok(resolve_commondir(dot_git));
+    }
+
+    if dot_git.is_file() {
+        let contents = std::fs::read_to_string(&dot_git).map_err(|e| {
+            DaemonError::LockFailed(format!("Failed to read {}: {}", dot_git.display(), e))
+        })?;
+        let pointer = contents
+            .lines()
+            .find_map(|line| line.strip_prefix("gitdir:"))
+            .map(str::trim)
+            .ok_or_else(|| {
+                DaemonError::LockFailed(format!(
+                    "{} is not a valid gitlink (no gitdir: entry)",
+                    dot_git.display()
+                ))
+            })?;
+
+        let pointed = PathBuf::from(pointer);
+        let pointed = if pointed.is_absolute() {
+            pointed
+        } else {
+            repo_root.join(pointed)
+        };
+        return Ok(resolve_commondir(pointed));
+    }
+
+    // Bare repository: the root is the git directory.
+    if repo_root.join("HEAD").is_file() {
+        return Ok(resolve_commondir(repo_root.to_path_buf()));
+    }
+
+    Err(DaemonError::LockFailed(format!(
+        "{} is not a git repository",
+        repo_root.display()
+    )))
+}
+
+/// Follow a `commondir` file if present, so linked worktrees share one store.
+fn resolve_commondir(git_dir: PathBuf) -> PathBuf {
+    let commondir_file = git_dir.join("commondir");
+    let Ok(contents) = std::fs::read_to_string(&commondir_file) else {
+        return git_dir;
+    };
+    let target = contents.trim();
+    if target.is_empty() {
+        return git_dir;
+    }
+    let target = PathBuf::from(target);
+    let resolved = if target.is_absolute() {
+        target
+    } else {
+        git_dir.join(target)
+    };
+    // `.git/worktrees/<name>/commondir` is typically "../..", so normalise.
+    resolved.canonicalize().unwrap_or(resolved)
 }
 
 /// Execute a command with the given context.

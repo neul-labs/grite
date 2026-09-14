@@ -91,7 +91,7 @@ impl Supervisor {
 
         let state = Arc::new(DaemonState {
             daemon_id: uuid::Uuid::new_v4().to_string(),
-            host_id: get_host_id(),
+            host_id: libgrite_ipc::host_id(),
             pid: std::process::id(),
             started_ts,
             socket_path,
@@ -584,11 +584,4 @@ async fn send_to_worker(request: &IpcRequest, tx: mpsc::Sender<WorkerMessage>) -
             "Worker timed out".to_string(),
         ),
     }
-}
-
-/// Get a stable host identifier
-fn get_host_id() -> String {
-    std::env::var("HOSTNAME")
-        .or_else(|_| std::fs::read_to_string("/etc/hostname").map(|s| s.trim().to_string()))
-        .unwrap_or_else(|_| uuid::Uuid::new_v4().to_string())
 }

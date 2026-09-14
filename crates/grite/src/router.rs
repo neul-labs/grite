@@ -37,11 +37,31 @@ pub fn route_command(
         ExecutionMode::Local => {
             // Try to auto-spawn daemon unless --no-daemon is set
             if !cli.no_daemon {
-                if let Ok(Some(endpoint)) = ensure_daemon_running(cli) {
-                    // Daemon started, try to connect and route through it
-                    if let Ok(mut client) = IpcClient::connect(&endpoint) {
+                match ensure_daemon_running(cli).and_then(|endpoint| {
+                    IpcClient::connect(&endpoint).map_err(|e| {
+                        GriteError::Internal(format!(
+                            "Daemon is listening on {} but the connection failed: {}",
+                            endpoint, e
+                        ))
+                    })
+                }) {
+                    Ok(mut client) => {
                         let response = send_to_daemon(ctx, &mut client, command)?;
                         return Ok(RouteResult::DaemonResponse(response));
+                    }
+                    Err(e) => {
+                        // Falling back to direct sled access serialises badly
+                        // under concurrency, so never do it silently, and do
+                        // not do it at all when the caller demanded a daemon.
+                        if libgrite_ipc::require_daemon() {
+                            return Err(e);
+                        }
+                        eprintln!(
+                            "warning: {} — running this command in-process instead. \
+Concurrent grite processes may fail with db_busy; \
+run `grite daemon status` to diagnose.",
+                            e
+                        );
                     }
                 }
             }
