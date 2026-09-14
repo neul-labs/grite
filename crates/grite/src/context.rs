@@ -315,51 +315,73 @@ impl GriteContext {
         event
     }
 
-    /// Determine execution mode (local vs daemon)
+    /// Determine execution mode (local vs daemon).
+    ///
+    /// Reachability is decided by a `DaemonStatus` round-trip — the shared
+    /// oracle in `libgrite_ipc::probe` — not by reading `daemon.lock` and not
+    /// by a bare `connect()`. The lock is a worker's advisory lease over the
+    /// sled cache: it appears only once a worker exists, and it outlives a
+    /// daemon that crashed. A bare connect is no better: the kernel completes
+    /// the handshake from the listen backlog, so a wedged daemon still
+    /// accepts connections while answering nothing.
     ///
     /// Resolution order:
-    /// 1. If --no-daemon flag is set, always use Local
-    /// 2. Check for daemon.lock file in data directory
-    /// 3. If lock exists and is valid, try to connect to daemon
-    /// 4. If connection succeeds, return Daemon mode
-    /// 5. If lock is valid but connection fails, return Blocked
-    /// 6. If no lock or lock is expired, return Local
+    /// 1. `--no-daemon` forces Local.
+    /// 2. A *live* lock naming an endpoint that answers wins. The lease says
+    ///    which daemon owns the sled store, so routing anywhere else would
+    ///    reach a daemon that cannot open it. This must be checked before the
+    ///    configured endpoint, or a second daemon on a different socket
+    ///    steals the routing and every command fails `db_busy`.
+    /// 3. Otherwise the configured endpoint, if it answers.
+    /// 4. A live lock we could not reach means someone really does own the
+    ///    store and is not talking: report Blocked rather than contending.
+    /// 5. A stale lock is removed and we fall through to Local.
     pub fn execution_mode(&self, no_daemon: bool) -> ExecutionMode {
         // 1. Check --no-daemon flag
         if no_daemon {
             return ExecutionMode::Local;
         }
 
-        // 2. Check for daemon lock
-        match DaemonLock::read(&self.git_dir.join("grite")) {
-            Ok(Some(lock)) => {
-                // 3. Check if lock is still valid
-                if lock.is_expired() {
-                    // Lock expired, can execute locally
-                    return ExecutionMode::Local;
-                }
+        let endpoint = libgrite_ipc::default_socket_path();
+        let grite_dir = self.git_dir.join("grite");
+        let lock = DaemonLock::read(&grite_dir).ok().flatten();
 
-                // 4. Try to connect to daemon
-                match IpcClient::connect(&lock.ipc_endpoint) {
-                    Ok(client) => ExecutionMode::Daemon {
-                        endpoint: lock.ipc_endpoint.clone(),
-                        client,
-                    },
-                    Err(_) => {
-                        // 5. Lock valid but can't connect - blocked
-                        ExecutionMode::Blocked { lock }
-                    }
-                }
-            }
-            Ok(None) => {
-                // No lock file, execute locally
-                ExecutionMode::Local
-            }
-            Err(_) => {
-                // Error reading lock, execute locally
-                ExecutionMode::Local
+        // 5. The holder is gone (crashed, or its lease ran out): reclaim.
+        if let Some(ref lock) = lock {
+            if lock.is_stale() {
+                let _ = DaemonLock::remove(&grite_dir);
+                return Self::connect_mode(&endpoint).unwrap_or(ExecutionMode::Local);
             }
         }
+
+        // 2. Follow the live lease to whoever owns the sled store.
+        if let Some(ref lock) = lock {
+            if let Some(mode) = Self::connect_mode(&lock.ipc_endpoint) {
+                return mode;
+            }
+        }
+
+        // 3. The configured endpoint.
+        if let Some(mode) = Self::connect_mode(&endpoint) {
+            return mode;
+        }
+
+        // 4. A live process holds the cache but will not talk to us.
+        match lock {
+            Some(lock) => ExecutionMode::Blocked { lock },
+            None => ExecutionMode::Local,
+        }
+    }
+
+    /// Connect to `endpoint` if a daemon there answers a liveness probe.
+    fn connect_mode(endpoint: &str) -> Option<ExecutionMode> {
+        libgrite_ipc::probe_daemon(endpoint)?;
+        IpcClient::connect(endpoint)
+            .ok()
+            .map(|client| ExecutionMode::Daemon {
+                endpoint: endpoint.to_string(),
+                client,
+            })
     }
 }
 

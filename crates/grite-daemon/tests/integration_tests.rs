@@ -149,6 +149,7 @@ fn test_ipc_message_roundtrip() {
     let request = IpcRequest::new(
         "req-123".to_string(),
         "/tmp/repo".to_string(),
+        "/tmp/repo/.git".to_string(),
         "actor123".to_string(),
         "/tmp/data".to_string(),
         IpcCommand::IssueList {

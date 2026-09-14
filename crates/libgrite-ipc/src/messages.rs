@@ -16,8 +16,17 @@ pub struct IpcRequest {
     pub ipc_schema_version: u32,
     /// Unique request ID for correlation
     pub request_id: String,
-    /// Repository root path
+    /// Repository root path (the working tree, for logging and diagnostics)
     pub repo_root: String,
+    /// The shared git directory: `commondir`, resolved by the client.
+    ///
+    /// This is where `refs/grite/wal` and the sled cache live, and it is the
+    /// identity of a repository as far as the daemon is concerned. The client
+    /// resolves it with git2 (which handles linked worktrees, gitlink files
+    /// and `--separate-git-dir`) and sends the answer, rather than having the
+    /// daemon guess `<repo_root>/.git` — a guess that is wrong for every
+    /// layout except the common one.
+    pub git_dir: String,
     /// Actor ID (hex-encoded 16 bytes)
     pub actor_id: String,
     /// Data directory path
@@ -31,6 +40,7 @@ impl IpcRequest {
     pub fn new(
         request_id: String,
         repo_root: String,
+        git_dir: String,
         actor_id: String,
         data_dir: String,
         command: IpcCommand,
@@ -39,6 +49,7 @@ impl IpcRequest {
             ipc_schema_version: IPC_SCHEMA_VERSION,
             request_id,
             repo_root,
+            git_dir,
             actor_id,
             data_dir,
             command,
@@ -214,6 +225,7 @@ mod tests {
         let req = IpcRequest::new(
             "test-123".to_string(),
             "/path/to/repo".to_string(),
+            "/path/to/repo/.git".to_string(),
             "abcd1234".to_string(),
             ".git/grite/actors/abcd1234".to_string(),
             IpcCommand::IssueList {
@@ -223,6 +235,7 @@ mod tests {
         );
 
         assert_eq!(req.ipc_schema_version, IPC_SCHEMA_VERSION);
+        assert_eq!(req.git_dir, "/path/to/repo/.git");
         assert_eq!(req.request_id, "test-123");
     }
 
@@ -257,6 +270,7 @@ mod tests {
         let req = IpcRequest::new(
             "test-456".to_string(),
             "/repo".to_string(),
+            "/repo/.git".to_string(),
             "actor123".to_string(),
             ".git/grite/actors/actor123".to_string(),
             IpcCommand::IssueCreate {

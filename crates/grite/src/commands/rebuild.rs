@@ -48,6 +48,7 @@ fn rebuild_via_daemon(cli: &Cli, ctx: &GriteContext, endpoint: &str) -> Result<(
     let request = IpcRequest::new(
         uuid::Uuid::new_v4().to_string(),
         ctx.repo_root().to_string_lossy().to_string(),
+        ctx.git_dir.to_string_lossy().to_string(),
         ctx.actor_id.clone(),
         ctx.data_dir.to_string_lossy().to_string(),
         IpcCommand::Rebuild,

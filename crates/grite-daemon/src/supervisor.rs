@@ -38,10 +38,31 @@ struct WorkerHandle {
     state: Option<Arc<crate::state::AtomicWorkerState>>,
 }
 
-/// Key for worker lookup — one worker per repository
+/// Key for worker lookup — one worker per repository.
+///
+/// Keyed on the *shared git directory*, canonicalized. That is the thing a
+/// repository actually is here: every linked worktree of one repository
+/// resolves to the same `commondir`, and it is where the sled cache lives, so
+/// keying on it is what guarantees they share a single worker and a single
+/// store. Keying on the working-tree path instead would give each worktree its
+/// own worker, all fighting over one sled lock.
+///
+/// Canonicalizing matters on macOS, where `/tmp` and `/private/tmp` name the
+/// same directory: two clients spelling the path differently would otherwise
+/// get two workers and deadlock on the store.
 #[derive(Hash, Eq, PartialEq, Clone)]
 struct WorkerKey {
-    repo_root: String,
+    git_dir: String,
+}
+
+impl WorkerKey {
+    fn new(git_dir: &str) -> Self {
+        let path = PathBuf::from(git_dir);
+        let canonical = path.canonicalize().unwrap_or(path);
+        Self {
+            git_dir: canonical.to_string_lossy().to_string(),
+        }
+    }
 }
 
 /// Shared daemon state accessible from all connection tasks.
@@ -91,7 +112,7 @@ impl Supervisor {
 
         let state = Arc::new(DaemonState {
             daemon_id: uuid::Uuid::new_v4().to_string(),
-            host_id: get_host_id(),
+            host_id: libgrite_ipc::host_id(),
             pid: std::process::id(),
             started_ts,
             socket_path,
@@ -452,9 +473,7 @@ async fn process_request(raw: &[u8], state: &DaemonState) -> IpcResponse {
 /// `Worker::new` (which does blocking sled I/O). If two tasks race to
 /// create the same worker, the loser finds the winner's entry on re-check.
 async fn route_to_worker(request: IpcRequest, state: &DaemonState) -> IpcResponse {
-    let key = WorkerKey {
-        repo_root: request.repo_root.clone(),
-    };
+    let key = WorkerKey::new(&request.git_dir);
 
     // Fast path: check for existing live worker (mutex held briefly)
     {
@@ -481,14 +500,16 @@ async fn route_to_worker(request: IpcRequest, state: &DaemonState) -> IpcRespons
     // Worker::new opens the sled store which can block for seconds.
     let (tx, rx) = mpsc::channel(100);
     let repo_root = PathBuf::from(&request.repo_root);
+    let git_dir = PathBuf::from(&key.git_dir);
     let actor_id = request.actor_id.clone();
     let ntx = state.notify_tx.clone();
     let hid = state.host_id.clone();
     let ipc = state.socket_path.clone();
 
-    let worker_result =
-        tokio::task::spawn_blocking(move || Worker::new(repo_root, actor_id, rx, ntx, hid, ipc))
-            .await;
+    let worker_result = tokio::task::spawn_blocking(move || {
+        Worker::new(repo_root, git_dir, actor_id, rx, ntx, hid, ipc)
+    })
+    .await;
 
     let worker = match worker_result {
         Ok(Ok(w)) => w,
@@ -584,11 +605,4 @@ async fn send_to_worker(request: &IpcRequest, tx: mpsc::Sender<WorkerMessage>) -
             "Worker timed out".to_string(),
         ),
     }
-}
-
-/// Get a stable host identifier
-fn get_host_id() -> String {
-    std::env::var("HOSTNAME")
-        .or_else(|_| std::fs::read_to_string("/etc/hostname").map(|s| s.trim().to_string()))
-        .unwrap_or_else(|_| uuid::Uuid::new_v4().to_string())
 }

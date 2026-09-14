@@ -44,7 +44,7 @@ pub enum WorkerMessage {
 pub struct Worker {
     /// Repository root path
     pub repo_root: PathBuf,
-    /// Git directory (.git or worktree commondir)
+    /// Shared git directory (`commondir`), as resolved and sent by the client
     git_dir: PathBuf,
     /// Grite data directory (.git/grite) — used for daemon lock
     grite_dir: PathBuf,
@@ -70,13 +70,19 @@ impl Worker {
     /// Create a new worker
     pub fn new(
         repo_root: PathBuf,
+        git_dir: PathBuf,
         owner_actor_id: String,
         rx: mpsc::Receiver<WorkerMessage>,
         notify_tx: mpsc::Sender<Notification>,
         host_id: String,
         ipc_endpoint: String,
     ) -> Result<Self, DaemonError> {
-        let git_dir = repo_root.join(".git");
+        if !git_dir.is_dir() {
+            return Err(DaemonError::LockFailed(format!(
+                "{} is not a git directory",
+                git_dir.display()
+            )));
+        }
         let grite_dir = git_dir.join("grite");
         let sled_path = repo_sled_path(&git_dir);
 

@@ -83,13 +83,20 @@ async fn main() {
         .unwrap_or_else(libgrite_ipc::default_socket_path);
     let supervisor = Supervisor::new(endpoint, idle_timeout);
 
-    if let Err(e) = supervisor.run(shutdown).await {
-        error!("Supervisor error: {}", e);
-    }
+    let result = supervisor.run(shutdown).await;
 
     // Cleanup PID file
     if let Some(ref pid_file) = cli.pid_file {
         let _ = std::fs::remove_file(pid_file);
+    }
+
+    if let Err(e) = result {
+        // Exit non-zero so a supervising `grite daemon start` can tell the
+        // difference between "still coming up" and "died during startup",
+        // and can attribute the failure instead of timing out.
+        error!("Supervisor error: {}", e);
+        eprintln!("grite-daemon: {}", e);
+        std::process::exit(1);
     }
 
     info!("grite-daemon stopped");

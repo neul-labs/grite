@@ -74,6 +74,7 @@ fn send_request(
     let request = IpcRequest::new(
         request_id.to_string(),
         repo_root.to_string(),
+        format!("{}/.git", repo_root),
         actor_id.to_string(),
         data_dir.to_string(),
         command,
