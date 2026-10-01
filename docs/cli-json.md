@@ -268,9 +268,15 @@ The JSON blocks below describe the `data` payload inside the envelope.
   "pulled": true,
   "pushed": true,
   "wal_head": "<git-commit-hash>",
-  "remote_wal_head": "<git-commit-hash>"
+  "remote_wal_head": "<git-commit-hash>",
+  "lock_conflicts": [
+    { "resource": "path:src", "owner": "<actor_id>", "expires_in_ms": 599000 }
+  ]
 }
 ```
+
+`lock_conflicts` lists local locks that another actor holds on the remote. They
+are not pushed, and never stop the WAL from being pushed.
 
 ### `grite doctor`
 

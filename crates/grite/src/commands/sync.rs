@@ -5,7 +5,7 @@ use crate::context::GriteContext;
 use crate::output::{output_success, print_human};
 use libgrite_core::types::ids::ActorId;
 use libgrite_core::{lock::LockCheckResult, GriteError};
-use libgrite_git::WalManager;
+use libgrite_git::{LockConflict, WalManager};
 use serde::Serialize;
 
 /// Check repo lock for push operations
@@ -32,6 +32,28 @@ fn check_push_lock(cli: &Cli, ctx: &GriteContext) -> Result<(), GriteError> {
 }
 
 #[derive(Serialize)]
+struct LockConflictOutput {
+    resource: String,
+    owner: String,
+    expires_in_ms: u64,
+}
+
+/// Report lock conflicts to the user and convert them for JSON output.
+fn lock_conflicts(cli: &Cli, conflicts: &[LockConflict]) -> Vec<LockConflictOutput> {
+    for conflict in conflicts {
+        print_human(cli, &format!("Lock conflict: {}", conflict));
+    }
+    conflicts
+        .iter()
+        .map(|c| LockConflictOutput {
+            resource: c.resource.clone(),
+            owner: c.owner.clone(),
+            expires_in_ms: c.expires_in_ms,
+        })
+        .collect()
+}
+
+#[derive(Serialize)]
 struct SyncOutput {
     pulled: bool,
     pushed: bool,
@@ -41,6 +63,7 @@ struct SyncOutput {
     push_rebased: bool,
     push_events_rebased: usize,
     message: String,
+    lock_conflicts: Vec<LockConflictOutput>,
 }
 
 #[derive(Serialize)]
@@ -49,6 +72,7 @@ struct PullOutput {
     events: usize,
     wal_head: Option<String>,
     message: String,
+    lock_conflicts: Vec<LockConflictOutput>,
 }
 
 #[derive(Serialize)]
@@ -58,6 +82,7 @@ struct PushOutput {
     events_rebased: usize,
     backfilled: usize,
     message: String,
+    lock_conflicts: Vec<LockConflictOutput>,
 }
 
 pub fn run(cli: &Cli, remote: String, pull_only: bool, push_only: bool) -> Result<(), GriteError> {
@@ -107,6 +132,7 @@ pub fn run(cli: &Cli, remote: String, pull_only: bool, push_only: bool) -> Resul
                 success: result.success,
                 events: result.events_pulled,
                 wal_head: result.new_wal_head.map(|oid| oid.to_string()),
+                lock_conflicts: lock_conflicts(cli, &result.lock_conflicts),
                 message: result.message,
             },
         );
@@ -137,6 +163,7 @@ pub fn run(cli: &Cli, remote: String, pull_only: bool, push_only: bool) -> Resul
                 rebased: result.rebased,
                 events_rebased: result.events_rebased,
                 backfilled: 0,
+                lock_conflicts: lock_conflicts(cli, &result.lock_conflicts),
                 message: result.message,
             },
         );
@@ -181,6 +208,10 @@ pub fn run(cli: &Cli, remote: String, pull_only: bool, push_only: bool) -> Resul
                 push_success: push_result.success,
                 push_rebased: push_result.rebased,
                 push_events_rebased: push_result.events_rebased,
+                lock_conflicts: lock_conflicts(
+                    cli,
+                    &[pull_result.lock_conflicts, push_result.lock_conflicts].concat(),
+                ),
                 message: format!("{} / {}", pull_result.message, push_result.message),
             },
         );
